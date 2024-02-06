@@ -19,7 +19,17 @@ end
 
 puts "Running script from #{options[:script]}"
 
-class Runner; end
+# Runner interprets the bitcoin DSL using instance_eval
+class Runner
+  # Use method missing to invoke bitcoin RPC commands
+  def method_missing(method, *args, &_block)
+    node method, *args
+  end
+
+  def respond_to_missing?(_method, *)
+    true
+  end
+end
 
 node :start
 begin

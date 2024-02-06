@@ -8,13 +8,14 @@ CHAIN = :regtest
 RPCUSER = :test
 RPCPASS = :test
 
-def print_result(result)
+def pretty_print(result)
   puts JSON.pretty_generate result
 end
 
 def start_node
   command = "mkdir -p #{DIR} && \
-             bitcoind -datadir=#{DIR} -chain=#{CHAIN} -rpcuser=#{RPCUSER} -rpcpassword=#{RPCPASS} -daemonwait"
+             bitcoind -datadir=#{DIR} -chain=#{CHAIN} \
+             -rpcuser=#{RPCUSER} -rpcpassword=#{RPCPASS} -daemonwait -txindex"
   puts command
   system command
 end
@@ -36,7 +37,7 @@ end
 
 def run_rpc_command(command, *params)
   config = Bitcoin::Node::Configuration.new(network: CHAIN)
-  puts "Sending command '#{command}' with params #{params}"
+  # puts "Sending command '#{command}' with params #{params}"
   begin
     http, request = build_request command, config, *params
     response = http.request(request)
