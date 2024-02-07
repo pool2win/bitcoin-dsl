@@ -2,6 +2,8 @@
 
 require 'bitcoin'
 
+SATS = 100_000_000
+
 def key(params = {})
   if params.is_a?(Hash) && params.include?(:wif)
     Bitcoin::Key.from_wif params[:wif]
@@ -19,14 +21,54 @@ def transaction(params)
   tx
 end
 
-def add_inputs(tx, params)  
-  tx
+def add_inputs(transaction, params)
+  return transaction unless params.include? :inputs
+
+  params[:inputs].each do |input|
+    transaction.in << Bitcoin::TxIn.new(out_point: Bitcoin::OutPoint.from_txid(input[:txid], input[:vout]))
+  end
+  transaction
 end
 
-def add_outputs(tx, params)
-  tx
+def add_outputs(transaction, params)
+  return transaction unless params.include? :outputs
+
+  # TODO: Handle direct script, without parsing from address
+  params[:outputs].each do |output|
+    transaction.out << Bitcoin::TxOut.new(value: output[:value],
+                                          script_pubkey: Bitcoin::Script.parse_from_addr(output[:address]))
+  end
+  transaction
 end
 
-def add_signatures(tx, params)
-  tx
+def add_signatures(transaction, params)
+  return transaction unless params.include? :inputs
+
+  params[:inputs].each_with_index do |input, index|
+    signature = get_signature(transaction, input, index)
+    transaction.in[index].script_witness.stack << signature
+    transaction.in[index].script_witness.stack << input[:signature][:signed_by].pubkey.htb
+  end
+  transaction
+end
+
+def get_signature(transaction, input, index)
+  sig_hash = transaction.sighash_for_input(index,
+                                           input[:signature][:script_pubkey],
+                                           sig_version: input[:signature][:segwit_version],
+                                           amount: 50 * SATS)
+  input[:signature][:signed_by].sign(sig_hash) +
+    [Bitcoin::SIGHASH_TYPE[input[:signature][:sighash]]].pack('C')
+end
+
+def get_txid(block:, tx_index:)
+  block['tx'][tx_index]['txid']
+end
+
+def get_script_pubkey(block:, tx_index:, vout_index:)
+  Bitcoin::Script.parse_from_payload block['tx'][tx_index]['vout'][vout_index]['scriptPubKey']['hex'].htb
+end
+
+def get_value(block:, tx_index:, vout_index:)
+  (block['tx'][tx_index]['vout'][vout_index]['value'] * SATS).to_i
 end

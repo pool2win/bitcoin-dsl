@@ -47,11 +47,14 @@ def run_rpc_command(command, *params)
   end
 end
 
+# Build request from passed in params. Params contains a single hash,
+# and we only need the values. They keys are only useful to make the
+# DSL easier to read.
 def build_request(command, config, *params)
-  data = { method: command, params: params, id: 'jsonrpc' }
+  query_params = !params.empty? ? params[0].values : []
+  data = { method: command, params: query_params, id: 'jsonrpc' }
   uri = URI.parse(config.server_url)
   http = Net::HTTP.new(uri.hostname, uri.port)
-  http.use_ssl = false
   request = Net::HTTP::Post.new('/')
   request.basic_auth(RPCUSER, RPCPASS)
   request.content_type = 'application/json'
