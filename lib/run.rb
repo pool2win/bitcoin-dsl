@@ -23,17 +23,21 @@ puts "Running script from #{options[:script]}"
 
 # Runner interprets the bitcoin DSL using instance_eval
 class Runner
-  include  Test::Unit::Assertions
+  include Test::Unit::Assertions
   # Use method missing to invoke bitcoin RPC commands
   def method_missing(method, *args, &_block)
-    super unless COMMANDS.include? method
-    node method, *args
+    if COMMANDS.include? method
+      node method, *args
+    elsif BITCOIN_HASHES.include? :method
+      Bitcoin.send method, *args
+    else
+      super
+    end
   end
 
   def respond_to_missing?(method, *)
-    COMMANDS.include? method
+    COMMANDS.include? method or BITCOIN_HASHES.include? method
   end
-
 end
 
 node :start

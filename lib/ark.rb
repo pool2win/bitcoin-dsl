@@ -44,7 +44,7 @@ alice_boarding_tx = transaction inputs: [
 
 # Verify transaction is properly signed
 verification_result = alice_boarding_tx.verify_input_sig(0, coinbase_script_pubkey, amount: coinbase_amount)
-assert verification_result, 'Verifcation failed'
+assert verification_result, 'Transaction verifcation failed'
 
 accepted = testmempoolaccept rawtxs: [alice_boarding_tx.to_hex]
 assert accepted[0]['allowed'], "Alice boarding tx not accepted #{accepted.inspect}"

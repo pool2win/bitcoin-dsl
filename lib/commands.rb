@@ -137,3 +137,5 @@ COMMANDS = [
   :walletpassphrasechange,
   :walletprocesspsb
 ]
+
+BITCOIN_HASHES = %i[hash hash160 sha256 hmac_sha256 hmac_sha512]
