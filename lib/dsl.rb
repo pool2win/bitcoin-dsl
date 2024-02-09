@@ -70,7 +70,7 @@ module DSL
     sig_hash = transaction.sighash_for_input(index,
                                              input[:signature][:script_pubkey],
                                              sig_version: input[:signature][:segwit_version],
-                                             amount: 50 * SATS)
+                                             amount: input[:signature][:amount])
     input[:signature][:signed_by].sign(sig_hash) +
       [Bitcoin::SIGHASH_TYPE[input[:signature][:sighash]]].pack('C')
   end
@@ -98,6 +98,10 @@ module DSL
     result[2].strip # return the Wsh wrapped descriptor
   end
 
+  def get_height
+    getblockchaininfo['blocks']
+  end
+
   def get_block_at_height(height)
     blockhash = getblockhash height: height
     getblock hash: blockhash, verbosity: 2
@@ -117,6 +121,30 @@ module DSL
     script_pubkey = get_script_pubkey block: block, tx_index: tx_index, vout_index: vout_index
 
     [amount, txid, script_pubkey]
+  end
+
+  # Verify transaction input is properly signed
+  def verify_signature(transaction:, index:, script_pubkey:, amount:)
+    verification_result = transaction.verify_input_sig(index, script_pubkey, amount: amount)
+    assert verification_result, 'Input signature verification failed'
+  end
+
+  # Broadcast the transaction
+  def broadcast(transaction:)
+    accepted = testmempoolaccept rawtxs: [transaction.to_hex]
+    assert accepted[0]['allowed'], "Alice boarding tx not accepted #{accepted.inspect}"
+
+    assert_equal(sendrawtransaction(tx: @alice_boarding_tx.to_hex),
+                 transaction.txid,
+                 'Sending raw transaction failed')
+  end
+
+  # Confirm transaction, by mining block to given address
+  def confirm(transaction:, to_address:)
+    height = get_height
+    generatetoaddress num_blocks: 1, to: to_address
+    assert_equal height + 1, get_height, 'The height is not correct after boarding transaction'
+    assert_confirmed txid: transaction.txid, height: height + 1
   end
 
   def pretty_print(result)
