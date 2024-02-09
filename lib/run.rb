@@ -3,7 +3,7 @@
 require 'optparse'
 require 'test/unit'
 require_relative 'node'
-require_relative 'key'
+require_relative 'dsl'
 require_relative 'commands'
 
 ALICE_WIF = 'cRqVmDbyhw8kA9fWnAVJZDng3uTHfb71ELfpa8HBpTmkqLB2sA7f'
@@ -24,6 +24,7 @@ puts "Running script from #{options[:script]}"
 # Runner interprets the bitcoin DSL using instance_eval
 class Runner
   include Test::Unit::Assertions
+  include DSL
   # Use method missing to invoke bitcoin RPC commands
   def method_missing(method, *args, &_block)
     if COMMANDS.include? method

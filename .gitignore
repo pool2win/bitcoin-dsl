@@ -2,3 +2,4 @@
 .rspec
 bin/
 bitcoin/
+miniscript-cli/target

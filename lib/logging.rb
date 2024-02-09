@@ -11,7 +11,9 @@ module Logging
   # Global, memoized, lazy initialized instance of a logger
   def self.logger
     @logger ||= Logger.new($stdout)
-    @logger.level = Logger::INFO
+
+    log_level = ENV.fetch('LOG_LEVEL', 'INFO')
+    @logger.level = Logger.const_get(log_level)
     @logger
   end
 end

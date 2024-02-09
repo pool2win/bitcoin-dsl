@@ -36,8 +36,7 @@ def node(command, *params)
 end
 
 def run_rpc_command(command, *params)
-  config = Bitcoin::Node::Configuration.new(network: CHAIN)
-  # puts "Sending command '#{command}' with params #{params}"
+  config = Bitcoin::Node::Configuration.new(network: CHAIN) # puts "Sending command '#{command}' with params #{params}"
   begin
     http, request = build_request command, config, *params
     response = http.request(request)
