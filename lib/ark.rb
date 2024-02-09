@@ -1,16 +1,20 @@
 # frozen_string_literal: false
 
-# Print getblockchaininfo result to verify node is up and running
-logger.info pretty_print getblockchaininfo
+# Print new state of chain
+assert_equal 0, getblockchaininfo['blocks'], 'The height is not correct at genesis'
 
 # Generate new keys
 @alice = key :new
 @asp = key :new
 @asp_timelock = key :new
 
-# Get P2WPKH address for Alice and mine blocks allowing coinbase spend
-address = @alice.to_p2wpkh
-generatetoaddress num_blocks: 101, to: address
+# Get P2WPKH address for Alice and seed with some coins
+@alice_address = @alice.to_p2wpkh
+generatetoaddress num_blocks: 1, to: @alice_address
+
+# Get P2WPKH address for ASP and mine blocks allowing coinbase spend
+@asp_address = @alice.to_p2wpkh
+generatetoaddress num_blocks: 101, to: @asp_address
 
 # Get the first block mined to alice
 blockhash = getblockhash height: 1
@@ -20,6 +24,8 @@ block = getblock hash: blockhash, verbosity: 2
 coinbase_amount = get_value block: block, tx_index: 0, vout_index: 0
 coinbase_txid = get_txid block: block, tx_index: 0
 coinbase_script_pubkey = get_script_pubkey block: block, tx_index: 0, vout_index: 0
+
+logger.info 'Creating alice boarding transaction'
 
 # Create transaction with Alice spending 49 BTC to herself
 @alice_boarding_tx = transaction inputs: [
@@ -46,17 +52,30 @@ coinbase_script_pubkey = get_script_pubkey block: block, tx_index: 0, vout_index
 verification_result = @alice_boarding_tx.verify_input_sig(0, coinbase_script_pubkey, amount: coinbase_amount)
 assert verification_result, 'Transaction verifcation failed'
 
+# Test mempool will accept alice boarding transaction
 accepted = testmempoolaccept rawtxs: [@alice_boarding_tx.to_hex]
 assert accepted[0]['allowed'], "Alice boarding tx not accepted #{accepted.inspect}"
 
+# Broadcast alice boarding transaction
 send_result = sendrawtransaction tx: @alice_boarding_tx.to_hex
 assert_equal send_result, @alice_boarding_tx.txid, "Sending raw transaction failed. #{send_result}"
 
+# Confirm alice's boarding transaction
 generateblock to: @alice.to_p2wpkh
 
-logger.info pretty_print getblockchaininfo
+# Print new state of chain
+assert_equal 102, getblockchaininfo['blocks'], 'The height is not correct after boarding transaction'
 
 query_result = getrawtransaction txid: @alice_boarding_tx.txid
-assert query_result, 'Transaction not found in a confirmed block'
+assert query_result, 'Boarding transaction not found in a confirmed block'
 
-logger.debug query_result
+logger.info 'Boarding transaction confirmed'
+
+# @pool_transaction = transaction inputs: [
+#                                   {
+#                                   }
+#                                 ],
+#                                 outputs: [
+#                                   {}
+#                                 ],
+#                                 version: 2

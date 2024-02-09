@@ -9,7 +9,7 @@ SATS = 100_000_000
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL
   include Logging
-  
+
   def key(params = {})
     if params.is_a?(Hash) && params.include?(:wif)
       Bitcoin::Key.from_wif params[:wif]
