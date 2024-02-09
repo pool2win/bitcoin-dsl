@@ -36,9 +36,7 @@ coinbase_script_pubkey = get_script_pubkey block: block, tx_index: 0, vout_index
                                  ],
                                  outputs: [
                                    {
-                                     policy: 'pk($alice)',
-                                     # policy: 'or(thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
-                                     # address: @alice.to_p2wpkh,
+                                     policy: 'or(thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
                                      value: 49.999 * 100_000_000
                                    }
                                  ],
