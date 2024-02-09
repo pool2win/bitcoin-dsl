@@ -8,10 +8,6 @@ CHAIN = :regtest
 RPCUSER = :test
 RPCPASS = :test
 
-def pretty_print(result)
-  puts JSON.pretty_generate result
-end
-
 def start_node
   command = "mkdir -p #{DIR} && \
              bitcoind -datadir=#{DIR} -chain=#{CHAIN} \

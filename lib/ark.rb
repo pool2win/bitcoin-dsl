@@ -1,7 +1,7 @@
 # frozen_string_literal: false
 
 # Print getblockchaininfo result to verify node is up and running
-pretty_print getblockchaininfo
+logger.info pretty_print getblockchaininfo
 
 # Generate new keys
 @alice = key :new
@@ -15,7 +15,6 @@ generatetoaddress num_blocks: 101, to: address
 # Get the first block mined to alice
 blockhash = getblockhash height: 1
 block = getblock hash: blockhash, verbosity: 2
-# pretty_print block
 
 # Extract coinbase from first block for alice data to use as input in first spending transaction
 coinbase_amount = get_value block: block, tx_index: 0, vout_index: 0
@@ -57,7 +56,9 @@ assert_equal send_result, @alice_boarding_tx.txid, "Sending raw transaction fail
 
 generateblock to: @alice.to_p2wpkh
 
-pretty_print getblockchaininfo
+logger.info pretty_print getblockchaininfo
 
 query_result = getrawtransaction txid: @alice_boarding_tx.txid
 assert query_result, 'Transaction not found in a confirmed block'
+
+logger.debug query_result

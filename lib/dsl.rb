@@ -97,4 +97,8 @@ module DSL
     logger.debug "scriptpubkey: #{result[1]}"
     result[2].strip # return the Wsh wrapped descriptor
   end
+
+  def pretty_print(result)
+    JSON.pretty_generate result
+  end
 end
