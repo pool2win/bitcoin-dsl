@@ -98,6 +98,27 @@ module DSL
     result[2].strip # return the Wsh wrapped descriptor
   end
 
+  def get_block_at_height(height)
+    blockhash = getblockhash height: height
+    getblock hash: blockhash, verbosity: 2
+  end
+
+  def assert_confirmed(txid:, height:)
+    blockhash = getblockhash height: height
+    tx = getrawtransaction txid: txid, verbose: true, block: blockhash
+    assert tx['in_active_chain'], "Transaction #{txid} not confirmed"
+  end
+
+  def extract_output_details(blockheight:, tx_index:, vout_index:)
+    block = get_block_at_height blockheight
+
+    amount = get_value block: block, tx_index: tx_index, vout_index: vout_index
+    txid = get_txid block: block, tx_index: tx_index
+    script_pubkey = get_script_pubkey block: block, tx_index: tx_index, vout_index: vout_index
+
+    [amount, txid, script_pubkey]
+  end
+
   def pretty_print(result)
     JSON.pretty_generate result
   end

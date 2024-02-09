@@ -8,22 +8,19 @@ assert_equal 0, getblockchaininfo['blocks'], 'The height is not correct at genes
 @asp = key :new
 @asp_timelock = key :new
 
-# Get P2WPKH address for Alice and seed with some coins
+# Seed alice with some coins
 @alice_address = @alice.to_p2wpkh
 generatetoaddress num_blocks: 1, to: @alice_address
 
-# Get P2WPKH address for ASP and mine blocks allowing coinbase spend
+# Seed asp with some coins and make coinbase spendable
 @asp_address = @alice.to_p2wpkh
 generatetoaddress num_blocks: 101, to: @asp_address
 
-# Get the first block mined to alice
-blockhash = getblockhash height: 1
-block = getblock hash: blockhash, verbosity: 2
+assert_equal 102, getblockchaininfo['blocks'], 'The height is not correct at genesis'
 
-# Extract coinbase from first block for alice data to use as input in first spending transaction
-coinbase_amount = get_value block: block, tx_index: 0, vout_index: 0
-coinbase_txid = get_txid block: block, tx_index: 0
-coinbase_script_pubkey = get_script_pubkey block: block, tx_index: 0, vout_index: 0
+coinbase_amount, coinbase_txid, coinbase_script_pubkey = extract_output_details blockheight: 1,
+                                                                                tx_index: 0,
+                                                                                vout_index: 0
 
 logger.info 'Creating alice boarding transaction'
 
@@ -60,14 +57,11 @@ assert accepted[0]['allowed'], "Alice boarding tx not accepted #{accepted.inspec
 send_result = sendrawtransaction tx: @alice_boarding_tx.to_hex
 assert_equal send_result, @alice_boarding_tx.txid, "Sending raw transaction failed. #{send_result}"
 
-# Confirm alice's boarding transaction
-generateblock to: @alice.to_p2wpkh
+generatetoaddress num_blocks: 1, to: @alice.to_p2wpkh
 
-# Print new state of chain
-assert_equal 102, getblockchaininfo['blocks'], 'The height is not correct after boarding transaction'
+assert_equal 103, getblockchaininfo['blocks'], 'The height is not correct after boarding transaction'
 
-query_result = getrawtransaction txid: @alice_boarding_tx.txid
-assert query_result, 'Boarding transaction not found in a confirmed block'
+assert_confirmed txid: @alice_boarding_tx.txid, height: 103
 
 logger.info 'Boarding transaction confirmed'
 
