@@ -10,6 +10,7 @@ SATS = 100_000_000
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL
   include Logging
+  DEFAULT_TX_VERSION = 2
 
   def key(params = {})
     if params.is_a?(Hash) && params.include?(:wif)
@@ -23,7 +24,7 @@ module DSL
     tx = Bitcoin::Tx.new
     tx = add_inputs(tx, params) if params.include? :inputs
     tx = add_outputs(tx, params) if params.include? :outputs
-    tx.version = params[:version] if params.include? :version
+    tx.version = params[:version] || DEFAULT_TX_VERSION
     add_signatures(tx, params) if params.include? :inputs
     tx
   end
