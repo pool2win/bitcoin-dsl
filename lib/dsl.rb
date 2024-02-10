@@ -11,6 +11,8 @@ SATS = 100_000_000
 module DSL
   include Logging
   DEFAULT_TX_VERSION = 2
+  DEFAULT_SEGWIT_VERSION = :witness_v0
+  DEFAULT_SIGHASH_TYPE = :all
 
   def key(params = {})
     if params.is_a?(Hash) && params.include?(:wif)
@@ -71,10 +73,11 @@ module DSL
   def get_signature(transaction, input, index)
     sig_hash = transaction.sighash_for_input(index,
                                              input[:signature][:script_pubkey],
-                                             sig_version: input[:signature][:segwit_version],
+                                             sig_version:
+                                               input.dig(:signature, :segwit_version) || DEFAULT_SEGWIT_VERSION,
                                              amount: input[:signature][:amount])
-    input[:signature][:signed_by].sign(sig_hash) +
-      [Bitcoin::SIGHASH_TYPE[input[:signature][:sighash]]].pack('C')
+    sighash_type = input.dig(:signature, :sighash) || DEFAULT_SIGHASH_TYPE
+    input[:signature][:signed_by].sign(sig_hash) + [Bitcoin::SIGHASH_TYPE[sighash_type]].pack('C')
   end
 
   def get_txid(block:, tx_index:)

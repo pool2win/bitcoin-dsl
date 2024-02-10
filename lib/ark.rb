@@ -32,10 +32,8 @@ logger.info 'Creating alice boarding transaction'
                                      txid: @coinbase_details.txid,
                                      vout: 0,
                                      signature: {
-                                       sighash: :all,
                                        signed_by: @alice,
                                        script_pubkey: @coinbase_details.script_pubkey,
-                                       segwit_version: :witness_v0,
                                        amount: @coinbase_details.amount
                                      }
                                    }
