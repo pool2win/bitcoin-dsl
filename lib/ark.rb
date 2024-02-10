@@ -20,23 +20,23 @@ generatetoaddress num_blocks: 101,
 
 assert_equal 102, getblockchaininfo['blocks'], 'The height is not correct at genesis'
 
-@coinbase_amount, @coinbase_txid, @coinbase_script_pubkey = extract_output_details blockheight: 1,
-                                                                                   tx_index: 0,
-                                                                                   vout_index: 0
+@coinbase_details = extract_txid_vout blockheight: 1,
+                                      tx_index: 0,
+                                      vout_index: 0
 
 logger.info 'Creating alice boarding transaction'
 
 # Create transaction with Alice spending 49 BTC to herself
 @alice_boarding_tx = transaction inputs: [
                                    {
-                                     txid: @coinbase_txid,
+                                     txid: @coinbase_details.txid,
                                      vout: 0,
                                      signature: {
                                        sighash: :all,
                                        signed_by: @alice,
-                                       script_pubkey: @coinbase_script_pubkey,
+                                       script_pubkey: @coinbase_details.script_pubkey,
                                        segwit_version: :witness_v0,
-                                       amount: @coinbase_amount
+                                       amount: @coinbase_details.amount
                                      }
                                    }
                                  ],
@@ -50,8 +50,8 @@ logger.info 'Creating alice boarding transaction'
 
 verify_signature transaction: @alice_boarding_tx,
                  index: 0,
-                 script_pubkey: @coinbase_script_pubkey,
-                 amount: @coinbase_amount
+                 script_pubkey: @coinbase_details.script_pubkey,
+                 amount: @coinbase_details.amount
 
 broadcast transaction: @alice_boarding_tx
 confirm transaction: @alice_boarding_tx, to_address: @alice_address

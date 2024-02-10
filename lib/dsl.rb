@@ -2,6 +2,7 @@
 
 require 'bitcoin'
 require 'open3'
+require 'ostruct'
 require_relative 'logging'
 
 SATS = 100_000_000
@@ -113,14 +114,14 @@ module DSL
     assert tx['in_active_chain'], "Transaction #{txid} not confirmed"
   end
 
-  def extract_output_details(blockheight:, tx_index:, vout_index:)
+  def extract_txid_vout(blockheight:, tx_index:, vout_index:)
     block = get_block_at_height blockheight
 
     amount = get_value block: block, tx_index: tx_index, vout_index: vout_index
     txid = get_txid block: block, tx_index: tx_index
     script_pubkey = get_script_pubkey block: block, tx_index: tx_index, vout_index: vout_index
 
-    [amount, txid, script_pubkey]
+    OpenStruct.new(amount: amount, txid: txid, script_pubkey: script_pubkey)
   end
 
   # Verify transaction input is properly signed
