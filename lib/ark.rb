@@ -27,10 +27,14 @@ extend_chain num_blocks: 101, to: @asp
 
 assert_equal 102, getblockchaininfo['blocks'], 'The height is not correct'
 
-spend_coinbase height: 1,
-               signed_by: @alice,
-               to_script: 'or(thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
-               amount: 49.999 * SATS,
-               new_coinbase_to: @alice
+@alice_boarding_tx = spend_coinbase height: 1,
+                                    signed_by: @alice,
+                                    to_script: 'or(thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
+                                    amount: 49.999 * SATS,
+                                    new_coinbase_to: @alice
+
+# TODO: Add the following DSL commands
+# assert is_spendable @alice_boarding_tx
+# assert is_spent coinbase_at height: 1
 
 logger.info 'Boarding transaction confirmed'

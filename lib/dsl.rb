@@ -162,6 +162,8 @@ module DSL
     assert_confirmed txid: transaction.txid, height: height + 1
   end
 
+  # Spend the coinbase transaction at the given height.
+  # Return the spending transaction.
   def spend_coinbase(height:, signed_by:, to_script:, amount:, new_coinbase_to:)
     utxo_details = extract_txid_vout blockheight: height, tx_index: 0, vout_index: 0
     tx = create_tx(utxo_details: utxo_details, signed_by: signed_by, to_script: to_script, amount: amount)
@@ -171,6 +173,7 @@ module DSL
                      amount: utxo_details.amount
     broadcast transaction: tx
     confirm transaction: tx, to: new_coinbase_to
+    tx
   end
 
   def create_tx(utxo_details:, signed_by:, to_script:, amount:)
