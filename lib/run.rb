@@ -25,6 +25,11 @@ puts "Running script from #{options[:script]}"
 class Runner
   include Test::Unit::Assertions
   include DSL
+
+  def initialize
+    @txid_signers = {}
+  end
+
   # Use method missing to invoke bitcoin RPC commands
   def method_missing(method, *args, &_block)
     if COMMANDS.include? method

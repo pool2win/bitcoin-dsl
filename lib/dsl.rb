@@ -92,6 +92,16 @@ module DSL
     (block['tx'][tx_index]['vout'][vout_index]['value'] * SATS).to_i
   end
 
+  def extend_chain(to:, num_blocks: 1)
+    logger.debug "Extending chain by #{num_blocks} blocks"
+    address = to.to_p2wpkh
+    blockhashes = generatetoaddress num_blocks: num_blocks, to: address
+    blockhashes.each do |blockhash|
+      block = getblock hash: blockhash, verbosity: 2
+      @txid_signers[get_txid(block: block, tx_index: 0)] = to
+    end
+  end
+
   def compile_miniscript(script)
     policy = script.gsub!(/(\$)(\w+)/) { instance_eval("@#{Regexp.last_match(-1)}", __FILE__, __LINE__).pubkey }
     output = `miniscript-cli -m '#{policy}'`
@@ -139,18 +149,44 @@ module DSL
     accepted = testmempoolaccept rawtxs: [transaction.to_hex]
     assert accepted[0]['allowed'], "Alice boarding tx not accepted #{accepted.inspect}"
 
-    assert_equal(sendrawtransaction(tx: @alice_boarding_tx.to_hex),
+    assert_equal(sendrawtransaction(tx: transaction.to_hex),
                  transaction.txid,
                  'Sending raw transaction failed')
   end
 
   # Confirm transaction, by mining block to given address
-  def confirm(transaction:, to_address:)
+  def confirm(transaction:, to:)
     height = get_height
-    generatetoaddress num_blocks: 1, to: to_address
-    assert_equal height + 1, get_height, 'The height is not correct after boarding transaction'
+    extend_chain num_blocks: 1, to: to
+    assert_equal height + 1, get_height, 'Tip height mismatch'
     assert_confirmed txid: transaction.txid, height: height + 1
   end
+
+  def spend_coinbase(height:, signed_by:, to_script:, amount:, new_coinbase_to:)
+    utxo_details = extract_txid_vout blockheight: height, tx_index: 0, vout_index: 0
+    tx = create_tx(utxo_details: utxo_details, signed_by: signed_by, to_script: to_script, amount: amount)
+    verify_signature transaction: tx,
+                     index: 0,
+                     script_pubkey: utxo_details.script_pubkey,
+                     amount: utxo_details.amount
+    broadcast transaction: tx
+    confirm transaction: tx, to: new_coinbase_to
+  end
+
+  def create_tx(utxo_details:, signed_by:, to_script:, amount:)
+    transaction inputs: [
+                  {
+                    txid: utxo_details.txid,
+                    vout: 0,
+                    signature: { signed_by: signed_by, script_pubkey: utxo_details.script_pubkey, amount: utxo_details.amount }
+                  }
+                ],
+                outputs: [
+                  { policy: to_script, value: amount }
+                ]
+  end
+
+  def spend_utxo(txid:, vout:, to_script:); end
 
   def pretty_print(result)
     JSON.pretty_generate result
