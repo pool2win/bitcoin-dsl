@@ -27,7 +27,7 @@ module Broadcast
     height = get_height
     extend_chain num_blocks: 1, to: to
     assert_equal height + 1, get_height, 'Tip height mismatch'
-    assert_confirmed txid: transaction.txid, height: height + 1
+    assert_confirmed transaction: transaction, at_height: height + 1
   end
 
   # Spend the coinbase transaction at the given height.
@@ -44,5 +44,5 @@ module Broadcast
     tx
   end
 
-  def spend_utxo(txid:, vout:, to_script:); end  
+  def spend_utxo(txid:, vout:, to_script:); end
 end

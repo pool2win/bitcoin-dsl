@@ -75,7 +75,9 @@ module Transaction
                   {
                     txid: utxo_details.txid,
                     vout: 0,
-                    signature: { signed_by: signed_by, script_pubkey: utxo_details.script_pubkey, amount: utxo_details.amount }
+                    signature: { signed_by: signed_by,
+                                 script_pubkey: utxo_details.script_pubkey,
+                                 amount: utxo_details.amount }
                   }
                 ],
                 outputs: [

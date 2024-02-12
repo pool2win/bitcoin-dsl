@@ -33,8 +33,6 @@ assert_equal 102, getblockchaininfo['blocks'], 'The height is not correct'
                                     amount: 49.999 * SATS,
                                     new_coinbase_to: @alice
 
-# TODO: Add the following DSL commands
-# assert is_spendable @alice_boarding_tx
-# assert is_spent coinbase_at height: 1
+assert_confirmed transaction: @alice_boarding_tx, at_height: 1
 
 logger.info 'Boarding transaction confirmed'

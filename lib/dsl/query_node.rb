@@ -23,10 +23,11 @@ module QueryNode
     getblock hash: blockhash, verbosity: 2
   end
 
-  def assert_confirmed(txid:, height:)
-    blockhash = getblockhash height: height
-    tx = getrawtransaction txid: txid, verbose: true, block: blockhash
-    assert tx['in_active_chain'], "Transaction #{txid} not confirmed"
+  def assert_confirmed(transaction:, at_height:, txid: nil)
+    blockhash = getblockhash height: at_height
+    txid ||= transaction.txid if transaction
+    tx = getrawtransaction txid: txid, verbose: true, block: blockhash['hash']
+    assert_not_nil tx, "Transaction #{txid} not confirmed"
   end
 
   def extract_txid_vout(blockheight:, tx_index:, vout_index:)
