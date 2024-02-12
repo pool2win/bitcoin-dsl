@@ -32,9 +32,9 @@ module Broadcast
 
   # Spend the coinbase transaction at the given height.
   # Return the spending transaction.
-  def spend_coinbase(height:, signed_by:, to_script:, amount:, new_coinbase_to:)
+  def spend_coinbase(height:, signed_by:, output_script:, amount:, new_coinbase_to:)
     utxo_details = extract_txid_vout blockheight: height, tx_index: 0, vout_index: 0
-    tx = create_tx(utxo_details: utxo_details, signed_by: signed_by, to_script: to_script, amount: amount)
+    tx = create_tx(utxo_details: utxo_details, signed_by: signed_by, output_script: output_script, amount: amount)
     verify_signature transaction: tx,
                      index: 0,
                      script_pubkey: utxo_details.script_pubkey,
@@ -44,5 +44,5 @@ module Broadcast
     tx
   end
 
-  def spend_utxo(txid:, vout:, to_script:); end
+  def spend_utxo(txid:, vout:, output_script:); end
 end

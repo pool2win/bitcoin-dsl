@@ -27,7 +27,7 @@ module QueryNode
     blockhash = getblockhash height: at_height
     txid ||= transaction.txid if transaction
     tx = getrawtransaction txid: txid, verbose: true, block: blockhash['hash']
-    assert_not_nil tx, "Transaction #{txid} not confirmed"
+    assert_equal blockhash, tx['blockhash'], "Transaction #{txid} not confirmed"
   end
 
   def extract_txid_vout(blockheight:, tx_index:, vout_index:)

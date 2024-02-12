@@ -19,7 +19,12 @@ module Transaction
     return transaction unless params.include? :inputs
 
     params[:inputs].each do |input|
-      transaction.in << Bitcoin::TxIn.new(out_point: Bitcoin::OutPoint.from_txid(input[:txid], input[:vout]))
+      if input.include? :txid
+        txid = input[:txid]
+      elsif input.include? :tx
+        txid = input[:tx].txid
+      end
+      transaction.in << Bitcoin::TxIn.new(out_point: Bitcoin::OutPoint.from_txid(txid, input[:vout]))
     end
     transaction
   end
@@ -55,10 +60,10 @@ module Transaction
   end
 
   def get_signature(transaction, input, index)
+    segwit_version = input.dig(:signature, :segwit_version) || DEFAULT_SEGWIT_VERSION
     sig_hash = transaction.sighash_for_input(index,
                                              input[:signature][:script_pubkey],
-                                             sig_version:
-                                               input.dig(:signature, :segwit_version) || DEFAULT_SEGWIT_VERSION,
+                                             sig_version: segwit_version,
                                              amount: input[:signature][:amount])
     sighash_type = input.dig(:signature, :sighash) || DEFAULT_SIGHASH_TYPE
     input[:signature][:signed_by].sign(sig_hash) + [Bitcoin::SIGHASH_TYPE[sighash_type]].pack('C')
@@ -70,7 +75,7 @@ module Transaction
     assert verification_result, 'Input signature verification failed'
   end
 
-  def create_tx(utxo_details:, signed_by:, to_script:, amount:)
+  def create_tx(utxo_details:, signed_by:, output_script:, amount:)
     transaction inputs: [
                   {
                     txid: utxo_details.txid,
@@ -81,7 +86,7 @@ module Transaction
                   }
                 ],
                 outputs: [
-                  { policy: to_script, value: amount }
+                  { policy: output_script, value: amount }
                 ]
   end
 end
