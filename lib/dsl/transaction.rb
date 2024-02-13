@@ -43,10 +43,17 @@ module Transaction
 
   def build_script_pubkey(output)
     if output.include? :address
-      Bitcoin::Script.parse_from_addr(output[:address])
+      address = parse_address(output[:address])
+      Bitcoin::Script.parse_from_addr(address)
     elsif output.include? :policy
       Bitcoin::Script.parse_from_addr(compile_miniscript(output[:policy]))
     end
+  end
+
+  # Parses address s.t. if there is a p2wpkh tag, we generate a corresponding address for the key.
+  # If there are no tags in the address, we return the received address as it is.
+  def parse_address(address)
+    address.gsub!(/(p2wpkh:)(\w+)/) { instance_eval("@#{Regexp.last_match(-1)}").to_p2wpkh }
   end
 
   def add_signatures(transaction, params)
