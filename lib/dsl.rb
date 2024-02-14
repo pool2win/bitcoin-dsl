@@ -8,7 +8,7 @@ require_relative 'dsl/broadcast'
 require_relative 'dsl/key'
 require_relative 'dsl/transaction'
 require_relative 'dsl/query_node'
-require_relative 'dsl/miniscript'
+require_relative 'dsl/compile_script'
 
 SATS = 100_000_000
 
@@ -18,10 +18,12 @@ module DSL
   include Key
   include Transaction
   include QueryNode
-  include Miniscript
+  include CompileScript
   include Broadcast
 
   def pretty_print(result)
-    JSON.pretty_generate result
+    puts JSON.pretty_generate result
   end
+
+  alias pp pretty_print
 end

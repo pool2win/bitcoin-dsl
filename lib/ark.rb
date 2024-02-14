@@ -27,24 +27,41 @@ extend_chain num_blocks: 101, to: @asp
 
 assert_equal get_height, 102, 'The height is not correct'
 
-@alice_boarding_tx = spend_coinbase height: 1,
-                                    signed_by: @alice,
-                                    output_script: 'or(thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
-                                    amount: 49.999 * SATS,
-                                    new_coinbase_to: @alice
+coinbase_tx = get_coinbase_at 2
 
-assert_confirmed transaction: @alice_boarding_tx, at_height: 103
+@alice_boarding_tx = spend inputs: [
+                             { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:asp', sighash: :all }
+                           ],
+                           outputs: [
+                             {
+                               policy: 'or(thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
+                               amount: 49.999 * SATS
+                             }
+                           ]
+
+verify_signature for_transaction: @alice_boarding_tx,
+                 at_index: 0,
+                 with_prevout: [coinbase_tx, 0]
+
+broadcast transaction: @alice_boarding_tx
+
+confirm transaction: @alice_boarding_tx, to: @alice
 
 # @spend_tx = spend transaction: @alice_boarding_tx,
 #                   vout: 0,
 #                   script_sig: 'sig:asp sig:alice 0',
 #                   outputs: [
 #                     {
-#                       address: 'p2wpkh asp',
+#                       address: 'p2wpkh:asp',
 #                       value: 49.998 * SATS
 #                     }
 #                   ]
 
-# assert_confirmed transaction: @spend_tx, at_height: 103
+# puts @spend_tx
+
+# broadcast transaction: tx
+# confirm transaction: tx, coinbase_to: @alice
+
+# assert_confirmed transaction: @spend_tx, at_height: 104
 
 logger.info 'Boarding transaction confirmed'

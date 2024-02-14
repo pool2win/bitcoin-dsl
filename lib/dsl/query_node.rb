@@ -23,20 +23,28 @@ module QueryNode
     getblock hash: blockhash, verbosity: 2
   end
 
+  # Assert the provided transaction is spent on chain
+  # Returns the raw transaction loaded from the chain
   def assert_confirmed(transaction:, at_height:, txid: nil)
     blockhash = getblockhash height: at_height
     txid ||= transaction.txid if transaction
     tx = getrawtransaction txid: txid, verbose: true, block: blockhash['hash']
     assert_equal blockhash, tx['blockhash'], "Transaction #{txid} not confirmed"
+    tx
   end
 
-  def extract_txid_vout(blockheight:, tx_index:, vout_index:)
-    block = get_block_at_height blockheight
+  # def get_utxo_details(blockheight:, tx_index:, vout_index:)
+  #   block = get_block_at_height blockheight
 
-    amount = get_value block: block, tx_index: tx_index, vout_index: vout_index
-    txid = get_txid block: block, tx_index: tx_index
-    script_pubkey = get_script_pubkey block: block, tx_index: tx_index, vout_index: vout_index
+  #   amount = get_value block: block, tx_index: tx_index, vout_index: vout_index
+  #   txid = get_txid block: block, tx_index: tx_index
+  #   script_pubkey = get_script_pubkey block: block, tx_index: tx_index, vout_index: vout_index
 
-    OpenStruct.new(amount: amount, txid: txid, script_pubkey: script_pubkey)
+  #   OpenStruct.new(amount: amount, txid: txid, script_pubkey: script_pubkey)
+  # end
+
+  def get_coinbase_at(height)
+    block = get_block_at_height height
+    block['tx'][0]
   end
 end

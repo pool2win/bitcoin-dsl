@@ -19,12 +19,7 @@ module Transaction
     return transaction unless params.include? :inputs
 
     params[:inputs].each do |input|
-      if input.include? :txid
-        txid = input[:txid]
-      elsif input.include? :tx
-        txid = input[:tx].txid
-      end
-      transaction.in << Bitcoin::TxIn.new(out_point: Bitcoin::OutPoint.from_txid(txid, input[:vout]))
+      transaction.in << Bitcoin::TxIn.new(out_point: Bitcoin::OutPoint.from_txid(input[:utxo_details].txid, input[:vout]))
     end
     transaction
   end
@@ -35,7 +30,7 @@ module Transaction
     # TODO: Handle direct script, without parsing from address
     params[:outputs].each do |output|
       script_pubkey = build_script_pubkey(output)
-      transaction.out << Bitcoin::TxOut.new(value: output[:value],
+      transaction.out << Bitcoin::TxOut.new(value: output[:amount],
                                             script_pubkey: script_pubkey)
     end
     transaction
@@ -50,50 +45,38 @@ module Transaction
     end
   end
 
-  # Parses address s.t. if there is a p2wpkh tag, we generate a corresponding address for the key.
-  # If there are no tags in the address, we return the received address as it is.
-  def parse_address(address)
-    address.gsub!(/(p2wpkh:)(\w+)/) { instance_eval("@#{Regexp.last_match(-1)}").to_p2wpkh }
-  end
-
   def add_signatures(transaction, params)
     return transaction unless params.include? :inputs
 
     params[:inputs].each_with_index do |input, index|
-      signature = get_signature(transaction, input, index)
-      transaction.in[index].script_witness.stack << signature << input[:signature][:signed_by].pubkey.htb
+      compile_script_sig(transaction, input, index, transaction.in[index].script_witness.stack)
     end
     transaction
   end
 
-  def get_signature(transaction, input, index)
-    segwit_version = input.dig(:signature, :segwit_version) || DEFAULT_SEGWIT_VERSION
+  def get_signature(transaction, input, index, key)
     sig_hash = transaction.sighash_for_input(index,
-                                             input[:signature][:script_pubkey],
-                                             sig_version: segwit_version,
-                                             amount: input[:signature][:amount])
-    sighash_type = input.dig(:signature, :sighash) || DEFAULT_SIGHASH_TYPE
-    input[:signature][:signed_by].sign(sig_hash) + [Bitcoin::SIGHASH_TYPE[sighash_type]].pack('C')
+                                             input[:utxo_details].script_pubkey,
+                                             sig_version: DEFAULT_SEGWIT_VERSION,
+                                             amount: input[:utxo_details].amount * SATS)
+    sighash_type = input[:sighash] || DEFAULT_SIGHASH_TYPE
+    key.sign(sig_hash) + [Bitcoin::SIGHASH_TYPE[sighash_type]].pack('C')
+  end
+
+  def get_utxo_details(transaction, vout)
+    tx = transaction.to_h # When we pass Bitcoin::Tx, we turn it into hash that matches json-rpc response
+    vout = tx['vout'][vout]
+    OpenStruct.new(txid: tx['txid'],
+                   amount: vout['value'],
+                   script_pubkey: Bitcoin::Script.parse_from_payload(vout['scriptPubKey']['hex'].htb))
   end
 
   # Verify transaction input is properly signed
-  def verify_signature(transaction:, index:, script_pubkey:, amount:)
-    verification_result = transaction.verify_input_sig(index, script_pubkey, amount: amount)
+  def verify_signature(for_transaction:, at_index:, with_prevout:)
+    utxo_details = get_utxo_details(with_prevout[0], with_prevout[1])
+    verification_result = for_transaction.verify_input_sig(at_index,
+                                                           utxo_details.script_pubkey,
+                                                           amount: utxo_details.amount * SATS)
     assert verification_result, 'Input signature verification failed'
-  end
-
-  def create_tx(utxo_details:, signed_by:, output_script:, amount:)
-    transaction inputs: [
-                  {
-                    txid: utxo_details.txid,
-                    vout: 0,
-                    signature: { signed_by: signed_by,
-                                 script_pubkey: utxo_details.script_pubkey,
-                                 amount: utxo_details.amount }
-                  }
-                ],
-                outputs: [
-                  { policy: output_script, value: amount }
-                ]
   end
 end

@@ -3,15 +3,15 @@
 # DSL module for broadcasting transactions
 module Broadcast
   def extend_chain(to:, num_blocks: 1)
-    logger.debug "Extending chain by #{num_blocks} blocks"
     address = to.to_p2wpkh
+    logger.debug "Extending chain by #{num_blocks} blocks to address #{address}"
     blockhashes = generatetoaddress num_blocks: num_blocks, to: address
     blockhashes.each do |blockhash|
       block = getblock hash: blockhash, verbosity: 2
       @txid_signers[get_txid(block: block, tx_index: 0)] = to
     end
   end
-  
+
   # Broadcast the transaction
   def broadcast(transaction:)
     accepted = testmempoolaccept rawtxs: [transaction.to_hex]
@@ -23,6 +23,7 @@ module Broadcast
   end
 
   # Confirm transaction, by mining block to given address
+  # Returns raw transaction loaded from the bitcoin node
   def confirm(transaction:, to:)
     height = get_height
     extend_chain num_blocks: 1, to: to
@@ -30,19 +31,19 @@ module Broadcast
     assert_confirmed transaction: transaction, at_height: height + 1
   end
 
-  # Spend the coinbase transaction at the given height.
-  # Return the spending transaction.
-  def spend_coinbase(height:, signed_by:, output_script:, amount:, new_coinbase_to:)
-    utxo_details = extract_txid_vout blockheight: height, tx_index: 0, vout_index: 0
-    tx = create_tx(utxo_details: utxo_details, signed_by: signed_by, output_script: output_script, amount: amount)
-    verify_signature transaction: tx,
-                     index: 0,
-                     script_pubkey: utxo_details.script_pubkey,
-                     amount: utxo_details.amount
-    broadcast transaction: tx
-    confirm transaction: tx, to: new_coinbase_to
-    tx
+  # Inputs:
+  #   tx: raw json transaction loaded from chain
+  #   vout: index of the output being spent
+  #   script_sig: signature script to spend the above output. This includes tags to direct signature generation.
+  # Outputs:
+  #   script: Optional script for scriptPubkey
+  #   address: Optional address to derice scriptPubkey from
+  #   amount: Value being spent
+  def spend(inputs:, outputs:)
+    inputs.each do |input|
+      input[:utxo_details] = get_utxo_details(input[:tx], input[:vout])
+    end
+    transaction inputs: inputs,
+                outputs: outputs
   end
-
-  def spend_utxo(txid:, vout:, output_script:); end
 end
