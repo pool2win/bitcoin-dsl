@@ -33,7 +33,8 @@ coinbase_tx = get_coinbase_at 2
                            ],
                            outputs: [
                              {
-                               policy: 'or(99@thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
+                               # policy: 'or(99@thresh(2,pk($alice),pk($asp)),and(older(10),pk($asp_timelock)))',
+                               policy: 'or(99@thresh(2,pk($alice),pk($asp)),pk($asp_timelock))',
                                amount: 49.999 * SATS
                              }
                            ]
@@ -46,18 +47,3 @@ broadcast transaction: @alice_boarding_tx
 extend_chain to: @alice
 
 assert_confirmed transaction: @alice_boarding_tx
-
-@spend_tx = spend inputs: [
-                    { tx: @alice_boarding_tx, vout: 0, script_sig: 'multisig:alice,asp' }
-                  ],
-                  outputs: [
-                    {
-                      address: 'p2wpkh:asp',
-                      amount: 49.998 * SATS
-                    }
-                  ]
-
-broadcast transaction: @spend_tx
-extend_chain to: @alice
-
-assert_confirmed transaction: @spend_tx

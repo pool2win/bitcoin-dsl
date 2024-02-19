@@ -41,7 +41,7 @@ module CompileScript
   end
 
   def handle_multisig(transaction, input, index, stack, keys)
-    stack << '' # Empty byte for that infamous multisig validation bug
+    handle_nulldummy(transaction, input, index, stack, keys) # Empty byte for that infamous multisig validation bug
     keys.split(',').each do |key|
       key = instance_eval("@#{key}", __FILE__, __LINE__)
       stack << get_signature(transaction, input, index, key)
@@ -49,8 +49,12 @@ module CompileScript
   end
 
   def handle_sig(transaction, input, index, stack, key)
-    key = instance_eval("@#{key}", __FILE__, __LINE__)
+    instance_eval("@#{key}", __FILE__, __LINE__)
     stack << get_signature(transaction, input, index, key)
+  end
+
+  def handle_nulldummy(transaction, input, index, stack, key)
+    stack << ''
   end
 
   def get_components(script)
@@ -62,8 +66,10 @@ module CompileScript
         { type: :multisig, expression: element.split(':')[1] }
       when /sig:\w+/
         { type: :sig, expression: element.split(':')[1] }
+      when /nulldummy/
+        { type: :nulldummy }
       else
-        raise 'Unknown term in script sig' unless opcode?(element)
+        raise "Unknown term in script sig #{element}" unless opcode?(element)
 
         { type: :opcode, expression: element }
       end

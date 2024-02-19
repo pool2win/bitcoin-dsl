@@ -46,6 +46,11 @@ class Runner
   def respond_to_missing?(method, *)
     COMMANDS.include? method or BITCOIN_HASHES.include? method
   end
+
+  def run(file)
+    contents = File.read file
+    instance_eval contents
+  end
 end
 
 node :start
