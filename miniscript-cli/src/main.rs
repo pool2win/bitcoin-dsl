@@ -1,7 +1,8 @@
 use std::str::FromStr;
 
-use miniscript::bitcoin;
+use bitcoin::hex::DisplayHex;
 use miniscript::policy::Concrete;
+use miniscript::{bitcoin, DefiniteDescriptorKey};
 
 use clap::Parser;
 
@@ -12,13 +13,26 @@ use clap::Parser;
 struct Args {
     /// Miniscript to process
     #[arg(short, long)]
-    miniscript: String,
+    miniscript: Option<String>,
+
+    /// Descriptor to process
+    #[arg[short, long]]
+    descriptor: Option<String>,
 }
 
 fn main() {
     let args = Args::parse();
 
-    let policy = Concrete::<bitcoin::PublicKey>::from_str(args.miniscript.as_str()).unwrap();
+    if args.miniscript.is_some() {
+        parse_miniscript(args);
+    } else if args.descriptor.is_some() {
+        parse_descriptor(args);
+    }
+}
+
+fn parse_miniscript(args: Args) {
+    let policy =
+        Concrete::<bitcoin::PublicKey>::from_str(args.miniscript.unwrap().as_str()).unwrap();
 
     let descriptor = miniscript::descriptor::Wsh::new(
         policy
@@ -27,7 +41,22 @@ fn main() {
     )
     .expect("Resource limits");
 
-    println!("{}", descriptor.inner_script());
+    println!("{:?}", descriptor.address(bitcoin::Network::Regtest));
+    println!("{:x}", descriptor.inner_script().into_bytes().as_hex());
     println!("{}", descriptor.script_pubkey());
-    println!("{}", descriptor.address(bitcoin::Network::Regtest));
+    println!("{}", descriptor.inner_script());
+}
+
+fn parse_descriptor(args: Args) {
+    let descriptor = miniscript::Descriptor::<DefiniteDescriptorKey>::from_str(
+        args.descriptor.unwrap().as_str(),
+    )
+    .unwrap();
+
+    println!(
+        "{:?}",
+        descriptor.address(bitcoin::Network::Regtest).unwrap()
+    );
+    println!("{}", descriptor.script_pubkey());
+    println!("{}", descriptor.script_code().unwrap());
 }

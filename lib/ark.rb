@@ -34,7 +34,7 @@ coinbase_tx = get_coinbase_at 2
                            ],
                            outputs: [
                              {
-                               policy: 'or(thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
+                               policy: 'or(99@thresh(2,pk($alice),pk($asp)),and(older(5000),pk($asp_timelock)))',
                                amount: 49.999 * SATS
                              }
                            ]
@@ -44,24 +44,23 @@ verify_signature for_transaction: @alice_boarding_tx,
                  with_prevout: [coinbase_tx, 0]
 
 broadcast transaction: @alice_boarding_tx
-
 confirm transaction: @alice_boarding_tx, to: @alice
-
-# @spend_tx = spend transaction: @alice_boarding_tx,
-#                   vout: 0,
-#                   script_sig: 'sig:asp sig:alice 0',
-#                   outputs: [
-#                     {
-#                       address: 'p2wpkh:asp',
-#                       value: 49.998 * SATS
-#                     }
-#                   ]
-
-# puts @spend_tx
-
-# broadcast transaction: tx
-# confirm transaction: tx, coinbase_to: @alice
-
-# assert_confirmed transaction: @spend_tx, at_height: 104
-
 logger.info 'Boarding transaction confirmed'
+
+pp @alice_boarding_tx.to_h
+
+@spend_tx = spend inputs: [
+                    { tx: @alice_boarding_tx, vout: 0, script_sig: 'multisig:alice,asp' }
+                  ],
+                  outputs: [
+                    {
+                      address: 'p2wpkh:asp',
+                      amount: 49.998 * SATS
+                    }
+                  ]
+
+pp @spend_tx.to_h
+
+broadcast transaction: @spend_tx
+confirm transaction: @spend_tx, to: @alice
+logger.info 'Boarding transaction co-operatively spent'

@@ -15,7 +15,7 @@ module Broadcast
   # Broadcast the transaction
   def broadcast(transaction:)
     accepted = testmempoolaccept rawtxs: [transaction.to_hex]
-    assert accepted[0]['allowed'], "Alice boarding tx not accepted #{accepted.inspect}"
+    assert accepted[0]['allowed'], "Transaction not accepted for mempool: \n #{accepted.inspect} \n #{transaction.to_h}"
 
     assert_equal(sendrawtransaction(tx: transaction.to_hex),
                  transaction.txid,

@@ -1,5 +1,6 @@
 # frozen_string_literal: false
 
+require 'active_support/core_ext/hash/indifferent_access'
 require 'optparse'
 require 'test/unit'
 require_relative 'node'
@@ -28,13 +29,14 @@ class Runner
 
   def initialize
     @txid_signers = {}
+    @witness_scripts = Hash.new { |h, k| h[k] = {} }
   end
 
   # Use method missing to invoke bitcoin RPC commands
   def method_missing(method, *args, &_block)
     if COMMANDS.include? method
       node method, *args
-    elsif BITCOIN_HASHES.include? :method
+    elsif BITCOIN_HASHES.include? method
       Bitcoin.send method, *args
     else
       super
@@ -50,7 +52,7 @@ node :start
 begin
   contents = File.read options[:script]
   runner = Runner.new
-  runner.instance_eval contents
+  runner.instance_eval contents, __FILE__, __LINE__
 ensure
   node :stop
 end

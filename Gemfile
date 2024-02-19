@@ -2,6 +2,7 @@
 
 source 'https://rubygems.org'
 
+gem 'activesupport' # For Hash with_indifferent_access
 gem 'bitcoinrb', require: 'bitcoin'
 gem 'leveldb-native'
 gem 'parallel_tests'
