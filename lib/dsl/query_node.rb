@@ -18,6 +18,11 @@ module QueryNode
     getblockchaininfo['blocks']
   end
 
+  def assert_height(height)
+    current_height = get_height
+    assert_equal current_height, height, "Current height #{current_height} is not at #{height}"
+  end
+
   def get_block_at_height(height)
     blockhash = getblockhash height: height
     getblock hash: blockhash, verbosity: 2
@@ -25,7 +30,8 @@ module QueryNode
 
   # Assert the provided transaction is spent on chain
   # Returns the raw transaction loaded from the chain
-  def assert_confirmed(transaction:, at_height:, txid: nil)
+  def assert_confirmed(transaction:, at_height: nil, txid: nil)
+    at_height ||= get_height
     blockhash = getblockhash height: at_height
     txid ||= transaction.txid if transaction
     tx = getrawtransaction txid: txid, verbose: true, block: blockhash['hash']

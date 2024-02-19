@@ -11,8 +11,7 @@
 # 3.2 Bob cooperatively leaves the ARK with received payment
 # 3.3 Bob unilaterally leaves the ARK with received payment
 
-# Print new state of chain
-assert_equal 0, getblockchaininfo['blocks'], 'The height is not correct at genesis'
+assert_height 0
 
 # Generate new keys
 @alice = key :new
@@ -25,7 +24,7 @@ extend_chain to: @alice
 # Seed asp with some coins and make coinbase spendable
 extend_chain num_blocks: 101, to: @asp
 
-assert_equal get_height, 102, 'The height is not correct'
+assert_height 102
 
 coinbase_tx = get_coinbase_at 2
 
@@ -44,10 +43,9 @@ verify_signature for_transaction: @alice_boarding_tx,
                  with_prevout: [coinbase_tx, 0]
 
 broadcast transaction: @alice_boarding_tx
-confirm transaction: @alice_boarding_tx, to: @alice
-logger.info 'Boarding transaction confirmed'
+extend_chain to: @alice
 
-pp @alice_boarding_tx.to_h
+assert_confirmed transaction: @alice_boarding_tx
 
 @spend_tx = spend inputs: [
                     { tx: @alice_boarding_tx, vout: 0, script_sig: 'multisig:alice,asp' }
@@ -59,8 +57,7 @@ pp @alice_boarding_tx.to_h
                     }
                   ]
 
-pp @spend_tx.to_h
-
 broadcast transaction: @spend_tx
-confirm transaction: @spend_tx, to: @alice
-logger.info 'Boarding transaction co-operatively spent'
+extend_chain to: @alice
+
+assert_confirmed transaction: @spend_tx
