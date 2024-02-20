@@ -21,10 +21,21 @@ module Transaction
     return transaction unless params.include? :inputs
 
     params[:inputs].each do |input|
-      transaction.in << Bitcoin::TxIn.new(
-        out_point: Bitcoin::OutPoint.from_txid(input[:utxo_details].txid, input[:vout]))
+      tx_in = Bitcoin::TxIn.new(
+        out_point: Bitcoin::OutPoint.from_txid(input[:utxo_details].txid, input[:vout])
+      )
+
+      add_csv(transaction, tx_in, input)
+      transaction.in << tx_in
     end
     transaction
+  end
+
+  def add_csv(transaction, tx_in, input)
+    return unless input.include? :csv
+
+    transaction.lock_time = input[:csv]
+    tx_in.sequence = input[:csv]
   end
 
   def add_outputs(transaction, params, witnesses)

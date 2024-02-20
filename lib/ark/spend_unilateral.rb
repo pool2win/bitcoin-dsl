@@ -2,8 +2,16 @@
 
 run './lib/ark/setup.rb'
 
+# Extend chain to pass CSV timelock
+extend_chain num_blocks: 100, to: @alice
+
+assert_height 203
+
 @spend_tx = spend inputs: [
-                    { tx: @alice_boarding_tx, vout: 0, script_sig: 'p2wpkh:asp_timelock nulldummy nulldummy nulldummy' }
+                    { tx: @alice_boarding_tx,
+                      vout: 0,
+                      script_sig: 'p2wpkh:asp_timelock nulldummy nulldummy nulldummy',
+                      csv: 10 }
                   ],
                   outputs: [
                     {
