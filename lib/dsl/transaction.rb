@@ -6,7 +6,22 @@ module Transaction
   DEFAULT_SEGWIT_VERSION = :witness_v0
   DEFAULT_SIGHASH_TYPE = :all
 
+  # Inputs:
+  #   tx: raw json transaction loaded from chain
+  #   vout: index of the output being spent
+  #   script_sig: signature script to spend the above output. This includes tags to direct signature generation.
+  # Outputs:
+  #   script: Optional script for scriptPubkey
+  #   address: Optional address to derice scriptPubkey from
+  #   amount: Value being spent
   def transaction(params)
+    params[:inputs].each do |input|
+      input[:utxo_details] = get_utxo_details(input[:tx], input[:vout])
+    end
+    build_transaction params
+  end
+
+  def build_transaction(params)
     witnesses = {} # Store vout index / witness as hashes
     tx = Bitcoin::Tx.new
     tx = add_inputs(tx, params) if params.include? :inputs
@@ -77,13 +92,18 @@ module Transaction
   end
 
   def get_signature(transaction, input, index, key)
-    prevout_output_script = @witness_scripts[input[:utxo_details][:txid]][input[:utxo_details][:index]] || input[:utxo_details].script_pubkey
+    prevout_output_script = get_prevout(input)
     sig_hash = transaction.sighash_for_input(index,
                                              prevout_output_script,
                                              sig_version: DEFAULT_SEGWIT_VERSION,
                                              amount: input[:utxo_details].amount * SATS)
     sighash_type = input[:sighash] || DEFAULT_SIGHASH_TYPE
     key.sign(sig_hash) + [Bitcoin::SIGHASH_TYPE[sighash_type]].pack('C')
+  end
+
+  def get_prevout(input)
+    @witness_scripts[input[:utxo_details][:txid]][input[:utxo_details][:index]] ||
+      input[:utxo_details].script_pubkey
   end
 
   def get_utxo_details(transaction, index)
@@ -104,5 +124,15 @@ module Transaction
                                                            utxo_details.script_pubkey,
                                                            amount: utxo_details.amount * SATS)
     assert verification_result, 'Input signature verification failed'
+  end
+
+  def assert_mempool_accept(transaction)
+    accepted = testmempoolaccept rawtxs: [transaction.to_hex]
+    assert accepted[0]['allowed'], 'Transaction not accepted for mempool'
+  end
+
+  def assert_not_mempool_accept(transaction)
+    accepted = testmempoolaccept rawtxs: [transaction.to_hex]
+    assert !accepted[0]['allowed'], 'Transaction accepted by mempool when it should not be'
   end
 end

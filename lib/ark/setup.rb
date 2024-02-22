@@ -28,15 +28,15 @@ assert_height 102
 
 coinbase_tx = get_coinbase_at 2
 
-@alice_boarding_tx = spend inputs: [
-                             { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:asp', sighash: :all }
-                           ],
-                           outputs: [
-                             {
-                               policy: 'or(99@thresh(2,pk($alice),pk($asp)),and(older(10),pk($asp_timelock)))',
-                               amount: 49.999 * SATS
-                             }
-                           ]
+@alice_boarding_tx = transaction inputs: [
+                                   { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:asp', sighash: :all }
+                                 ],
+                                 outputs: [
+                                   {
+                                     policy: 'or(99@thresh(2,pk($alice),pk($asp)),and(older(10),pk($asp_timelock)))',
+                                     amount: 49.999 * SATS
+                                   }
+                                 ]
 
 verify_signature for_transaction: @alice_boarding_tx,
                  at_index: 0,
@@ -46,3 +46,8 @@ broadcast transaction: @alice_boarding_tx
 extend_chain to: @alice
 
 assert_confirmed transaction: @alice_boarding_tx
+
+# Extend chain so that ASP can spend some coinbases
+extend_chain num_blocks: 101, to: @asp
+
+assert_height 204
