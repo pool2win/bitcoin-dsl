@@ -1,4 +1,4 @@
-# froze_string_literal: false
+# frozen_string_literal: false
 
 # DSL module for compiling miniscript and generating script sig
 module CompileScript
@@ -35,26 +35,35 @@ module CompileScript
   end
 
   def handle_p2wpkh(transaction, input, index, stack, key)
-    key = instance_eval("@#{key}", __FILE__, __LINE__)
-    stack << get_signature(transaction, input, index, key)
+    key = get_key_and_sign(transaction, input, index, stack, key)
     stack << key.pubkey.htb
   end
 
   def handle_multisig(transaction, input, index, stack, keys)
     handle_nulldummy(transaction, input, index, stack, keys) # Empty byte for that infamous multisig validation bug
     keys.split(',').each do |key|
-      key = instance_eval("@#{key}", __FILE__, __LINE__)
-      stack << get_signature(transaction, input, index, key)
+      get_key_and_sign(transaction, input, index, stack, key)
     end
   end
 
   def handle_sig(transaction, input, index, stack, key)
-    instance_eval("@#{key}", __FILE__, __LINE__)
-    stack << get_signature(transaction, input, index, key)
+    get_key_and_sign(transaction, input, index, stack, key)
   end
 
-  def handle_nulldummy(transaction, input, index, stack, key)
+  def handle_nulldummy(_transaction, _input, _index, stack, _keys)
     stack << ''
+  end
+
+  def get_key_and_sign(transaction, input, index, stack, key)
+    return if key == '_skip'
+
+    if key == '_empty'
+      stack << ''
+    else
+      key = instance_eval("@#{key}", __FILE__, __LINE__)
+      stack << get_signature(transaction, input, index, key)
+      key
+    end
   end
 
   def get_components(script)

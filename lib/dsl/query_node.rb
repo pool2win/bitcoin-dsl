@@ -53,4 +53,17 @@ module QueryNode
     block = get_block_at_height height
     block['tx'][0]
   end
+
+  # Return a spendable coinbase for a key
+  # If a key is provided, we use the p2wpkh address for the key
+  # Later on we will add options to query by a given address
+  def spendable_coinbase_for(key, height: nil)
+    address = key.to_p2wpkh
+    height ||= get_height - 100
+    (1..height).each do |h|
+      coinbase = get_coinbase_at h
+      return coinbase if coinbase['vout'][0]['scriptPubKey']['address'] == address
+    end
+    raise "No coinbase found for the given key #{key}"
+  end
 end
