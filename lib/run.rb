@@ -30,6 +30,7 @@ class Runner
   def initialize
     @txid_signers = {}
     @witness_scripts = Hash.new { |h, k| h[k] = {} }
+    @coinbases = Hash.new { |h, k| h[k] = [] }
   end
 
   # Use method missing to invoke bitcoin RPC commands
@@ -50,6 +51,14 @@ class Runner
   def run(file)
     contents = File.read file
     instance_eval contents
+  end
+
+  def log(message)
+    if message.respond_to? :to_h
+      logger.info JSON.pretty_generate message.to_h
+    else
+      logger.info message
+    end
   end
 end
 
