@@ -125,43 +125,4 @@ module Transaction
                    amount: vout['value'],
                    script_pubkey: Bitcoin::Script.parse_from_payload(script_pubkey['hex'].htb))
   end
-
-  # Verify transaction input is properly signed
-  def verify_signature(for_transaction:, at_index:, with_prevout:)
-    utxo_details = get_utxo_details(with_prevout[0], with_prevout[1])
-    verification_result = for_transaction.verify_input_sig(at_index,
-                                                           utxo_details.script_pubkey,
-                                                           amount: utxo_details.amount.sats)
-    assert verification_result, 'Input signature verification failed'
-  end
-
-  def assert_mempool_accept(*transactions)
-    accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
-    assert accepted[0]['allowed'], "Transaction not accepted for mempool.\n#{accepted}"
-  end
-
-  def assert_not_mempool_accept(*transactions)
-    accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
-    assert !accepted[0]['allowed'], 'Transaction accepted by mempool when it should not be'
-  end
-
-  # Anchor transaction to the other transaction by creating an output
-  # and using it as an input. The output is sent to dust_for using
-  # p2wpkh
-  def anchor(tx_a:, tx_b:, dust_for:, amount: 1000)
-    # Add a new dust output to transaction paying to dust_for
-    out = Bitcoin::TxOut.new(value: amount,
-                             script_pubkey: Bitcoin::Script.parse_from_addr(dust_for.to_p2wpkh))
-    tx_b.outputs << out
-    add_signatures(tx_b, regen: true)
-    # Use the above output as input in the to `tx_b` transaction
-    new_output_index = tx_b.outputs.size - 1
-    utxo_details = get_utxo_details(tx_b, new_output_index)
-    input = { tx: tx_b, vout: new_output_index, script_sig: "p2wpkh:#{dust_for.to_wif}",
-              utxo_details: utxo_details }
-    add_input(tx_a, input)
-    tx_a.build_params[:inputs] << input
-    add_signatures(tx_a, regen: true)
-    # compile_script_sig(tx_a, input, new_input_index, tx_a.in[new_input_index].script_witness.stack)
-  end
 end

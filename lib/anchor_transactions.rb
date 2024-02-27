@@ -42,7 +42,7 @@ extend_chain num_blocks: 100
                                 { address: 'p2wpkh:charlie', amount: 49.99.sats }
                               ]
 
-anchor tx_a: @alice_to_bob, tx_b: @bob_to_charlie, dust_for: @alice
+anchor transaction: @alice_to_bob, to: @bob_to_charlie, dust_for: @alice
 
 assert_mempool_accept @bob_to_charlie
 assert_not_mempool_accept @alice_to_bob

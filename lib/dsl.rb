@@ -12,12 +12,16 @@ require_relative 'dsl/key'
 require_relative 'dsl/numbers'
 require_relative 'dsl/query_node'
 require_relative 'dsl/transaction'
+require_relative 'dsl/anchor'
+require_relative 'dsl/assertions'
 
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL
   include Logging
   include Key
   include Transaction
+  include Anchor
+  include Assertions
   include QueryNode
   include CompileScript
   include Broadcast
