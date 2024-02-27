@@ -34,7 +34,7 @@ coinbase_tx = get_coinbase_at 2
                                  outputs: [
                                    {
                                      policy: 'or(99@thresh(2,pk($alice),pk($asp)),and(older(10),pk($asp_timelock)))',
-                                     amount: 49.999 * SATS
+                                     amount: 49.999.sats
                                    }
                                  ]
 

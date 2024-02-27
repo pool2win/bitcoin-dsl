@@ -23,7 +23,7 @@ coinbase_tx = get_coinbase_at 2
                      outputs: [
                        {
                          policy: 'thresh(2,pk($alice),pk($bob))',
-                         amount: 49.999 * SATS
+                         amount: 49.999.sats
                        }
                      ]
 
@@ -43,7 +43,7 @@ logger.info 'Multisig transaction confirmed'
                   outputs: [
                     {
                       address: 'p2wpkh:bob',
-                      amount: 49.998 * SATS
+                      amount: 49.998.sats
                     }
                   ]
 

@@ -4,13 +4,14 @@ require 'bitcoin'
 require 'open3'
 require 'ostruct'
 require_relative 'logging'
-require_relative 'dsl/broadcast'
-require_relative 'dsl/key'
-require_relative 'dsl/transaction'
-require_relative 'dsl/query_node'
-require_relative 'dsl/compile_script'
 
-SATS = 100_000_000
+require_relative 'dsl/tx'
+require_relative 'dsl/broadcast'
+require_relative 'dsl/compile_script'
+require_relative 'dsl/key'
+require_relative 'dsl/numbers'
+require_relative 'dsl/query_node'
+require_relative 'dsl/transaction'
 
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL

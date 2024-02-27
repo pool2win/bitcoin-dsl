@@ -8,7 +8,7 @@ run './lib/ark/setup.rb'
                         outputs: [
                           {
                             address: 'p2wpkh:asp',
-                            amount: 49.998 * SATS
+                            amount: 49.998.sats
                           }
                         ]
 

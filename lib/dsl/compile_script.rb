@@ -60,7 +60,11 @@ module CompileScript
     if key == '_empty'
       stack << ''
     else
-      key = instance_eval("@#{key}", __FILE__, __LINE__)
+      begin
+        key = Bitcoin::Key.from_wif(key)
+      rescue ArgumentError
+        key = instance_eval("@#{key}", __FILE__, __LINE__)
+      end
       stack << get_signature(transaction, input, index, key)
       key
     end

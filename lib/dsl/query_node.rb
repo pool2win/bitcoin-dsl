@@ -1,4 +1,4 @@
-# froze_string_literal: false
+# frozen_string_literal: false
 
 # DSL module for querying bitcoin node using json-rpc
 module QueryNode
@@ -11,7 +11,7 @@ module QueryNode
   end
 
   def get_value(block:, tx_index:, vout_index:)
-    (block['tx'][tx_index]['vout'][vout_index]['value'] * SATS).to_i
+    (block['tx'][tx_index]['vout'][vout_index]['value'].sats).to_i
   end
 
   def get_height
@@ -64,6 +64,6 @@ module QueryNode
       coinbase = get_coinbase_at h
       return coinbase if coinbase['vout'][0]['scriptPubKey']['address'] == address
     end
-    raise "No coinbase found for the given key #{key}"
+    raise 'No coinbase found for the given key'
   end
 end
