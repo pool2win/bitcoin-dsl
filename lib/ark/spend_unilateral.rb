@@ -15,6 +15,6 @@ run './lib/ark/setup.rb'
                           }
                         ]
 
-broadcast transaction: @spend_tx
+broadcast @spend_tx
 extend_chain to: @alice
 assert_confirmed transaction: @spend_tx

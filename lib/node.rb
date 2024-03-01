@@ -17,7 +17,9 @@ def start_node
 end
 
 def stop_node
-  system "kill -9 `cat #{DIR}/regtest/bitcoind.pid` && rm -rf #{DIR}"
+  command = "kill -9 `cat #{DIR}/regtest/bitcoind.pid` && rm -rf #{DIR}"
+  puts command
+  system command
 end
 
 def node(command, *params)

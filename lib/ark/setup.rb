@@ -42,7 +42,7 @@ verify_signature for_transaction: @alice_boarding_tx,
                  at_index: 0,
                  with_prevout: [coinbase_tx, 0]
 
-broadcast transaction: @alice_boarding_tx
+broadcast @alice_boarding_tx
 extend_chain to: @alice
 
 assert_confirmed transaction: @alice_boarding_tx

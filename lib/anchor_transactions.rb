@@ -48,3 +48,5 @@ assert_mempool_accept @bob_to_charlie
 assert_not_mempool_accept @alice_to_bob
 
 assert_mempool_accept @bob_to_charlie, @alice_to_bob
+
+broadcast_multiple [@bob_to_charlie, @alice_to_bob]

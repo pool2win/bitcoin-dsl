@@ -17,37 +17,37 @@ assert_equal get_height, 102, 'The height is not correct'
 
 coinbase_tx = get_coinbase_at 2
 
-@multisig_tx = spend inputs: [
-                       { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:bob', sighash: :all }
-                     ],
-                     outputs: [
-                       {
-                         policy: 'thresh(2,pk($alice),pk($bob))',
-                         amount: 49.999.sats
-                       }
-                     ]
+@multisig_tx = transaction inputs: [
+                             { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:bob', sighash: :all }
+                           ],
+                           outputs: [
+                             {
+                               policy: 'thresh(2,pk($alice),pk($bob))',
+                               amount: 49.999.sats
+                             }
+                           ]
 
 verify_signature for_transaction: @multisig_tx,
                  at_index: 0,
                  with_prevout: [coinbase_tx, 0]
 
-broadcast transaction: @multisig_tx
+broadcast @multisig_tx
 
 confirm transaction: @multisig_tx, to: @alice
 
 logger.info 'Multisig transaction confirmed'
 
-@spend_tx = spend inputs: [
-                    { tx: @multisig_tx, vout: 0, script_sig: 'multisig:alice,bob' }
-                  ],
-                  outputs: [
-                    {
-                      address: 'p2wpkh:bob',
-                      amount: 49.998.sats
-                    }
-                  ]
+@spend_tx = transaction inputs: [
+                          { tx: @multisig_tx, vout: 0, script_sig: 'multisig:alice,bob' }
+                        ],
+                        outputs: [
+                          {
+                            address: 'p2wpkh:bob',
+                            amount: 49.998.sats
+                          }
+                        ]
 
-broadcast transaction: @spend_tx
+broadcast @spend_tx
 confirm transaction: @spend_tx, to: @alice
 
 logger.info 'Multisig transaction spent'
