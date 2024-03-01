@@ -21,6 +21,12 @@ module Transaction
     build_transaction params
   end
 
+  def transactions(params)
+    params.collect do |tx|
+      transaction tx
+    end
+  end
+
   def build_transaction(params)
     witnesses = {} # Store vout index / witness as hashes
     tx = Bitcoin::Tx.new

@@ -1,0 +1,83 @@
+# frozen_string_literal: false
+
+# Folds a list of transactions into a tree that can be used in ARK
+# like protocols
+
+assert_height 0
+
+# Generate new keys
+# @alice = key :new
+# @bob = key :new
+# @charlie = key :new
+
+@alice = Bitcoin::Key.from_wif 'cRBMbTqQLm21yvhFESwa64rUiEY82TeRySVNYoxEHPfmBmuJg15B'
+@bob = Bitcoin::Key.from_wif 'cTMmmtKX586vzWXNeMHVwmTeJMy1HGiaiYKcEu2uCdZB833CSJfb'
+@charlie = Bitcoin::Key.from_wif 'cUVpE62N4naARdk9wz1YVqb3EtGsuUSE6Qm4UDVMjUtioz6xoMx5'
+
+log "Alice #{@alice.pubkey} #{@alice.to_wif}"
+log "Bob #{@bob.pubkey} #{@bob.to_wif}"
+log "Charlie #{@charlie.pubkey} #{@charlie.to_wif}"
+
+# Seed alice with some coins
+extend_chain to: @alice
+
+# Seed bob with some coins
+extend_chain to: @bob
+
+# Make both coinbases spendable
+extend_chain num_blocks: 100
+
+@alice_coinbase = spendable_coinbase_for @alice
+
+log "Alice coinbase #{@alice_coinbase[:txid]}"
+
+num_outputs = 10
+
+# Spend Alice coinbase to generate identical outputs
+@multiple_vouts = transaction inputs: [
+                                { tx: @alice_coinbase, vout: 0, script_sig: 'p2wpkh:alice' }
+                              ],
+                              outputs: [
+                                { address: 'p2wpkh:bob', amount: 1.sats }
+                              ] * num_outputs + [
+                                { address: 'p2wpkh:bob', amount: (49.99 - num_outputs).sats }
+                              ]
+
+# Confirm multiple vouts tx
+broadcast @multiple_vouts
+extend_chain num_blocks: 100
+
+log 'Transaction with multiple vouts now confirmed'
+
+@transactions_to_fold = transactions [
+  {
+    inputs: [
+      { tx: @multiple_vouts, vout: 0, script_sig: 'p2wpkh:bob' }
+    ],
+    outputs: [
+      { address: 'p2wpkh:charlie', amount: 0.99.sats }
+    ]
+  },
+  {
+    inputs: [
+      { tx: @multiple_vouts, vout: 1, script_sig: 'p2wpkh:bob' }
+    ],
+    outputs: [
+      { address: 'p2wpkh:charlie', amount: 0.99.sats }
+    ]
+  },
+  {
+    inputs: [
+      { tx: @multiple_vouts, vout: 2, script_sig: 'p2wpkh:bob' }
+    ],
+    outputs: [
+      { address: 'p2wpkh:charlie', amount: 0.99.sats }
+    ]
+  }
+]
+
+# verify_signature for_transaction: t, at_index: 0, with_prevout: [@multiple_vouts, 1]
+
+broadcast_multiple @transactions_to_fold
+
+log 'Multiple transactions sent'

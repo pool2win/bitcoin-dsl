@@ -10,14 +10,26 @@ module Broadcast
     generatetoaddress num_blocks: num_blocks, to: address
   end
 
-  # Broadcast the transaction
-  def broadcast(transaction:)
+  # Broadcast a transaction
+  def broadcast(transaction)
     accepted = testmempoolaccept rawtxs: [transaction.to_hex]
     assert accepted[0]['allowed'], "Transaction not accepted for mempool: \n #{accepted.inspect} \n #{transaction.to_h}"
 
     assert_equal(sendrawtransaction(tx: transaction.to_hex),
                  transaction.txid,
                  'Sending raw transaction failed')
+  end
+
+  # Broadcast multiple transactions
+  def broadcast_multiple(transactions)
+    accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
+    assert accepted[0]['allowed'], "Transaction not accepted for mempool: \n #{accepted.inspect}"
+
+    transactions.each do |tx|
+      assert_equal(sendrawtransaction(tx: tx.to_hex),
+                   tx.txid,
+                   'Sending raw transaction failed')
+    end
   end
 
   # Confirm transaction, by mining block to given address

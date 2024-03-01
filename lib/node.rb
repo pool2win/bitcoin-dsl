@@ -11,7 +11,7 @@ RPCPASS = :test
 def start_node
   command = "mkdir -p #{DIR} && \
              bitcoind -datadir=#{DIR} -chain=#{CHAIN} \
-             -rpcuser=#{RPCUSER} -rpcpassword=#{RPCPASS} -daemonwait -txindex"
+             -rpcuser=#{RPCUSER} -rpcpassword=#{RPCPASS} -daemonwait -txindex -debug=1"
   puts command
   system command
 end
