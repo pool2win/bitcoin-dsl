@@ -1,19 +1,29 @@
-The three big goals of the DSL are:
+## Bitcoin DSL - Mission
+
+Make is easy to experiment with bitcoin contracts.
+
+## Goals
+
+The three goals of the DSL are:
 
 **Declarative syntax** - The DSL should specify what needs to be done,
 not how. For example, to build a transaction, we should just say the
 scriptsig is a `p2wpkh:bob` instead of making a series of imperative
 calls to achieve the same goal.
 
-**Interact with bitcoin node** - All the JSON-RPC API commands should
-be directly available from the DSL, so we don't have to copy paste
-transactions around, and can query the bitcoin node to find
-transactions and then operate on them.
+**Easily execute branches in a contract execution** - Users should be
+easily able to run the various branches that a contract can be
+executed on.
 
 **High level language for locking and unlocking Script** - Miniscript
 is a nice tool for writing locking conditions in a higher level
 language, however, we also want to enable writing scriptsigs in a
 higher level language too.
+
+**Interact with bitcoin node** - All the JSON-RPC API commands should
+be directly available from the DSL, so we don't have to copy paste
+transactions around, and can query the bitcoin node to find
+transactions and then operate on them.
 
 ## Tools: Bitcoin Ruby and Rust-Miniscript
 
