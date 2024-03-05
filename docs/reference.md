@@ -1,0 +1,298 @@
+---
+layout: page
+title: Reference
+nav_order: 1
+---
+
++ Contents
+{:toc}
+
+---
+
+## Variables
+
+Variables being with the `@` symbol and follow expected ruby variable semantics.
+
+## Generating Keys
+
+The simple way to create a new key is to call `key :new` and assign it to a variable.
+
+```ruby
+@alice = key :new
+```
+
+To generate a key using WIF, use the `wif:` keyword.
+
+```ruby
+@alice = key wif: 'L1Rg5xdVZ9pZqn7s2UreiDxaFP81RHYL2DjFBUP6BfT9QRw8jERR'
+```
+
+## Generate coinbases and spending them
+
+The DSL provides a convinient way to mine coins controlled by a key
+and then load the coinbase to spend in future transactions.
+
+```ruby
+@alice = key wif: 'L1Rg5xdVZ9pZqn7s2UreiDxaFP81RHYL2DjFBUP6BfT9QRw8jERR'
+
+# Generate a block with coinbase to Alice's P2WPKH address
+extend_chain to: @alice
+
+# Find a spendable coinbase controlled by Alice
+@alice_coinbase_tx = spendable_coinbase_for @alice
+
+# Build a transaction spending @tx
+...
+```
+
+## Transactions
+
+To build a transaction use a `transaction` keyword with two
+parameters, `inputs` and `outputs`.
+
+### Inputs
+
+Inputs parameter to `transaction` takes an array of dictionary
+objects. Each dictionary must have the following arguments:
+
+1. `tx`: This is a transaction being spent. It is object obtained by
+   building a transaction or querying the node for a transaction.
+2. `vout`: This is the output index being spent of the input.
+3. `script_sig`: This is the witness script required to spend the UTXO
+   identified by the `tx` and `vout`. This script_sig can be defined
+   using high level constructs like `p2wpkh`, `sig`, `multisig` or
+   simple Bitcoin Script opcodes. This parameter is described in
+   detail later.
+4. `sighash` (optional, default ALL): The sighash to use when
+   generating signatures for the input.
+   
+### Outputs
+
+The outputs parameter to `transaction` takes an array of dictionary
+objects. Each dictionary object must have the following arguments:
+
+1. `amount`: The amount being spent.
+2. `policy` or `descriptor`: The locking script can be specified in two
+   ways - miniscript or bitcoin descriptors.
+   
+A simple transaction that spends the `@alice_coinbase_tx` fetched
+above is below. We sign the transaction declaratively by saying
+`script_sig: 'p2wpkh:alice'` and generate an output pubkey by saying
+`address: 'p2wpkh:bob'`.
+
+```ruby
+@alice_to_bob = transaction inputs: [
+                              { tx: @alice_coinbase_tx, vout: 0, script_sig: 'p2wpkh:alice' }
+                            ],
+                            outputs: [
+                              { address: 'p2wpkh:bob', amount: 49.99.sats }
+                            ]
+```
+
+## Broadcast and confirm transactions
+
+A transaction can be easily broadcast by using the `broadcast`
+command. Even though we can use low level JSON-API calls like
+`sendrawtransaction`, the DSL provides high level commands to make it
+easy to deal with broadcasting and confirming transactions.
+
+```ruby
+@tx = transaction inputs: [...] outtputs: [...]
+
+broadcast @tx
+```
+
+To broadcast multiple transactions list them in the order you want
+mempool to accept them. This order is important for certain contracts.
+
+```ruby
+@tx_a = transaction inputs: [...] outtputs: [...]
+@tx_b = transaction inputs: [...] outtputs: [...]
+
+broadcast @tx_b, @tx_a
+```
+
+We can confirm transactions by the `confirm` command that mines one
+new block. We can optionally provide a key to which the coinbase of
+the new block should go to.
+
+```ruby
+@alice = key :new
+@tx = transaction inputs: [...] outtputs: [...]
+
+broadcast @tx
+confirm @tx, to: @alice
+```
+
+## Node Interaction
+
+The DSL supports all JSON-API commands supported by bitcoin. You don't
+need to worry about (de)serialization of arguments. Just provide the
+transaction object or any other parameter directly from the DSL. Here
+are a few examples:
+
+```ruby
+@address = ...
+
+# Mine blocks to the address
+generatetoaddress num_blocks: 100, to: @address
+
+@tx = ...
+
+# Send raw transaction
+sendrawtransaction tx: @tx
+```
+
+The complete list of supported commands is the same as [bitcoin's
+JSON-API](https://developer.bitcoin.org/reference/rpc/).
+
+The DSL provides abstractions on some of the often used JSON-API
+commands to make it easy to talk to bitcoin nodes.
+
+### Extend Chain
+
+Takes optional public key `to` and number of blocks `num_blocks` to
+mine.
+
+If key is provided, the coinbase of all the blocks is created for
+P2WPKH of the key.
+
+If key is not provided, `extend_chain` creates a throw away key and
+mines blocks using it for the coinbase.
+
+Generates `num_blocks` number of blocks. The default is 1.
+
+
+```ruby
+@alice = key :new
+@bob = key :new
+
+# Seed alice with some coins
+extend_chain to: @alice
+
+# Seed bob with some coins and make coinbase spendable
+extend_chain num_blocks: 101, to: @bob
+```
+
+### Find spendable coinbase transactions
+
+To look up a coinbase UTXO controlled by a key use
+`spendable_coinbase_for` and provide a key.
+
+The command returns the oldest spendable transaction controlled by the
+key as a P2WPKH transaction.
+
+```ruby
+@tx = spendable_coinbase_for @alice
+```
+
+### Get chain height
+
+```ruby
+get_height
+```
+
+### Get block at height
+
+```ruby
+@block = get_block_at_height 100
+```
+
+### Get coinbase at height
+
+```ruby
+@tx = get_coinbase_at_height 100
+```
+
+### Get TxId for transaction in block
+
+```ruby
+@txid = get_txid block: @block, tx_index: 5
+```
+
+## Assertions
+
+The DSL provides a number of assertions for verifying the state of
+transactions and chain.
+
+### Verify signatures for a transaction
+
+```ruby
+verify_signature for_transaction: @alice_tx,
+                 at_index: 0,
+                 with_prevout: [coinbase_tx, 0]
+```
+
+### Assert mempool will accept a transaction
+
+```ruby
+assert_mempool_accept @alice_tx
+```
+
+### Assert mempool will not accept a transaction
+
+```ruby
+assert_not_mempool_accept @alice_tx
+```
+
+### Assert a transaction is confirmed
+
+```ruby
+assert_confirmed transaction: @alice_tx
+
+# Or provide a txid
+assert_confirmed txid: @alice_tx.txid
+```
+
+`assert_confirmed` takes an optional `at_height` parameter to assert
+if the transaction has been confirmed in the block at that height.
+
+
+## Script interpolation
+
+The DSL provides a number of commands to interpolate in a Script.
+
+### Signature (sig)
+
+```ruby
+'sig:$alice'
+```
+
+The `sig` command generates a signature for the transaction using the
+sighash keyword specified in the input. If no sighash keyword is
+specified, the DSL uses ALL by default.
+
+### Hashes
+
+The DSL provides the various hashes that Bitcoin uses.
+
+```ruby
+'hash160:xxx'
+'sha256:xxx'
+'double_sha256:xxx'
+```
+### Multisig
+
+Since multisig is an often used script, the DSL provides a convinient
+way to generate signatures and script required for these.
+
+The script below with generate signatures for the keys specified and
+push them to the witness stack.
+
+```ruby
+'multisig:$alice,$bob'
+```
+
+### Interpolated miniscript policy
+
+Miniscript is interpolated by treating a `$` prefixed variable as a
+key and replacing the variable with the key's public key.
+
+For example, the policy
+`'or(99@thresh(2,pk($alice),pk($asp)),and(older(10),pk($asp_timelock)))'`
+is processed by rust-miniscript after `$alice`, `$asp` and
+`$asp_timelock` have been replaced by hex formatted public keys.
+
+### P2WPKH
+
+TODO: Describe this using Descriptors.

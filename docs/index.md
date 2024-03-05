@@ -5,7 +5,7 @@ nav_order: 1
 
 # Mission
 
-Bitcoin DSL makes it easier to experiment with Bitcoin Contracts.
+Make it easy to build and execute bitcoin transactions.
 
 ---
 
@@ -27,8 +27,9 @@ opcodes or forks.
 
 ## What is Bitcoin DSL?
 
-**Bitcoin DSL is an easy way to experiment with Bitcoin contracts and
-execute them on local regtest.**
+Bitcoin DSL makes it easier to experiment with Bitcoin transactions
+and contracts by providing a highlevel language to build and execute
+transactions.
 
 ### Declarative Syntax
 
@@ -89,7 +90,7 @@ inputs: [ { tx: @alice_bob_tx, vout: 0, script_sig: 'multisig:alice,asp' } ]
 inputs: [ { tx: @alice_bob_tx, vout: 0, script_sig: 'sig:$alice $alice' } ]
 ```
 
-Jump to [High level language for locking and unlocking Script]({% link _overview/scripting.md %})
+Jump to [Bitcoin Scripting]({% link _overview/scripting.md %})
 
 ---
 
@@ -106,7 +107,7 @@ run './lib/ark/setup.rb'
 @spend_tx = transaction inputs: [...], outputs: [...]
 ```
 
-Jump to [Contract Branch Executions]({% link _overview/transactions.md%})
+Jump to [Contract Branch Executions]({% link _overview/branch_executions.md%})
 
 ---
 
@@ -123,6 +124,6 @@ extend_chain to: @alice
 assert_confirmed transaction: @alice_boarding_tx
 ```
 
-Jump to [interacting with bitcoin node]({% link _overview/node_interaction.md %})
+Jump to [Node Interaction]({% link _overview/node_interaction.md %})
 
 ---

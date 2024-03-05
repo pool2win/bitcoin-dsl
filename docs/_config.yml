@@ -95,3 +95,7 @@ just_the_docs:
     #   name: Script Pub Key
     examples:
       name: Examples
+
+mermaid:
+  version: "10.8.0"
+

@@ -9,9 +9,24 @@ The DSL specifies what needs to be done, not how.
 
 ---
 
-For example, to build a transaction, we should just say the scriptsig
-is a `p2wpkh:bob` instead of making a series of imperative calls to
-achieve the same goal.
+To build a transaction, we should just say the scriptsig is a
+`p2wpkh:bob` instead of making a series of imperative calls to achieve
+the same goal.
+
+Here's how you build a transaction spending an UTXO with a p2wpkh
+output for Bob and creating a new UTXO as 2 of 2 multisig.
+
+```ruby
+@multisig_tx = transaction inputs: [
+                             { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:bob', sighash: :all }
+                           ],
+                           outputs: [
+                             {
+                               policy: 'thresh(2,pk($alice),pk($bob))',
+                               amount: 49.999.sats
+                             }
+                           ]
+```
 
 Similarly, to add a OP_CSV constraint on a transaction output we
 specify the `csv: NN` as a keyword option to the output.
