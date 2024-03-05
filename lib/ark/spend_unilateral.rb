@@ -17,7 +17,7 @@
 
 # frozen_string_literal: false
 
-run './lib/ark/setup.rb'
+run_script './lib/ark/setup.rb'
 
 @spend_tx = transaction inputs: [
                           { tx: @alice_boarding_tx,
