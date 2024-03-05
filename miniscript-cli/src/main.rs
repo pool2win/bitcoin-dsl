@@ -1,3 +1,5 @@
+// Copyright 2024 Kulpreet Singh
+
 // This file is part of Bitcoin-DSL
 
 // Bitcoin-DSL is free software: you can redistribute it and/or modify
