@@ -46,17 +46,17 @@ extend_chain num_blocks: 100
 @bob_coinbase = spendable_coinbase_for @bob
 
 @alice_to_bob = transaction inputs: [
-                              { tx: @alice_coinbase, vout: 0, script_sig: 'p2wpkh:alice' }
+                              { tx: @alice_coinbase, vout: 0, script_sig: 'sig:wpkh(@alice)' }
                             ],
                             outputs: [
-                              { address: 'p2wpkh:bob', amount: 49.99.sats }
+                              { descriptor: 'wpkh(@bob)', amount: 49.99.sats }
                             ]
 
 @bob_to_charlie = transaction inputs: [
-                                { tx: @bob_coinbase, vout: 0, script_sig: 'p2wpkh:bob' }
+                                { tx: @bob_coinbase, vout: 0, script_sig: 'sig:wpkh(@bob)' }
                               ],
                               outputs: [
-                                { address: 'p2wpkh:charlie', amount: 49.99.sats }
+                                { descriptor: 'wpkh(@charlie)', amount: 49.99.sats }
                               ]
 
 anchor transaction: @alice_to_bob, to: @bob_to_charlie, dust_for: @alice

@@ -29,13 +29,13 @@ end
 
 RSpec.describe Runner do
   describe 'Running DSL scripts' do
-    it_behaves_like 'script evaluation', './lib/anchor_transactions.rb'
-    it_behaves_like 'script evaluation', './lib/fold_transactions.rb'
-    it_behaves_like 'script evaluation', './lib/multisig.rb'
-    it_behaves_like 'script evaluation', './lib/simple.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/anchor_transactions.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/fold_transactions.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/multisig.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/simple.rb'
 
-    it_behaves_like 'script evaluation', './lib/ark/setup.rb'
-    it_behaves_like 'script evaluation', './lib/ark/spend_cooperatively.rb'
-    it_behaves_like 'script evaluation', './lib/ark/spend_unilateral.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/ark/setup.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/ark/spend_cooperatively.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/ark/spend_unilateral.rb'
   end
 end

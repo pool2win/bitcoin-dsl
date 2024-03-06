@@ -58,7 +58,7 @@ module CompileScript
 
   def handle_multisig(transaction, input, index, stack, keys)
     handle_nulldummy(transaction, input, index, stack, keys) # Empty byte for that infamous multisig validation bug
-    keys.split(',').each do |key|
+    keys.each do |key|
       get_key_and_sign(transaction, input, index, stack, key)
     end
   end
@@ -80,7 +80,7 @@ module CompileScript
       begin
         key = Bitcoin::Key.from_wif(key)
       rescue ArgumentError
-        key = instance_eval("@#{key}", __FILE__, __LINE__)
+        key = instance_eval(key, __FILE__, __LINE__)
       end
       stack << get_signature(transaction, input, index, key)
       key
@@ -90,10 +90,10 @@ module CompileScript
   def get_components(script)
     script.split.collect do |element|
       case element
-      when /p2wpkh:\w+/
-        { type: :p2wpkh, expression: element.split(':')[1] }
-      when /multisig:\w+/
-        { type: :multisig, expression: element.split(':')[1] }
+      when /sig:wpkh\((.*)\)/
+        { type: :p2wpkh, expression: Regexp.last_match[1] }
+      when /sig:multi\((.*)\)/
+        { type: :multisig, expression: Regexp.last_match[1].split(',').map(&:strip) }
       when /sig:\w+/
         { type: :sig, expression: element.split(':')[1] }
       when /nulldummy/

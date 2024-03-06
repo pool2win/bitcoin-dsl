@@ -107,7 +107,7 @@ module Transaction
     elsif output.include? :policy
       compile_miniscript(output[:policy])
     elsif output.include? :descriptor
-      output[:descriptor]
+      instance_eval output[:descriptor].gsub('$', '@')
     end
   end
 

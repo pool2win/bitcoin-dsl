@@ -52,12 +52,12 @@ num_outputs = 10
 
 # Spend Alice coinbase to generate identical outputs
 @multiple_vouts = transaction inputs: [
-                                { tx: @alice_coinbase, vout: 0, script_sig: 'p2wpkh:alice' }
+                                { tx: @alice_coinbase, vout: 0, script_sig: 'sig:wpkh(@alice)' }
                               ],
                               outputs: [
-                                { address: 'p2wpkh:bob', amount: 1.sats }
+                                { descriptor: 'wpkh(@bob)', amount: 1.sats }
                               ] * num_outputs + [
-                                { address: 'p2wpkh:bob', amount: (49.99 - num_outputs).sats }
+                                { descriptor: 'wpkh(@bob)', amount: (49.99 - num_outputs).sats }
                               ]
 
 # Confirm multiple vouts tx
@@ -69,26 +69,26 @@ log 'Transaction with multiple vouts now confirmed'
 @transactions_to_fold = transactions [
   {
     inputs: [
-      { tx: @multiple_vouts, vout: 0, script_sig: 'p2wpkh:bob' }
+      { tx: @multiple_vouts, vout: 0, script_sig: 'sig:wpkh(@bob)' }
     ],
     outputs: [
-      { address: 'p2wpkh:charlie', amount: 0.99.sats }
+      { descriptor: 'wpkh(@charlie)', amount: 0.99.sats }
     ]
   },
   {
     inputs: [
-      { tx: @multiple_vouts, vout: 1, script_sig: 'p2wpkh:bob' }
+      { tx: @multiple_vouts, vout: 1, script_sig: 'sig:wpkh(@bob)' }
     ],
     outputs: [
-      { address: 'p2wpkh:charlie', amount: 0.99.sats }
+      { descriptor: 'wpkh(@charlie)', amount: 0.99.sats }
     ]
   },
   {
     inputs: [
-      { tx: @multiple_vouts, vout: 2, script_sig: 'p2wpkh:bob' }
+      { tx: @multiple_vouts, vout: 2, script_sig: 'sig:wpkh(@bob)' }
     ],
     outputs: [
-      { address: 'p2wpkh:charlie', amount: 0.99.sats }
+      { descriptor: 'wpkh(@charlie)', amount: 0.99.sats }
     ]
   }
 ]

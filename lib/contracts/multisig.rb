@@ -35,7 +35,7 @@ assert_equal get_height, 102, 'The height is not correct'
 coinbase_tx = get_coinbase_at 2
 
 @multisig_tx = transaction inputs: [
-                             { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:bob', sighash: :all }
+                             { tx: coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@bob)', sighash: :all }
                            ],
                            outputs: [
                              {
@@ -52,14 +52,14 @@ broadcast @multisig_tx
 
 confirm transaction: @multisig_tx, to: @alice
 
-logger.info 'Multisig transaction confirmed'
+log 'Multisig transaction confirmed'
 
 @spend_tx = transaction inputs: [
-                          { tx: @multisig_tx, vout: 0, script_sig: 'multisig:alice,bob' }
+                          { tx: @multisig_tx, vout: 0, script_sig: 'sig:multi(@alice,@bob)' }
                         ],
                         outputs: [
                           {
-                            address: 'p2wpkh:bob',
+                            descriptor: 'wpkh($bob)',
                             amount: 49.998.sats
                           }
                         ]
@@ -67,4 +67,4 @@ logger.info 'Multisig transaction confirmed'
 broadcast @spend_tx
 confirm transaction: @spend_tx, to: @alice
 
-logger.info 'Multisig transaction spent'
+log 'Multisig transaction spent'

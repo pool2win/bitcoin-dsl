@@ -38,7 +38,7 @@ module Anchor
   def setup_dust_input(transaction, to, dust_for)
     new_output_index = to.outputs.size - 1
     utxo_details = get_utxo_details(to, new_output_index)
-    input = { tx: to, vout: new_output_index, script_sig: "p2wpkh:#{dust_for.to_wif}",
+    input = { tx: to, vout: new_output_index, script_sig: "sig:wpkh(#{dust_for.to_wif})",
               utxo_details: utxo_details }
     add_input(transaction, input)
     transaction.build_params[:inputs] << input

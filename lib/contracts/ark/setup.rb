@@ -46,7 +46,7 @@ assert_height 102
 coinbase_tx = get_coinbase_at 2
 
 @alice_boarding_tx = transaction inputs: [
-                                   { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:asp', sighash: :all }
+                                   { tx: coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@asp)', sighash: :all }
                                  ],
                                  outputs: [
                                    {

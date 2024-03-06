@@ -17,19 +17,21 @@
 
 # frozen_string_literal: false
 
-run_script './lib/ark/setup.rb'
+run_script './lib/contracts/ark/setup.rb'
 
 @spend_tx = transaction inputs: [
-                          { tx: @alice_boarding_tx, vout: 0, script_sig: 'multisig:alice,asp' }
+                          { tx: @alice_boarding_tx,
+                            vout: 0,
+                            script_sig: 'sig:wpkh(@asp_timelock) nulldummy nulldummy nulldummy',
+                            csv: 10 }
                         ],
                         outputs: [
                           {
-                            address: 'p2wpkh:asp',
+                            descriptor: 'wpkh(@asp)',
                             amount: 49.998.sats
                           }
                         ]
 
 broadcast @spend_tx
 extend_chain to: @alice
-
 assert_confirmed transaction: @spend_tx
