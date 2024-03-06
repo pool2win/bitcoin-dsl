@@ -31,6 +31,7 @@ require_relative 'dsl/query_node'
 require_relative 'dsl/transaction'
 require_relative 'dsl/anchor'
 require_relative 'dsl/assertions'
+require_relative 'dsl/descriptor'
 
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL
@@ -42,6 +43,7 @@ module DSL
   include QueryNode
   include CompileScript
   include Broadcast
+  include Descriptor
 
   def pretty_print(result)
     puts JSON.pretty_generate result

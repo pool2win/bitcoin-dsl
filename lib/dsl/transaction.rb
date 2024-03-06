@@ -106,6 +106,8 @@ module Transaction
       Bitcoin::Script.parse_from_addr(address)
     elsif output.include? :policy
       compile_miniscript(output[:policy])
+    elsif output.include? :descriptor
+      output[:descriptor]
     end
   end
 
