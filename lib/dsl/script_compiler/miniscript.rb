@@ -17,19 +17,20 @@
 
 # frozen_string_literal: false
 
-run_script './lib/contracts/ark/setup.rb'
+# Script compiler module
+module ScriptCompiler
+  # Miniscript compiler
+  module Miniscript
+    def compile_miniscript(script)
+      policy = script.gsub!(/(\$)(\w+)/) { instance_eval("@#{Regexp.last_match(-1)}", __FILE__, __LINE__).pubkey }
+      output = `miniscript-cli -m '#{policy}'`
+      raise "Error parsing policy #{policy}" if output.empty?
 
-@spend_tx = transaction inputs: [
-                          { tx: @alice_boarding_tx, vout: 0, script_sig: 'sig:multi(@alice,@asp)' }
-                        ],
-                        outputs: [
-                          {
-                            descriptor: wpkh(@asp),
-                            amount: 49.998.sats
-                          }
-                        ]
-
-broadcast @spend_tx
-extend_chain to: @alice
-
-assert_confirmed transaction: @spend_tx
+      result = output.split("\n")
+      logger.debug "Result: #{result}"
+      compiled_script = Bitcoin::Script.parse_from_payload(result[1].htb)
+      # return the Wsh wrapped descriptor and the witness script
+      [Bitcoin::Script.parse_from_addr(result[0]), compiled_script]
+    end
+  end
+end

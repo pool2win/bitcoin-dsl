@@ -101,13 +101,12 @@ module Transaction
   end
 
   def build_script_pubkey(output)
-    if output.include? :address
-      address = parse_address(output[:address])
-      Bitcoin::Script.parse_from_addr(address)
+    if output.include? :script
+      compile_script_pubkey(output[:script])
     elsif output.include? :policy
       compile_miniscript(output[:policy])
     elsif output.include? :descriptor
-      instance_eval output[:descriptor].gsub('$', '@')
+      output[:descriptor]
     end
   end
 

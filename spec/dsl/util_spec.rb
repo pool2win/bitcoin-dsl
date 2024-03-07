@@ -17,34 +17,22 @@
 
 # frozen_string_literal: false
 
-require_relative '../lib/dsl/descriptor'
+require 'bitcoin'
+require_relative '../../lib/dsl/util'
 
-include Descriptor
+RSpec.describe Util do
+  include Util
 
-RSpec.describe Descriptor do
   before(:context) do
-    @key1 = Bitcoin::Key.generate
-    @key2 = Bitcoin::Key.generate
+    @key = Bitcoin::Key.generate
   end
 
-  describe 'Getting script from descriptor' do
-    it 'should convert pk' do
-      expect { pk @key1 }.not_to raise_error
+  describe 'hash160 should return hashes' do
+    it 'should handle key' do
+      expect(hash160(@key)).to be == @key.hash160
     end
-    it 'should convert pkh' do
-      expect { pkh @key1 }.not_to raise_error
-    end
-    it 'should convert wpkh' do
-      expect { wpkh @key1 }.not_to raise_error
-    end
-    it 'should convert combo' do
-      expect { combo @key1 }.not_to raise_error
-    end
-    it 'should convert multi' do
-      expect { multi 2, @key1, @key2 }.not_to raise_error
-    end
-    it 'should convert sortedmulti' do
-      expect { sortedmulti 2, @key1, @key2 }.not_to raise_error
+    it 'should handle data' do
+      expect(hash160('abcd')).to be == '4671c47a9d20c240a291661520d4af51df08fb0b'
     end
   end
 end

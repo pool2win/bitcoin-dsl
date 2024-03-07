@@ -27,7 +27,7 @@ run_script './lib/contracts/ark/setup.rb'
                         ],
                         outputs: [
                           {
-                            descriptor: 'wpkh(@asp)',
+                            descriptor: wpkh(@asp),
                             amount: 49.998.sats
                           }
                         ]

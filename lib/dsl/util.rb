@@ -17,19 +17,16 @@
 
 # frozen_string_literal: false
 
-run_script './lib/contracts/ark/setup.rb'
+# Utility functions for use with DSL
+module Util
+  include Bitcoin::Util
 
-@spend_tx = transaction inputs: [
-                          { tx: @alice_boarding_tx, vout: 0, script_sig: 'sig:multi(@alice,@asp)' }
-                        ],
-                        outputs: [
-                          {
-                            descriptor: wpkh(@asp),
-                            amount: 49.998.sats
-                          }
-                        ]
-
-broadcast @spend_tx
-extend_chain to: @alice
-
-assert_confirmed transaction: @spend_tx
+  def hash160(key)
+    case key
+    when Bitcoin::Key
+      key.hash160
+    else
+      super key
+    end
+  end
+end

@@ -26,11 +26,7 @@ module Descriptor
 
   def convert_keys(keys)
     keys.map do |k|
-      if k.is_a? Bitcoin::Key
-        k.pubkey
-      else
-        k
-      end
+      k.is_a?(Bitcoin::Key) ? k.pubkey : k
     end
   end
 
@@ -52,6 +48,18 @@ module Descriptor
     super key
   end
 
+  def wsh(script)
+    script = interpolate(script) if script.is_a?(String)
+
+    super script
+  end
+
+  def sh(script)
+    script = interpolate(script) if script.is_a?(String)
+
+    super script
+  end
+
   def combo(key)
     super key.pubkey
   end
@@ -64,5 +72,9 @@ module Descriptor
   def sortedmulti(threshold, *keys)
     keys = convert_keys keys
     super threshold, *keys
+  end
+
+  def interpolate(script)
+    Bitcoin::Script.from_string(script.split.collect { |e| instance_eval e }.join(' '))
   end
 end

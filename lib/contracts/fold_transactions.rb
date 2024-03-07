@@ -23,17 +23,9 @@
 assert_height 0
 
 # Generate new keys
-# @alice = key :new
-# @bob = key :new
-# @charlie = key :new
-
-@alice = Bitcoin::Key.from_wif 'cRBMbTqQLm21yvhFESwa64rUiEY82TeRySVNYoxEHPfmBmuJg15B'
-@bob = Bitcoin::Key.from_wif 'cTMmmtKX586vzWXNeMHVwmTeJMy1HGiaiYKcEu2uCdZB833CSJfb'
-@charlie = Bitcoin::Key.from_wif 'cUVpE62N4naARdk9wz1YVqb3EtGsuUSE6Qm4UDVMjUtioz6xoMx5'
-
-log "Alice #{@alice.pubkey} #{@alice.to_wif}"
-log "Bob #{@bob.pubkey} #{@bob.to_wif}"
-log "Charlie #{@charlie.pubkey} #{@charlie.to_wif}"
+@alice = key :new
+@bob = key :new
+@charlie = key :new
 
 # Seed alice with some coins
 extend_chain to: @alice
@@ -55,9 +47,9 @@ num_outputs = 10
                                 { tx: @alice_coinbase, vout: 0, script_sig: 'sig:wpkh(@alice)' }
                               ],
                               outputs: [
-                                { descriptor: 'wpkh(@bob)', amount: 1.sats }
+                                { descriptor: wpkh(@bob), amount: 1.sats }
                               ] * num_outputs + [
-                                { descriptor: 'wpkh(@bob)', amount: (49.99 - num_outputs).sats }
+                                { descriptor: wpkh(@bob), amount: (49.99 - num_outputs).sats }
                               ]
 
 # Confirm multiple vouts tx
@@ -72,7 +64,7 @@ log 'Transaction with multiple vouts now confirmed'
       { tx: @multiple_vouts, vout: 0, script_sig: 'sig:wpkh(@bob)' }
     ],
     outputs: [
-      { descriptor: 'wpkh(@charlie)', amount: 0.99.sats }
+      { descriptor: wpkh(@charlie), amount: 0.99.sats }
     ]
   },
   {
@@ -80,7 +72,7 @@ log 'Transaction with multiple vouts now confirmed'
       { tx: @multiple_vouts, vout: 1, script_sig: 'sig:wpkh(@bob)' }
     ],
     outputs: [
-      { descriptor: 'wpkh(@charlie)', amount: 0.99.sats }
+      { descriptor: wpkh(@charlie), amount: 0.99.sats }
     ]
   },
   {
@@ -88,7 +80,7 @@ log 'Transaction with multiple vouts now confirmed'
       { tx: @multiple_vouts, vout: 2, script_sig: 'sig:wpkh(@bob)' }
     ],
     outputs: [
-      { descriptor: 'wpkh(@charlie)', amount: 0.99.sats }
+      { descriptor: wpkh(@charlie), amount: 0.99.sats }
     ]
   }
 ]

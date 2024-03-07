@@ -17,19 +17,28 @@
 
 # frozen_string_literal: false
 
-run_script './lib/contracts/ark/setup.rb'
+# Script compiler module
+module CompileScript
+  # script parse elements
+  module ParseElement
+    def parse_element(element)
+      evaluated = instance_eval element
+      evaluated = evaluated.is_a?(Bitcoin::Key) ? evaluated.pubkey.htb : evaluated
+      if opcode?(element)
+        { type: :opcode, expression: element }
+      elsif evaluated
+        { type: :datum, expression: evaluated }
+      else
+        raise "Unknown term in script sig #{element}"
+      end
+    end
 
-@spend_tx = transaction inputs: [
-                          { tx: @alice_boarding_tx, vout: 0, script_sig: 'sig:multi(@alice,@asp)' }
-                        ],
-                        outputs: [
-                          {
-                            descriptor: wpkh(@asp),
-                            amount: 49.998.sats
-                          }
-                        ]
+    def as_opcode(name)
+      Bitcoin::Opcodes.name_to_opcode(name)
+    end
 
-broadcast @spend_tx
-extend_chain to: @alice
-
-assert_confirmed transaction: @spend_tx
+    def opcode?(name)
+      !as_opcode(name).nil?
+    end
+  end
+end

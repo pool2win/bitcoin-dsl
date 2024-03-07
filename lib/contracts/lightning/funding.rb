@@ -17,10 +17,7 @@
 
 # frozen_string_literal: false
 
-# Print new state of chain
-assert_equal 0, getblockchaininfo['blocks'], 'The height is not correct at genesis'
-
-# Generate new keys
+# Generate keys for channel funding tx
 @alice = key :new
 @bob = key :new
 
@@ -30,19 +27,19 @@ extend_chain to: @alice
 # Seed bob with some coins and make coinbase spendable
 extend_chain num_blocks: 101, to: @bob
 
-assert_equal get_height, 102, 'The height is not correct'
+@alice_funding_input_tx = spendable_coinbase_for @alice
+@bob_funding_input_tx = spendable_coinbase_for @bob
 
-coinbase_tx = get_coinbase_at 2
-
-@multisig_tx = transaction inputs: [
-                             { tx: coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@bob)', sighash: :all }
-                           ],
-                           outputs: [
-                             {
-                               policy: 'thresh(2,pk($alice),pk($bob))',
-                               amount: 49.999.sats
-                             }
-                           ]
+@funding_tx = transaction inputs: [
+                            { tx: @alice_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@alice)'},
+                            { tx: @bob_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
+                          ],
+                          outputs: [
+                            {
+                              policy: 'thresh(2,pk($alice),pk($bob))',
+                              amount: 49.999.sats
+                            }
+                          ]
 
 verify_signature for_transaction: @multisig_tx,
                  at_index: 0,

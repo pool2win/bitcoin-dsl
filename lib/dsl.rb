@@ -24,7 +24,9 @@ require_relative 'logging'
 
 require_relative 'dsl/tx'
 require_relative 'dsl/broadcast'
-require_relative 'dsl/compile_script'
+require_relative 'dsl/script_compiler/miniscript'
+require_relative 'dsl/script_compiler/script_pubkey'
+require_relative 'dsl/script_compiler/script_sig'
 require_relative 'dsl/key'
 require_relative 'dsl/numbers'
 require_relative 'dsl/query_node'
@@ -41,7 +43,9 @@ module DSL
   include Anchor
   include Assertions
   include QueryNode
-  include CompileScript
+  include ScriptCompiler::Miniscript
+  include ScriptCompiler::ScriptPubKey
+  include ScriptCompiler::ScriptSig
   include Broadcast
   include Descriptor
 
