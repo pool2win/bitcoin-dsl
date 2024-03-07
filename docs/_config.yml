@@ -99,3 +99,4 @@ just_the_docs:
 mermaid:
   version: "10.8.0"
 
+favicon_ico: "/assets/img/dsl.png"
