@@ -22,7 +22,7 @@ module ScriptCompiler
   # Miniscript compiler
   module Miniscript
     def compile_miniscript(script)
-      policy = script.gsub!(/(\$)(\w+)/) { instance_eval("@#{Regexp.last_match(-1)}", __FILE__, __LINE__).pubkey }
+      policy = script.gsub!(/(?<!\d)@\w+/) { instance_eval(Regexp.last_match(0), __FILE__, __LINE__).pubkey }
       output = `miniscript-cli -m '#{policy}'`
       raise "Error parsing policy #{policy}" if output.empty?
 

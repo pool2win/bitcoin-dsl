@@ -31,37 +31,18 @@ extend_chain num_blocks: 101, to: @bob
 @bob_funding_input_tx = spendable_coinbase_for @bob
 
 @funding_tx = transaction inputs: [
-                            { tx: @alice_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@alice)'},
+                            { tx: @alice_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@alice)' },
                             { tx: @bob_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
                           ],
                           outputs: [
                             {
-                              policy: 'thresh(2,pk($alice),pk($bob))',
-                              amount: 49.999.sats
+                              policy: 'thresh(2,pk(@alice),pk(@bob))',
+                              amount: 99.999.sats
                             }
                           ]
 
-verify_signature for_transaction: @multisig_tx,
-                 at_index: 0,
-                 with_prevout: [coinbase_tx, 0]
+broadcast @funding_tx
 
-broadcast @multisig_tx
+confirm transaction: @funding_tx, to: @alice
 
-confirm transaction: @multisig_tx, to: @alice
-
-log 'Multisig transaction confirmed'
-
-@spend_tx = transaction inputs: [
-                          { tx: @multisig_tx, vout: 0, script_sig: 'sig:multi(@alice,@bob)' }
-                        ],
-                        outputs: [
-                          {
-                            descriptor: wpkh(@bob),
-                            amount: 49.998.sats
-                          }
-                        ]
-
-broadcast @spend_tx
-confirm transaction: @spend_tx, to: @alice
-
-log 'Multisig transaction spent'
+log 'Funding transaction confirmed'

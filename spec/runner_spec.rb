@@ -35,9 +35,15 @@ RSpec.describe Runner do
     it_behaves_like 'script evaluation', './lib/contracts/fold_transactions.rb'
     it_behaves_like 'script evaluation', './lib/contracts/multisig.rb'
     it_behaves_like 'script evaluation', './lib/contracts/simple.rb'
+  end
 
+  describe 'Running ARK contracts' do
     it_behaves_like 'script evaluation', './lib/contracts/ark/setup.rb'
     it_behaves_like 'script evaluation', './lib/contracts/ark/spend_cooperatively.rb'
     it_behaves_like 'script evaluation', './lib/contracts/ark/spend_unilateral.rb'
+  end
+
+  describe 'Running lightning contracts' do
+    it_behaves_like 'script evaluation', './lib/contracts/lightning/funding.rb'
   end
 end
