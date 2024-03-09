@@ -22,7 +22,7 @@ require_relative 'commands'
 require_relative 'dsl'
 require_relative 'node'
 
-require 'test/unit'
+require 'test/unit/assertions'
 
 # Runner interprets the bitcoin DSL using instance_eval
 class Runner
