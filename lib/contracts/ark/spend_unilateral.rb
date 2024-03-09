@@ -34,4 +34,4 @@ run_script './lib/contracts/ark/setup.rb'
 
 broadcast @spend_tx
 extend_chain to: @alice
-assert_confirmed transaction: @spend_tx
+assert_confirmations @spend_tx, confirmations: 1

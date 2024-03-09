@@ -18,7 +18,6 @@
 # frozen_string_literal: false
 
 require 'rspec/core/rake_task'
-require 'jekyll'
 
 task default: :spec
 

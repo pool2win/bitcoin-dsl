@@ -80,6 +80,13 @@ module Transaction
     tx_in.sequence = input[:csv]
   end
 
+  def add_cltv(transaction, tx_in, input)
+    return unless input.include? :cltv
+
+    transaction.lock_time = input[:cltv]
+    tx_in.sequence = input[:cltv]
+  end
+
   def add_outputs(transaction, witnesses)
     return transaction unless transaction.build_params.include? :outputs
 

@@ -37,4 +37,26 @@ module Assertions
     accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
     assert !accepted[0]['allowed'], 'Transaction accepted by mempool when it should not be'
   end
+
+  def assert_height(height)
+    current_height = get_height
+    assert_equal current_height, height, "Current height #{current_height} is not at #{height}"
+  end
+
+  # Assert the provided transaction is spent on chain
+  # Returns the raw transaction loaded from the chain
+  def assert_confirmed(transaction:, at_height: nil, txid: nil)
+    at_height ||= get_height
+    blockhash = getblockhash height: at_height
+    txid ||= transaction.txid if transaction
+    tx = getrawtransaction txid: txid, verbose: true, block: blockhash['hash']
+    assert_equal blockhash, tx['blockhash'], "Transaction #{txid} not confirmed"
+    tx
+  end
+
+  def assert_confirmations(transaction, confirmations: 1)
+    rawtx = getrawtransaction transaction: transaction.txid, verbose: true
+    assert false, 'Transaction not found' unless rawtx
+    assert rawtx['confirmations'] >= confirmations, "Transaction confirmations only at #{rawtx['confirmations']}"
+  end
 end
