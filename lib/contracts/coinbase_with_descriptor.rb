@@ -17,20 +17,17 @@
 
 # frozen_string_literal: false
 
-# Script compiler module
-module ScriptCompiler
-  # Miniscript compiler
-  module Miniscript
-    def compile_miniscript(script)
-      policy = script.gsub!(/(?<!\d)@\w+/) { instance_eval(Regexp.last_match(0), __FILE__, __LINE__).pubkey }
-      output = `miniscript-cli -m '#{policy}'`
-      raise "Error parsing policy #{policy}" if output.empty?
+@alice = key :new
 
-      result = output.split("\n")
-      logger.debug "Result: #{result}"
-      compiled_script = Bitcoin::Script.parse_from_payload(result[1].htb)
-      # return the Wsh wrapped descriptor and the witness script
-      [Bitcoin::Script.parse_from_addr(result[0]), compiled_script, result[0]]
-    end
-  end
-end
+# Mine block with coinbase descriptor
+# extend_chain descriptor: wpkh(@alice)
+extend_chain to: @alice
+
+assert_height 1
+
+@coinbase_with_descriptor = get_coinbase_at 1
+
+# Make descripto coinbases spendable by spending to p2wkh
+extend_chain to: @alice, num_blocks: 100
+
+assert_confirmations @coinbase_with_descriptor, confirmations: 100

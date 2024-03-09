@@ -55,8 +55,9 @@ module Assertions
   end
 
   def assert_confirmations(transaction, confirmations: 1)
-    rawtx = getrawtransaction transaction: transaction.txid, verbose: true
+    tx = transaction.to_h.with_indifferent_access
+    rawtx = getrawtransaction transaction: tx['txid'], verbose: true
     assert false, 'Transaction not found' unless rawtx
-    assert rawtx['confirmations'] >= confirmations, "Transaction confirmations only at #{rawtx['confirmations']}"
+    assert rawtx['confirmations'] >= confirmations, "Transaction confirmations: #{rawtx['confirmations']}"
   end
 end

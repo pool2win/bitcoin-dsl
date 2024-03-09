@@ -19,10 +19,16 @@
 
 # DSL module for broadcasting transactions
 module Broadcast
-  def extend_chain(to: nil, num_blocks: 1)
-    from_height = get_height
-    to ||= key :new
-    address = to.to_p2wpkh
+  def extend_chain(to: nil, policy: nil, descriptor: nil, num_blocks: 1)
+    _ = get_height # We need to seem to call getheight before generating to address
+    if descriptor
+      address = descriptor.to_addr
+    elsif policy
+      address = compile_miniscript(policy)[2]
+    else
+      to ||= key :new
+      address = to.to_p2wpkh
+    end
     logger.info "Extending chain by #{num_blocks} blocks to address #{address}"
     generatetoaddress num_blocks: num_blocks, to: address
   end

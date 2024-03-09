@@ -43,6 +43,11 @@ RSpec.describe Runner do
     it_behaves_like 'script evaluation', './lib/contracts/ark/spend_unilateral.rb'
   end
 
+  describe 'Running coinbases addresses' do
+    it_behaves_like 'script evaluation', './lib/contracts/coinbase_with_policy.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/coinbase_with_descriptor.rb'
+  end
+
   describe 'Running lightning contracts' do
     it_behaves_like 'script evaluation', './lib/contracts/lightning/funding.rb'
   end
