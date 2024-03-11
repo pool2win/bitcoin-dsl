@@ -51,4 +51,8 @@ RSpec.describe Runner do
   describe 'Running lightning contracts' do
     it_behaves_like 'script evaluation', './lib/contracts/lightning/funding.rb'
   end
+
+  describe 'Running contracts with CSV and CLTV' do
+    it_behaves_like 'script evaluation', './lib/contracts/csv.rb'
+  end
 end
