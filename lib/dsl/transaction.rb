@@ -59,6 +59,7 @@ module Transaction
       out_point: Bitcoin::OutPoint.from_txid(input[:utxo_details].txid, input[:vout])
     )
     add_csv(transaction, tx_in, input)
+    add_cltv(transaction, tx_in, input)
     transaction.in << tx_in
   end
 
@@ -71,6 +72,10 @@ module Transaction
     transaction
   end
 
+  # Only number of blocks is supported for now.
+  #
+  # TODO: Switch to libfaketime to generate blocks in the future to
+  # support MTP
   def add_csv(transaction, tx_in, input)
     return unless input.include? :csv
 
@@ -78,11 +83,15 @@ module Transaction
     tx_in.sequence = input[:csv]
   end
 
+  # Only number of blocks is supported for now.
+  #
+  # TODO: Switch to libfaketime to generate blocks in the future to
+  # support MTP
   def add_cltv(transaction, tx_in, input)
     return unless input.include? :cltv
 
     transaction.lock_time = input[:cltv]
-    tx_in.sequence = input[:cltv]
+    tx_in.sequence = 0
   end
 
   def add_outputs(transaction)
