@@ -20,8 +20,11 @@
 # Generate new keys
 @alice = key :new
 
-# Mine to an address with miniscript policy
+# Mine to an address with miniscript policy with CSV
 extend_chain num_blocks: 1, policy: 'and(older(10),pk(@alice))'
+
+# Make coinbase at block 1 spendable
+extend_chain num_blocks: 100
 
 # Load the coinbase with miniscript policy
 @alice_coinbase_tx = get_coinbase_at 1
@@ -30,7 +33,7 @@ extend_chain num_blocks: 1, policy: 'and(older(10),pk(@alice))'
                         { tx: @alice_coinbase_tx,
                           vout: 0,
                           script_sig: 'sig:@alice',
-                          csv: 10 }
+                          csv: 110 }
                       ],
                       outputs: [
                         {
@@ -42,7 +45,7 @@ extend_chain num_blocks: 1, policy: 'and(older(10),pk(@alice))'
 assert_not_mempool_accept @csv_tx
 
 # Mine blocks for CSV requirements and making coinbase spendable
-extend_chain num_blocks: 100
+extend_chain num_blocks: 10
 
 assert_mempool_accept @csv_tx
 
