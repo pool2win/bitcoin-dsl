@@ -17,11 +17,15 @@
 
 # frozen_string_literal: false
 
+require 'active_support'
+require 'active_support/core_ext/hash/indifferent_access'
+require 'active_support/core_ext/numeric/time'
+require 'active_support/testing/time_helpers'
 require 'bitcoin'
 require 'open3'
 require 'ostruct'
-require_relative 'logging'
 
+require_relative 'logging'
 require_relative 'dsl/tx'
 require_relative 'dsl/broadcast'
 require_relative 'dsl/script_compiler/miniscript'
@@ -37,6 +41,8 @@ require_relative 'dsl/descriptor'
 
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL
+  include ActiveSupport::Testing::TimeHelpers
+
   include Logging
   include Key
   include Transaction

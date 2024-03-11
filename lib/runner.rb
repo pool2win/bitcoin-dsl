@@ -17,7 +17,6 @@
 
 # frozen_string_literal: false
 
-require 'active_support/core_ext/hash/indifferent_access'
 require_relative 'commands'
 require_relative 'dsl'
 require_relative 'node'

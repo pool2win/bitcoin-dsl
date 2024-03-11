@@ -24,4 +24,6 @@ class Numeric
   def sats
     self * SATS
   end
+
+  alias sat sats
 end
