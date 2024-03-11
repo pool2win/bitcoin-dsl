@@ -26,9 +26,6 @@ extend_chain num_blocks: 1, policy: 'and(older(10),pk(@alice))'
 # Load the coinbase with miniscript policy
 @alice_coinbase_tx = get_coinbase_at 1
 
-# Mine blocks for CSV requirements and making coinbase spendable
-extend_chain num_blocks: 100
-
 @csv_tx = transaction inputs: [
                         { tx: @alice_coinbase_tx,
                           vout: 0,
@@ -41,6 +38,13 @@ extend_chain num_blocks: 100
                           amount: 49.998.sats
                         }
                       ]
+
+assert_not_mempool_accept @csv_tx
+
+# Mine blocks for CSV requirements and making coinbase spendable
+extend_chain num_blocks: 100
+
+assert_mempool_accept @csv_tx
 
 broadcast @csv_tx
 extend_chain to: @alice
