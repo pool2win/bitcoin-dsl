@@ -28,9 +28,10 @@ module ScriptCompiler
 
       result = output.split("\n")
       logger.debug "Result: #{result}"
-      compiled_script = Bitcoin::Script.parse_from_payload(result[1].htb)
+      witness_script = Bitcoin::Script.parse_from_payload(result[1].htb)
       # return the Wsh wrapped descriptor and the witness script
-      [Bitcoin::Script.parse_from_addr(result[0]), compiled_script, result[0]]
+      store_witness(result[0], witness_script)
+      [Bitcoin::Script.parse_from_addr(result[0]), witness_script]
     end
   end
 end

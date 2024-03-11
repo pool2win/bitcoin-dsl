@@ -23,9 +23,28 @@
 # Mine block with coinbase policy
 extend_chain policy: 'thresh(2,pk(@alice),pk(@bob))'
 
+assert_height 1
+
 @coinbase_with_policy = get_coinbase_at 1
 
 # Make policy coinbase spendable by spending to p2wkh
 extend_chain to: @alice, num_blocks: 100
 
 assert_confirmations @coinbase_with_policy, confirmations: 101
+
+# Spend the coinbase with policy
+@spend_coinbase = transaction inputs: [
+                                { tx: @coinbase_with_policy,
+                                  vout: 0,
+                                  script_sig: 'sig:multi(@alice,@bob)' }
+                              ],
+                              outputs: [
+                                {
+                                  descriptor: wpkh(@alice),
+                                  amount: 49.998.sats
+                                }
+                              ]
+
+broadcast @spend_coinbase
+extend_chain to: @alice
+assert_confirmations @spend_coinbase, confirmations: 1

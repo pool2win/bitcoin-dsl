@@ -36,12 +36,13 @@ module ScriptCompiler
           send("handle_#{component[:type]}", transaction, input, index, stack, component[:expression])
         end
       end
-      append_witness_to_stack(input, index, stack)
+      append_witness_to_stack(input, stack)
     end
 
-    def append_witness_to_stack(input, index, stack)
-      input_tx = input[:tx].to_h.with_indifferent_access
-      stack << @witness_scripts[input_tx[:txid]][index].to_payload if @witness_scripts[input_tx[:txid]][index]
+    def append_witness_to_stack(input, stack)
+      return unless @witness_scripts.include? input[:utxo_details].script_pubkey.to_addr
+
+      stack << @witness_scripts[input[:utxo_details].script_pubkey.to_addr].to_payload
     end
 
     def handle_wpkh(transaction, input, index, stack, key)

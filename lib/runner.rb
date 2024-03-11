@@ -31,7 +31,7 @@ class Runner
 
   def initialize
     @txid_signers = {}
-    @witness_scripts = Hash.new { |h, k| h[k] = {} }
+    @witness_scripts = {}
     @coinbases = Hash.new { |h, k| h[k] = [] }
   end
 

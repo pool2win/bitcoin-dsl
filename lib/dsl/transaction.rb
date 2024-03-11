@@ -45,14 +45,12 @@ module Transaction
   end
 
   def build_transaction(params)
-    witnesses = {} # Store vout index / witness as hashes
     tx = Bitcoin::Tx.new
     tx.build_params = params
     tx = add_inputs(tx)
-    tx = add_outputs(tx, witnesses)
+    tx = add_outputs(tx)
     tx.version = params[:version] || DEFAULT_TX_VERSION
     add_signatures(tx)
-    store_witness(tx, witnesses)
     tx
   end
 
@@ -87,26 +85,31 @@ module Transaction
     tx_in.sequence = input[:cltv]
   end
 
-  def add_outputs(transaction, witnesses)
+  def add_outputs(transaction)
     return transaction unless transaction.build_params.include? :outputs
 
     # TODO: Handle direct script, without parsing from address
-    transaction.build_params[:outputs].each_with_index do |output, index|
-      script_pubkey, witness = build_script_pubkey(output)
+    transaction.build_params[:outputs].each do |output|
+      script_pubkey, = build_script_pubkey(output)
       transaction.out << Bitcoin::TxOut.new(value: output[:amount],
                                             script_pubkey: script_pubkey)
-      witnesses[index] = witness
     end
     transaction
   end
 
-  def store_witness(transaction, witnesses)
-    return unless witnesses
+  def store_witness(pubkey_script, witness)
+    return unless witness
 
-    @witness_scripts[transaction.to_h.with_indifferent_access[:txid]] = witnesses
-    logger.debug JSON.pretty_generate(@witness_scripts)
+    @witness_scripts[pubkey_script] = witness
+    log 'WITNESS SCRIPTS NOW....'
+    @witness_scripts.each { |k, v| log "pubkey script: #{k} ..... witness: #{v}" }
   end
 
+  # We don't track witness to script or descriptor. User will have to
+  # provide this.
+  #
+  # We do track the witness for miniscript as the witness there is not
+  # easy to figure out for the user.
   def build_script_pubkey(output)
     if output.include? :script
       compile_script_pubkey(output[:script])
@@ -140,8 +143,11 @@ module Transaction
   end
 
   def get_prevout_script(input)
-    @witness_scripts[input[:utxo_details][:txid]][input[:utxo_details][:index]] ||
+    if @witness_scripts.include?(input[:utxo_details].script_pubkey.to_addr)
+      @witness_scripts[input[:utxo_details].script_pubkey.to_addr]
+    else
       input[:utxo_details].script_pubkey
+    end
   end
 
   # Return an OpenStruct with txid, index, amount and script pub key

@@ -23,6 +23,7 @@ assert_equal 0, getblockchaininfo['blocks'], 'The height is not correct at genes
 # Generate new keys
 @alice = key :new
 @bob = key :new
+@carol = key :new
 
 # Seed alice with some coins
 extend_chain to: @alice
@@ -49,22 +50,24 @@ verify_signature for_transaction: @multisig_tx,
                  with_prevout: [coinbase_tx, 0]
 
 broadcast @multisig_tx
-
 confirm transaction: @multisig_tx, to: @alice
-
-log 'Multisig transaction confirmed'
 
 @spend_tx = transaction inputs: [
                           { tx: @multisig_tx, vout: 0, script_sig: 'sig:multi(@alice,@bob)' }
                         ],
                         outputs: [
                           {
-                            descriptor: wpkh(@bob),
+                            descriptor: wpkh(@carol),
                             amount: 49.998.sats
                           }
                         ]
 
+verify_signature for_transaction: @spend_tx,
+                 at_index: 0,
+                 with_prevout: [@multisig_tx, 0]
+
 broadcast @spend_tx
+
 confirm transaction: @spend_tx, to: @alice
 
 log 'Multisig transaction spent'

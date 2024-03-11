@@ -24,13 +24,17 @@ module Broadcast
     if descriptor
       address = descriptor.to_addr
     elsif policy
-      address = compile_miniscript(policy)[2]
+      script_pubkey, = compile_miniscript(policy)
+      address = script_pubkey.to_addr
     else
       to ||= key :new
       address = to.to_p2wpkh
     end
     logger.info "Extending chain by #{num_blocks} blocks to address #{address}"
-    generatetoaddress num_blocks: num_blocks, to: address
+    result = generatetoaddress num_blocks: num_blocks, to: address
+    raise "Unable to extend chaing to #{address}" unless result
+
+    result
   end
 
   # Broadcast a transaction
