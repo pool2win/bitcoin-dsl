@@ -19,29 +19,46 @@
 
 run_script './funding.rb'
 
-@to_local = 'OP_IF @remote_revocation_key OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @local_revocation_key OP_ENDIF OP_CHECKSIG'
+@alice_local = 'OP_IF @bob_revocation_key OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @alice_revocation_key OP_ENDIF OP_CHECKSIG'
+@alice_remote = '@bob_revocation_key OP_CHECKSIGVERIFY 1 OP_CHECKSEQUENCEVERIFY'
 
-@to_remote = '@remote_revocation_key OP_CHECKSIGVERIFY 1 OP_CHECKSEQUENCEVERIFY'
+@bob_local = 'OP_IF @alice_revocation_key OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @bob_revocation_key OP_ENDIF OP_CHECKSIG'
+@bob_remote = '@alice_revocation_key OP_CHECKSIGVERIFY 1 OP_CHECKSEQUENCEVERIFY'
 
-@local_commitment_tx = transaction inputs: [
-                                     { tx: @channel_funding_tx, vout: 0, script_sig: 'sig:multi(@local,_empty)' }
+@alice_commitment_tx = transaction inputs: [
+                                     { tx: @channel_funding_tx, vout: 0, script_sig: 'sig:multi(@alice,_empty)' }
                                    ],
                                    outputs: [
                                      {
-                                       script: @to_local,
+                                       script: @alice_local,
                                        amount: 49.999.sats
                                      },
                                      {
-                                       script: @to_remote,
+                                       script: @alice_remote,
                                        amount: 49.999.sats
                                      }
                                    ]
 
-# Can't broadcast this transaction until fully signed
-assert_not_mempool_accept @local_commitment_tx
+@bob_commitment_tx = transaction inputs: [
+                                   { tx: @channel_funding_tx, vout: 0, script_sig: 'sig:multi(_empty,@bob)' }
+                                 ],
+                                 outputs: [
+                                   {
+                                     script: @bob_local,
+                                     amount: 49.999.sats
+                                   },
+                                   {
+                                     script: @bob_remote,
+                                     amount: 49.999.sats
+                                   }
+                                 ]
 
-update_script_sig for_tx: @local_commitment_tx, at_index: 0, with_script_sig: 'sig:multi(@local,@remote)'
+# Can't broadcast these transactions until fully signed
+assert_not_mempool_accept @alice_commitment_tx
+assert_not_mempool_accept @bob_commitment_tx
 
-assert_mempool_accept @local_commitment_tx
+update_script_sig for_tx: @alice_commitment_tx, at_index: 0, with_script_sig: 'sig:multi(@alice,@bob)'
+update_script_sig for_tx: @bob_commitment_tx, at_index: 0, with_script_sig: 'sig:multi(@alice,@bob)'
 
-broadcast @local_commitment_tx
+assert_mempool_accept @alice_commitment_tx
+assert_mempool_accept @bob_commitment_tx

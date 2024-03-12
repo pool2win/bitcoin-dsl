@@ -18,16 +18,16 @@
 # frozen_string_literal: false
 
 # Generate keys for channel funding tx
-@local = key :new
-@local_revocation_key = key :new
+@alice = key :new
+@alice_revocation_key = key :new
 
-@remote = key :new
-@remote_revocation_key = key :new
+@bob = key :new
+@bob_revocation_key = key :new
 
 @local_delay = 1008
 
-# Seed local with some coins
-extend_chain to: @local
+# Seed alice with some coins
+extend_chain to: @alice
 
-# Seed remote with some coins and make coinbase spendable
-extend_chain num_blocks: 101, to: @remote
+# Seed bob with some coins and make coinbase spendable
+extend_chain num_blocks: 101, to: @bob
