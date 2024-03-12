@@ -17,32 +17,24 @@
 
 # frozen_string_literal: false
 
-# Generate keys for channel funding tx
-@alice = key :new
-@bob = key :new
-
-# Seed alice with some coins
-extend_chain to: @alice
-
-# Seed bob with some coins and make coinbase spendable
-extend_chain num_blocks: 101, to: @bob
+run_script './setup.rb'
 
 @alice_funding_input_tx = spendable_coinbase_for @alice
 @bob_funding_input_tx = spendable_coinbase_for @bob
 
-@funding_tx = transaction inputs: [
-                            { tx: @alice_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@alice)' },
-                            { tx: @bob_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
-                          ],
-                          outputs: [
-                            {
-                              policy: 'thresh(2,pk(@alice),pk(@bob))',
-                              amount: 99.999.sats
-                            }
-                          ]
+@channel_funding_tx = transaction inputs: [
+                                    { tx: @alice_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@alice)' },
+                                    { tx: @bob_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
+                                  ],
+                                  outputs: [
+                                    {
+                                      policy: 'thresh(2,pk(@alice),pk(@bob))',
+                                      amount: 99.999.sats
+                                    }
+                                  ]
 
-broadcast @funding_tx
+broadcast @channel_funding_tx
 
-confirm transaction: @funding_tx, to: @alice
+confirm transaction: @channel_funding_tx, to: @alice
 
 log 'Funding transaction confirmed'

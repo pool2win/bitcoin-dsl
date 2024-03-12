@@ -50,6 +50,7 @@ class Runner
   end
 
   def run(file)
+    @contract_file = file
     node :start
     begin
       run_script file
@@ -59,7 +60,7 @@ class Runner
   end
 
   def run_script(file)
-    contents = File.read file
+    contents = File.read(File.join(File.dirname(@contract_file), File.basename(file)))
     instance_eval contents, __FILE__, __LINE__
   end
 
