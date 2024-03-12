@@ -120,7 +120,7 @@ module Transaction
   # easy to figure out for the user.
   def build_script_pubkey(output)
     if output.include? :script
-      compile_script_pubkey(output[:script])
+      Bitcoin::Script.to_p2wsh(compile_script_pubkey(output[:script]))
     elsif output.include? :policy
       compile_miniscript(output[:policy])
     elsif output.include? :descriptor
