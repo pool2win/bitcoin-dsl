@@ -17,11 +17,12 @@
 
 # frozen_string_literal: false
 
+require_relative './signatures.rb'
+
 # DSL module for creating and inspecting bitcoin transactions
 module Transaction
+  include Signatures
   DEFAULT_TX_VERSION = 2
-  DEFAULT_SEGWIT_VERSION = :witness_v0
-  DEFAULT_SIGHASH_TYPE = :all
 
   # Inputs:
   #   tx: raw json transaction loaded from chain
@@ -110,8 +111,6 @@ module Transaction
     return unless witness
 
     @witness_scripts[pubkey_script] = witness
-    log 'WITNESS SCRIPTS NOW....'
-    @witness_scripts.each { |k, v| log "pubkey script: #{k} ..... witness: #{v}" }
   end
 
   # We don't track witness to script or descriptor. User will have to
@@ -126,36 +125,6 @@ module Transaction
       compile_miniscript(output[:policy])
     elsif output.include? :descriptor
       output[:descriptor]
-    end
-  end
-
-  def add_signatures(transaction, regen: false)
-    return transaction unless transaction.build_params.include? :inputs
-
-    transaction.build_params[:inputs].each_with_index do |input, index|
-      if regen # reset stack if regenerating all signatures
-        transaction.in[index].script_witness = Bitcoin::ScriptWitness.new
-      end
-      compile_script_sig(transaction, input, index, transaction.in[index].script_witness.stack)
-    end
-    transaction
-  end
-
-  def get_signature(transaction, input, index, key)
-    prevout_output_script = get_prevout_script(input)
-    sig_hash = transaction.sighash_for_input(index,
-                                             prevout_output_script,
-                                             sig_version: DEFAULT_SEGWIT_VERSION,
-                                             amount: input[:utxo_details].amount.sats)
-    sighash_type = input[:sighash] || DEFAULT_SIGHASH_TYPE
-    key.sign(sig_hash) + [Bitcoin::SIGHASH_TYPE[sighash_type]].pack('C')
-  end
-
-  def get_prevout_script(input)
-    if @witness_scripts.include?(input[:utxo_details].script_pubkey.to_addr)
-      @witness_scripts[input[:utxo_details].script_pubkey.to_addr]
-    else
-      input[:utxo_details].script_pubkey
     end
   end
 
