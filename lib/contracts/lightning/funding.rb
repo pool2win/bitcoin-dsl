@@ -19,22 +19,22 @@
 
 run_script './setup.rb'
 
-@alice_funding_input_tx = spendable_coinbase_for @alice
-@bob_funding_input_tx = spendable_coinbase_for @bob
+@local_funding_input_tx = spendable_coinbase_for @local
+@remote_funding_input_tx = spendable_coinbase_for @remote
 
 @channel_funding_tx = transaction inputs: [
-                                    { tx: @alice_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@alice)' },
-                                    { tx: @bob_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
+                                    { tx: @local_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@local)' },
+                                    { tx: @remote_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@remote)' }
                                   ],
                                   outputs: [
                                     {
-                                      policy: 'thresh(2,pk(@alice),pk(@bob))',
+                                      policy: 'thresh(2,pk(@local),pk(@remote))',
                                       amount: 99.999.sats
                                     }
                                   ]
 
 broadcast @channel_funding_tx
 
-confirm transaction: @channel_funding_tx, to: @alice
+confirm transaction: @channel_funding_tx, to: @local
 
 log 'Funding transaction confirmed'
