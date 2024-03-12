@@ -15,3 +15,5 @@ gem "test-unit", "~> 3.6"
 gem "rake", "~> 13.1", :group => :development
 
 gem "rspec", "~> 3.13", :group => :development
+
+gem "solargraph", "~> 0.50.0", :group => :development
