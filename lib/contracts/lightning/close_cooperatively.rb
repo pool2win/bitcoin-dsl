@@ -19,8 +19,11 @@
 
 run_script './commitment.rb'
 
+update_script_sig for_tx: @alice_commitment_tx, at_index: 0, with_script_sig: 'sig:multi(@alice,@bob)'
+
+assert_mempool_accept @alice_commitment_tx
+assert_not_mempool_accept @bob_commitment_tx
+
 broadcast @alice_commitment_tx
 
 confirm transaction: @alice_commitment_tx, to: @alice
-
-assert_not_mempool_accept @bob_commitment_tx
