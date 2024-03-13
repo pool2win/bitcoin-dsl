@@ -38,8 +38,6 @@ class Runner
   def method_missing(method, *args, &_block)
     if COMMANDS.include? method
       node method, *args
-    elsif BITCOIN_HASHES.include? method
-      Bitcoin.send method, *args
     else
       super
     end

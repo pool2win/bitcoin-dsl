@@ -17,16 +17,22 @@
 
 # frozen_string_literal: false
 
+require_relative '../commands'
+
 # Utility functions for use with DSL
 module Util
   include Bitcoin::Util
 
-  def hash160(key)
-    case key
-    when Bitcoin::Key
-      key.hash160
-    else
-      super key
+  # Define all bitcoin hashes to take String or Bitcoin::Key
+  # Anyone missing C++ method overriding? :)
+  BITCOIN_HASHES.each do |hash_name|
+    define_method(hash_name) do |arg|
+      case arg
+      when Bitcoin::Key
+        arg.send(hash_name)
+      else
+        super arg
+      end
     end
   end
 end
