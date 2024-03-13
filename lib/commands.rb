@@ -157,4 +157,4 @@ COMMANDS = [
   :walletprocesspsb
 ]
 
-BITCOIN_HASHES = %i[hash hash160 sha256 hmac_sha256 hmac_sha512]
+BITCOIN_HASHES = %i[hash160 sha256 hmac_sha256 hmac_sha512].freeze
