@@ -29,7 +29,7 @@ module Util
     define_method(hash_name) do |arg|
       case arg
       when Bitcoin::Key
-        arg.send(hash_name)
+        Bitcoin.send(hash_name, arg.pubkey)
       else
         super arg
       end

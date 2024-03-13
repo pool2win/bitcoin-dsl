@@ -29,10 +29,12 @@ RSpec.describe Util do
 
   describe 'hash160 should return hashes' do
     it 'should handle key' do
-      expect(hash160(@key)).to be == @key.hash160
+      expect(hash160(@key)).to be == Bitcoin.hash160(@key.pubkey)
+      expect(sha256(@key)).to be == Bitcoin.sha256(@key.pubkey)
     end
     it 'should handle data' do
-      expect(hash160('abcd')).to be == '4671c47a9d20c240a291661520d4af51df08fb0b'
+      expect(hash160('abcd')).to be == Bitcoin.hash160('abcd')
+      expect(sha256('abcd')).to be == Bitcoin.sha256('abcd')
     end
   end
 end
