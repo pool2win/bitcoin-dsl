@@ -3,3 +3,5 @@
 bin/
 bitcoin/
 miniscript-cli/target
+.venv
+.ipynb_checkpoints
