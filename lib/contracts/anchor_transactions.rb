@@ -49,14 +49,14 @@ extend_chain num_blocks: 100
                               { tx: @alice_coinbase, vout: 0, script_sig: 'sig:wpkh(@alice)' }
                             ],
                             outputs: [
-                              { descriptor: wpkh(@bob), amount: 49.99.sats }
+                              { descriptor: 'wpkh(@bob)', amount: 49.99.sats }
                             ]
 
 @bob_to_charlie = transaction inputs: [
                                 { tx: @bob_coinbase, vout: 0, script_sig: 'sig:wpkh(@bob)' }
                               ],
                               outputs: [
-                                { descriptor: wpkh(@charlie), amount: 49.99.sats }
+                                { descriptor: 'wpkh(@charlie)', amount: 49.99.sats }
                               ]
 
 anchor transaction: @alice_to_bob, to: @bob_to_charlie, dust_for: @alice

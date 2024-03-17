@@ -22,12 +22,12 @@ run_script './lib/contracts/ark/setup.rb'
 @spend_tx = transaction inputs: [
                           { tx: @alice_boarding_tx,
                             vout: 0,
-                            script_sig: 'sig:wpkh(@asp_timelock) nulldummy nulldummy nulldummy',
+                            script_sig: 'sig:@asp_timelock @asp_timelock 0x01',
                             csv: 10 }
                         ],
                         outputs: [
                           {
-                            descriptor: wpkh(@asp),
+                            descriptor: 'wpkh(@asp)',
                             amount: 49.998.sats
                           }
                         ]

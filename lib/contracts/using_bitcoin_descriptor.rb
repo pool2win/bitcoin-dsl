@@ -37,7 +37,7 @@ extend_chain num_blocks: 101, to: @alice
                           ],
                           outputs: [
                             {
-                              script: 'OP_DUP OP_HASH160 hash160(@bob) OP_EQUALVERIFY OP_CHECKSIG',
+                              descriptor: 'wpkh(@bob)',
                               amount: 49.999.sats
                             }
                           ]
@@ -49,8 +49,6 @@ verify_signature for_transaction: @opcodes_tx,
 broadcast @opcodes_tx
 
 confirm transaction: @opcodes_tx, to: @alice
-
-log 'Opcodes transaction confirmed'
 
 @spend_opcodes_tx = transaction inputs: [
                                   { tx: @opcodes_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }

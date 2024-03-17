@@ -28,7 +28,7 @@ run_script './setup.rb'
                                   ],
                                   outputs: [
                                     {
-                                      policy: 'thresh(2,pk(@alice),pk(@bob))',
+                                      descriptor: 'wsh(multi(2,@alice,@bob))',
                                       amount: 99.999.sats
                                     }
                                   ]

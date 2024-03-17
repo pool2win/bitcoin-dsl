@@ -27,9 +27,19 @@ module ScriptCompiler
 
     def compile_script_pubkey(script)
       processed = script.split.collect do |element|
-        instance_eval(element) || element
+        obj = instance_eval(element)
+        if obj.is_a? Bitcoin::Key
+          obj.pubkey
+        else
+          obj || element
+        end
       end.join(' ')
-      Bitcoin::Script.from_string processed
+      witness = Bitcoin::Script.from_string processed
+      pubscript = Bitcoin::Script.to_p2wsh(witness)
+      logger.debug "PUBSCRIPT: #{pubscript}"
+      logger.debug "WITNESS: #{witness}"
+      store_witness(pubscript.to_addr, witness)
+      [pubscript, witness]
     end
   end
 end

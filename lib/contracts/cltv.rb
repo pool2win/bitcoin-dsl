@@ -37,7 +37,7 @@ extend_chain num_blocks: 100
                        ],
                        outputs: [
                          {
-                           descriptor: wpkh(@alice),
+                           descriptor: 'wpkh(@alice)',
                            amount: 49.998.sats
                          }
                        ]

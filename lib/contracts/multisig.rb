@@ -40,7 +40,7 @@ coinbase_tx = get_coinbase_at 2
                            ],
                            outputs: [
                              {
-                               policy: 'thresh(2,pk(@alice),pk(@bob))',
+                               descriptor: 'wsh(multi(2,@alice,@bob))',
                                amount: 49.999.sats
                              }
                            ]
@@ -57,7 +57,7 @@ confirm transaction: @multisig_tx, to: @alice
                         ],
                         outputs: [
                           {
-                            descriptor: wpkh(@carol),
+                            descriptor: 'wpkh(@carol)',
                             amount: 49.998.sats
                           }
                         ]

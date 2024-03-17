@@ -20,8 +20,7 @@
 @alice = key :new
 
 # Mine block with coinbase descriptor
-# extend_chain descriptor: wpkh(@alice)
-extend_chain to: @alice
+extend_chain descriptor: 'wpkh(@alice)'
 
 assert_height 1
 

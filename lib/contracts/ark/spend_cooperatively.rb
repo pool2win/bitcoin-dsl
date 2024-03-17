@@ -20,11 +20,11 @@
 run_script './lib/contracts/ark/setup.rb'
 
 @spend_tx = transaction inputs: [
-                          { tx: @alice_boarding_tx, vout: 0, script_sig: 'sig:multi(@alice,@asp)' }
+                          { tx: @alice_boarding_tx, vout: 0, script_sig: 'sig:@asp sig:@alice ""' }
                         ],
                         outputs: [
                           {
-                            descriptor: wpkh(@asp),
+                            descriptor: 'wpkh(@asp)',
                             amount: 49.998.sats
                           }
                         ]

@@ -111,6 +111,13 @@ module Transaction
     return unless witness
 
     @witness_scripts[pubkey_script] = witness
+    print_witness_scripts
+  end
+
+  def print_witness_scripts
+    @witness_scripts.each do |addr, script|
+      logger.debug "#{addr} ---- #{script}"
+    end
   end
 
   # We don't track witness to script or descriptor. User will have to
@@ -120,11 +127,11 @@ module Transaction
   # easy to figure out for the user.
   def build_script_pubkey(output)
     if output.include? :script
-      Bitcoin::Script.to_p2wsh(compile_script_pubkey(output[:script]))
+      compile_script_pubkey(output[:script])
     elsif output.include? :policy
       compile_miniscript(output[:policy])
     elsif output.include? :descriptor
-      output[:descriptor]
+      compile_descriptor(output[:descriptor])
     end
   end
 

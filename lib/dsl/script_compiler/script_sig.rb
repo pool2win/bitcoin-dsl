@@ -96,6 +96,8 @@ module ScriptCompiler
           { type: :sig, expression: Regexp.last_match[1] }
         when /nulldummy/
           { type: :nulldummy }
+        when /0[xX][0-9a-fA-F]+/
+          { type: :datum, expression: Bitcoin.pack_var_int(Regexp.last_match[0].to_i(16)) }
         else
           parse_element(element)
         end

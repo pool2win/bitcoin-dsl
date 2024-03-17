@@ -45,6 +45,7 @@ module Signatures
 
   def get_signature(transaction, input, index, key)
     prevout_output_script = get_prevout_script(input)
+    logger.debug "PREVOUT FOUND #{prevout_output_script}"
     sig_hash = transaction.sighash_for_input(index,
                                              prevout_output_script,
                                              sig_version: DEFAULT_SEGWIT_VERSION,
@@ -54,6 +55,7 @@ module Signatures
   end
 
   def get_prevout_script(input)
+    logger.debug "GETTING PREVOUT SCRIPT... #{input[:utxo_details].script_pubkey.to_addr}"
     if @witness_scripts.include?(input[:utxo_details].script_pubkey.to_addr)
       @witness_scripts[input[:utxo_details].script_pubkey.to_addr]
     else

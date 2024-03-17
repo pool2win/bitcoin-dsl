@@ -75,5 +75,9 @@ fn parse_descriptor(args: Args) {
         descriptor.address(bitcoin::Network::Regtest).unwrap()
     );
     println!("{}", descriptor.script_pubkey());
+    println!(
+        "{}",
+        descriptor.script_code().unwrap().into_bytes().as_hex()
+    );
     println!("{}", descriptor.script_code().unwrap());
 }

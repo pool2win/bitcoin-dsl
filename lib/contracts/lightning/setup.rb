@@ -19,11 +19,11 @@
 
 # Generate keys for channel funding tx
 @alice = key :new
-@alice_revocation_key = key :new
+@alice_revocation_key_for_bob = key :new
 @alice_htlc_key = key :new
 
 @bob = key :new
-@bob_revocation_key = key :new
+@bob_revocation_key_for_alice = key :new
 @bob_htlc_key = key :new
 
 @local_delay = 1008
