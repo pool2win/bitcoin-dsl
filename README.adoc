@@ -1,3 +1,4 @@
+:source-highlighter: rouge
 
 image:https://github.com/pool2win/bitcoin-dsl/actions/workflows/contracts-ci.yml/badge.svg[![CI Badge]
 
@@ -5,11 +6,37 @@ image:https://github.com/pool2win/bitcoin-dsl/actions/workflows/contracts-ci.yml
 
 Make is easy to experiment with bitcoin contracts.
 
+
 == Quick Start
 
 . Install link:https://github.com/casey/just?tab=readme-ov-file#installation[Just].
 . Build docker image `just build`.
 . Run a contract `just run ./lib/contracts/simple.rb`.
+
+
+== Example Contracts
+
+Here's an example showing setting up keys, looking up coinbase
+transactions from bitcoin node, creating new transactions and
+confirming them.
+
+.Generate keys and find coinbase to spend
+[source,ruby]
+----
+include::lib/contracts/multisig.rb[tag=setup]
+----
+
+.Spend coinbase to multisig
+[source,ruby]
+----
+include::lib/contracts/multisig.rb[tag=spend-coinbase]
+----
+
+.Spend multisig after signing
+[source,ruby]
+----
+include::lib/contracts/multisig.rb[tag=spend-multisig]
+----
 
 == Goals
 
@@ -169,10 +196,10 @@ new transaction to spend the coinbase.
 @alice_coinbase = spendable_coinbase_for @alice
 
 transaction inputs: [
-          { tx: @alice_coinbase, vout: 0, script_sig: 'wpkh(@alice)' }
+	      { tx: @alice_coinbase, vout: 0, script_sig: 'wpkh(@alice)' }
 	    ],
 	    outputs: [
-          { address: 'wpkh(@bob)', amount: 49.99.sats }
+              { address: 'wpkh(@bob)', amount: 49.99.sats }
 	    ]
 ----
 

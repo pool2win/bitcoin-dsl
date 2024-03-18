@@ -20,6 +20,7 @@
 # Print new state of chain
 assert_equal 0, getblockchaininfo['blocks'], 'The height is not correct at genesis'
 
+# tag::setup[]
 # Generate new keys
 @alice = key :new
 @bob = key :new
@@ -33,41 +34,35 @@ extend_chain num_blocks: 101, to: @bob
 
 assert_equal get_height, 102, 'The height is not correct'
 
-coinbase_tx = get_coinbase_at 2
+@coinbase_tx = get_coinbase_at 2
+# end::setup[]
 
+# tag::spend-coinbase[]
 @multisig_tx = transaction inputs: [
-                             { tx: coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@bob)', sighash: :all }
+                             { tx: @coinbase_tx,
+                               vout: 0,
+                               script_sig: 'sig:wpkh(@bob)' }
                            ],
                            outputs: [
-                             {
-                               descriptor: 'wsh(multi(2,@alice,@bob))',
-                               amount: 49.999.sats
-                             }
+                             { descriptor: 'wsh(multi(2,@alice,@bob))',
+                               amount: 49.999.sats }
                            ]
-
-verify_signature for_transaction: @multisig_tx,
-                 at_index: 0,
-                 with_prevout: [coinbase_tx, 0]
-
 broadcast @multisig_tx
 confirm transaction: @multisig_tx, to: @alice
+# end::spend-coinbase[]
 
+# tag::spend-multisig[]
 @spend_tx = transaction inputs: [
-                          { tx: @multisig_tx, vout: 0, script_sig: 'sig:multi(@alice,@bob)' }
+                          { tx: @multisig_tx,
+                            vout: 0,
+                            script_sig: 'sig:multi(@alice,@bob)' }
                         ],
                         outputs: [
-                          {
-                            descriptor: 'wpkh(@carol)',
-                            amount: 49.998.sats
-                          }
+                          { descriptor: 'wpkh(@carol)',
+                            amount: 49.998.sats }
                         ]
-
-verify_signature for_transaction: @spend_tx,
-                 at_index: 0,
-                 with_prevout: [@multisig_tx, 0]
-
 broadcast @spend_tx
-
 confirm transaction: @spend_tx, to: @alice
+# end::spend-multisig[]
 
 log 'Multisig transaction spent'
