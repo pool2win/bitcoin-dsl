@@ -218,15 +218,15 @@ after a CSV timelock.
 
 [source,ruby]
 ----
-@alice_boarding_tx = transaction inputs: [
-                                   { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:bob', sighash: :all }
-                                 ],
-                                 outputs: [
-                                   {
-                                     policy: 'or(99@thresh(2,pk($alice),pk(bob)),and(older(10),pk($bob_timelock)))',
-                                     amount: 49.999.sats
-                                   }
-                                 ]
+@threshold_tx = transaction inputs: [
+		  { tx: coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@bob)', sighash: :all }
+		],
+		outputs: [
+		  {
+		    policy: 'or(99@thresh(2,pk(@alice),pk(@bob)),and(older(10),pk(@bob_timelock)))',
+		    amount: 49.999.sats
+		  }
+		]
 ----
 
 To spend the transaction, we introduce a `csv` keyword. The following
@@ -235,23 +235,21 @@ above transaction.
 
 [source,ruby]
 ----
-@spend_tx = transaction inputs: [
-                          { tx: @alice_boarding_tx,
-                            vout: 0,
-                            script_sig: 'p2wpkh:asp_timelock nulldummy nulldummy nulldummy',
-                            csv: 10 }
-                        ],
-                        outputs: [
-                          {
-                            address: 'p2wpkh:asp',
-                            amount: 49.998.sats
-                          }
-                        ]
+transaction inputs: [
+	      { tx: @threshold_tx,
+		vout: 0,
+		script_sig: 'sig:@bob_timelock sig:@alice',
+		csv: 10 }
+	    ],
+	    outputs: [
+	      {
+		address: 'wpkh(@alice)',
+		amount: 49.998.sats
+	      }
+	    ]
 ----
 
-Note how we specified `nulldummy` to generate the correct
-`script_sig`. Also, the use of the `CSV` keyword to setup sequence
-values as required.
+Note use of the `CSV` keyword to setup `sequence` and `locktime` values.
 
 We see here how the DSL hides the complications of constructing
 bitcoin transactions by providing a high level language to build
