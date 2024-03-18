@@ -23,19 +23,60 @@ confirming them.
 .Generate keys and find coinbase to spend
 [source,ruby]
 ----
-include::lib/contracts/multisig.rb[tag=setup]
+# Generate new keys
+@alice = key :new
+@bob = key :new
+@carol = key :new
+
+# Seed alice with some coins
+extend_chain to: @alice
+
+# Seed bob with some coins and make coinbase spendable
+extend_chain num_blocks: 101, to: @bob
+
+assert_equal get_height, 102, 'The height is not correct'
+
+@coinbase_tx = get_coinbase_at 2
 ----
 
 .Spend coinbase to multisig
 [source,ruby]
 ----
-include::lib/contracts/multisig.rb[tag=spend-coinbase]
+@multisig_tx = transaction inputs: [
+     {
+       tx: @coinbase_tx,
+       vout: 0,
+       script_sig: 'sig:wpkh(@bob)'
+     }
+   ],
+   outputs: [
+     {
+       descriptor: 'wsh(multi(2,@alice,@bob))',
+       amount: 49.999.sats
+     }
+   ]
+broadcast @multisig_tx
+confirm transaction: @multisig_tx, to: @alice
 ----
 
 .Spend multisig after signing
 [source,ruby]
 ----
-include::lib/contracts/multisig.rb[tag=spend-multisig]
+@spend_tx = transaction inputs: [
+     {
+       tx: @multisig_tx,
+       vout: 0,
+       script_sig: 'sig:multi(@alice,@bob)'
+     }
+   ],
+   outputs: [
+     {
+       descriptor: 'wpkh(@carol)',
+       amount: 49.998.sats
+     }
+   ]
+broadcast @spend_tx
+confirm transaction: @spend_tx, to: @alice
 ----
 
 == Goals
@@ -196,11 +237,11 @@ new transaction to spend the coinbase.
 @alice_coinbase = spendable_coinbase_for @alice
 
 transaction inputs: [
-	      { tx: @alice_coinbase, vout: 0, script_sig: 'wpkh(@alice)' }
-	    ],
-	    outputs: [
-              { address: 'wpkh(@bob)', amount: 49.99.sats }
-	    ]
+     { tx: @alice_coinbase, vout: 0, script_sig: 'wpkh(@alice)' }
+   ],
+   outputs: [
+     { address: 'wpkh(@bob)', amount: 49.99.sats }
+   ]
 ----
 
 Note the syntax to generate `script_sig` and `script_pub_keys`. In the
@@ -223,15 +264,15 @@ miniscript.
 
 [source,ruby]
 ----
-spend inputs: [
-        { tx: coinbase_tx, vout: 0, script_sig: 'wpkh(@bob)', sighash: :all}
-      ],
-      outputs: [
-        {
-          policy: 'thresh(2,pk(@alice),pk(@bob))',
-          amount: 49.999.sats
-        }
-      ]
+transaction inputs: [
+     { tx: coinbase_tx, vout: 0, script_sig: 'wpkh(@bob)', sighash: :all}
+   ],
+   outputs: [
+     {
+       policy: 'thresh(2,pk(@alice),pk(@bob))',
+       amount: 49.999.sats
+     }
+   ]
 ----
 
 The `sighash: :all` directive is optional. By default the DSL uses
@@ -246,14 +287,14 @@ after a CSV timelock.
 [source,ruby]
 ----
 @threshold_tx = transaction inputs: [
-		  { tx: coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@bob)', sighash: :all }
-		],
-		outputs: [
-		  {
-		    policy: 'or(99@thresh(2,pk(@alice),pk(@bob)),and(older(10),pk(@bob_timelock)))',
-		    amount: 49.999.sats
-		  }
-		]
+     { tx: coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@bob)', sighash: :all }
+   ],
+   outputs: [
+     {
+       policy: 'or(99@thresh(2,pk(@alice),pk(@bob)),and(older(10),pk(@bob_timelock)))',
+       amount: 49.999.sats
+     }
+   ]
 ----
 
 To spend the transaction, we introduce a `csv` keyword. The following
@@ -263,17 +304,17 @@ above transaction.
 [source,ruby]
 ----
 transaction inputs: [
-	      { tx: @threshold_tx,
-		vout: 0,
-		script_sig: 'sig:@bob_timelock sig:@alice',
-		csv: 10 }
-	    ],
-	    outputs: [
-	      {
-		address: 'wpkh(@alice)',
-		amount: 49.998.sats
-	      }
-	    ]
+     { tx: @threshold_tx,
+       vout: 0,
+       script_sig: 'sig:@bob_timelock sig:@alice',
+       csv: 10 }
+   ],
+   outputs: [
+     {
+       address: 'wpkh(@alice)',
+       amount: 49.998.sats
+     }
+   ]
 ----
 
 Note use of the `CSV` keyword to setup `sequence` and `locktime` values.
