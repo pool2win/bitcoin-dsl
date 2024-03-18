@@ -1,3 +1,6 @@
+
+![CI Badge](https://github.com/pool2win/bitcoin-dsl/actions/workflows/contracts-ci.yml/badge.svg)
+
 ## Bitcoin DSL - Mission
 
 Make is easy to experiment with bitcoin contracts.
