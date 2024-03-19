@@ -17,7 +17,7 @@
 
 # frozen_string_literal: false
 
-run_script './commitment.rb'
+run_script './commitment_without_htlcs.rb'
 
 # Alice broadcasts commitment tx
 broadcast @alice_commitment_tx

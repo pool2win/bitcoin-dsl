@@ -1,0 +1,22 @@
+= Lighting contracts without anchors
+
+These contracts ignore the fees calculation, the dust limits and the
+trimming of transactions. The purpose of these scripts is to show how
+a complex lifecycle of transactions as observed in LN can be captured
+with Bitcoin DSL.
+
+These scripts also ignore the key derivation for various roles. We
+initially generate a bunch of keys to fulfill the various roles.
+
+* [x] Funding transaction
+* [x] Commitment transaction without anchors
+** [x] To Local
+** [x] To Remote
+** [ ] Cooperative close (HTLCs settled or not added)
+** [ ] Add HTLCs
+*** [ ] HTLCs Offered
+*** [ ] HTLCs Received
+** [ ] Cooperative close after settling HTLCs
+* [ ] HTLC Timeout & Success
+* [ ] Revocation of commitments
+* [ ] Closing Transaction
