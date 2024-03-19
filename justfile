@@ -5,3 +5,6 @@ build-docker:
 
 run script:
 	docker run bitcoin-dsl ruby ./lib/run.rb -s {{script}}
+
+test:
+	docker run bitcoin-dsl rake spec
