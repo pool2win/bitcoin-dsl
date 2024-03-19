@@ -12,11 +12,14 @@ initially generate a bunch of keys to fulfill the various roles.
 * [x] Commitment transaction without anchors
 ** [x] To Local
 ** [x] To Remote
-** [ ] Cooperative close (HTLCs settled or not added)
+** [x] Cooperative close after settling HTLCs
+   This case is captured by the cooperative close without htlcs path.
+** [x] Close unilaterally once all HTLCs are settled
+   This case is captured by the cooperative close without htlcs path.
 ** [ ] Add HTLCs
 *** [ ] HTLCs Offered
 *** [ ] HTLCs Received
-** [ ] Cooperative close after settling HTLCs
+** [ ] Close unilaterally with unsettled HTLCs
 * [ ] HTLC Timeout & Success
 * [ ] Revocation of commitments
 * [ ] Closing Transaction
