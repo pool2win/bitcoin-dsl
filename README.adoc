@@ -90,15 +90,15 @@ done. For example, to build a transaction, we should just say the
 scriptsig is a `sig:wpkh(@bob)` instead of making a series of
 imperative calls to achieve the same goal.
 
-=== Easily execute branches in a contract execution
+=== Execute branches in contract execution
 
 Users should be easily able to run the various branches that a
 contract can be executed on.
 
 === High level language for locking and unlocking Script
 
-Support miniscript, descriptors and Script for script sigs and script
-pubkeys.
+Support **miniscript, descriptors and Script** for script sigs and
+script pubkeys.
 
 Miniscript and descriptors are handy for writing locking conditions in
 a higher level language, however, we also want to write unlocking
@@ -117,22 +117,6 @@ The DSL acts as a god system, where the runtime sees all the
 cryptographic material. For example, to generate a P2WSH signature,
 the witness program is automatically put in the right place by
 the DSL.
-
-== Tools: Bitcoin Ruby and Rust-Miniscript
-
-I was earlier trying to build an
-link:https://github.com/pool2win/bsl[intricate DSL in Lisp], but for
-the sake of quick iteration decided to build an internal DSL in
-Ruby. Thankfully, we already have an extensive, well tested and
-supported library to build bitcoin transactions in Ruby -
-link:https://github.com/chaintope/bitcoinrb[bitcoinrb] - a bitcoin ruby
-library that provides all the building blocks I need. So my task was
-made much simpler - build an internal DSL around bitcoinrb.
-
-I want to leverage miniscript to specify pubscripts. For the same,
-link:https://github.com/rust-bitcoin/rust-miniscript[rust-miniscript]
-I provide a CLI wrapper around it and call it from within the
-Ruby DSL.
 
 == Features
 
@@ -326,6 +310,40 @@ We see here how the DSL hides the complications of constructing
 bitcoin transactions by providing a high level language to build
 transactions.
 
+=== Using descriptors
+
+The transaction above using miniscript `thresh` policy can be written
+using the `multi` descriptor instead.
+
+[source,ruby]
+----
+transaction inputs: [
+     { tx: coinbase_tx, vout: 0, script_sig: 'wpkh(@bob)', sighash: :all}
+   ],
+   outputs: [
+     { descriptor: 'wsh(multi(2,@alice,@bob))', amount: 49.999.sats }
+   ]
+----
+
+=== Using Script
+
+The same script pubkey can also be written using plain old
+script. When using `script`, the DSL wraps the provided script into a
+`wsh` descriptor for us, and tracks the witness program for use when
+we later need to spend from the output.
+
+[source,ruby]
+----
+transaction inputs: [
+     { tx: coinbase_tx, vout: 0, script_sig: 'wpkh(@bob)', sighash: :all}
+   ],
+   outputs: [
+     { script: '2 @alice @bob 2 OP_CHECKMULTISIG', amount: 49.999.sats }
+   ]
+----
+
+
+
 
 == Bitcoin node interactions
 
@@ -376,6 +394,23 @@ To assert that a transaction is confirmed at a given height:
 ----
 assert_confirmed transaction: @alice_boarding_tx, at_height: 100
 ----
+
+== Tools Used
+
+I was earlier trying to build an
+link:https://github.com/pool2win/bsl[intricate DSL in Lisp], but for
+the sake of quick iteration decided to build an internal DSL in
+Ruby. Thankfully, we already have an extensive, well tested and
+supported library to build bitcoin transactions in Ruby -
+link:https://github.com/chaintope/bitcoinrb[bitcoinrb] - a bitcoin ruby
+library that provides all the building blocks I need. So my task was
+made much simpler - build an internal DSL around bitcoinrb.
+
+I want to leverage miniscript to specify pubscripts. For the same,
+link:https://github.com/rust-bitcoin/rust-miniscript[rust-miniscript]
+I provide a CLI wrapper around it and call it from within the
+Ruby DSL.
+
 
 == Next Steps
 
