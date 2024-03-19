@@ -55,7 +55,7 @@ RSpec.describe Runner do
 
   describe 'Running lightning contracts' do
     it_behaves_like 'script evaluation', './lib/contracts/lightning/funding.rb'
-    it_behaves_like 'script evaluation', './lib/contracts/lightning/commitment.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/lightning/commitment_without_htlcs.rb'
     it_behaves_like 'script evaluation', './lib/contracts/lightning/close_cooperatively_without_htlcs.rb'
     it_behaves_like 'script evaluation', './lib/contracts/lightning/close_unilaterally_without_htlcs.rb'
   end
