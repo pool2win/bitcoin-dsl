@@ -28,7 +28,8 @@
 
 @local_delay = 1008
 
-@payment_preimage = 'a test preimage'
+# 32 byte preimage in hex
+@payment_preimage = 'beef' * 16
 
 # Seed alice with some coins
 extend_chain to: @alice

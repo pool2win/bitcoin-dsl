@@ -58,5 +58,9 @@ RSpec.describe Runner do
     it_behaves_like 'script evaluation', './lib/contracts/lightning/commitment_without_htlcs.rb'
     it_behaves_like 'script evaluation', './lib/contracts/lightning/close_cooperatively_without_htlcs.rb'
     it_behaves_like 'script evaluation', './lib/contracts/lightning/close_unilaterally_without_htlcs.rb'
+
+    it_behaves_like 'script evaluation', './lib/contracts/lightning/add_htlc.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_revocation_key.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_preimage.rb'
   end
 end

@@ -16,10 +16,14 @@ initially generate a bunch of keys to fulfill the various roles.
    This case is captured by the cooperative close without htlcs path.
 ** [x] Close unilaterally once all HTLCs are settled
    This case is captured by the cooperative close without htlcs path.
-** [ ] Add HTLCs
-*** [ ] HTLCs Offered
-*** [ ] HTLCs Received
+** [x] Add HTLCs
+*** [x] HTLCs Offered
+*** [x] HTLCs Received
 ** [ ] Close unilaterally with unsettled HTLCs
+*** [ ] By local without penalty in time
+*** [ ] By local with penalty broadcast by remote
+*** [ ] By remote without penalty in time
+*** [ ] By remote with penalty broadcast by local
 * [ ] HTLC Timeout & Success
 * [ ] Revocation of commitments
 * [ ] Closing Transaction

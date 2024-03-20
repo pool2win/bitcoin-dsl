@@ -55,7 +55,6 @@ module Signatures
   end
 
   def get_prevout_script(input)
-    logger.debug "GETTING PREVOUT SCRIPT... #{input[:utxo_details].script_pubkey.to_addr}"
     if @witness_scripts.include?(input[:utxo_details].script_pubkey.to_addr)
       @witness_scripts[input[:utxo_details].script_pubkey.to_addr]
     else
