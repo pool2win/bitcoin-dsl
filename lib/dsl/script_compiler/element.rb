@@ -23,11 +23,11 @@ module CompileScript
   module ParseElement
     def parse_element(element)
       evaluated = instance_eval element
-      evaluated = evaluated.is_a?(Bitcoin::Key) ? evaluated.pubkey.htb : evaluated
+      evaluated = evaluated.is_a?(Bitcoin::Key) ? evaluated.pubkey : evaluated
       if opcode?(element)
         { type: :opcode, expression: element }
       elsif evaluated
-        { type: :datum, expression: evaluated }
+        { type: :datum, expression: evaluated.htb }
       else
         raise "Unknown term in script sig #{element}"
       end
