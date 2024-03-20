@@ -17,30 +17,29 @@
 
 # frozen_string_literal: false
 
-require_relative '../../dsl/util'
+require 'bitcoin'
+require_relative '../../../lib/dsl/script_compiler/script_pubkey'
+require_relative '../../../lib/dsl'
 
-# Script compiler module
-module ScriptCompiler
-  # script pub key compiler
-  module ScriptPubKey
-    include Util
+RSpec.describe ScriptCompiler::ScriptPubKey do
+  include DSL
 
-    def compile_script_pubkey(script)
-      witness_program = Bitcoin::Script.new
-      script.split.each do |element|
-        obj = instance_eval(element)
-        case obj
-        when Bitcoin::Key
-          witness_program << obj.pubkey
-        else
-          witness_program << obj || element
-        end
-      end
-      pubscript = Bitcoin::Script.to_p2wsh(witness_program)
-      logger.debug "PUBSCRIPT: #{pubscript}"
-      logger.debug "WITNESS: #{witness_program}"
-      store_witness(pubscript.to_addr, witness_program)
-      [pubscript, witness_program]
+  before(:context) do
+    @witness_scripts = {}
+  end
+
+  describe 'Getting script from descriptor' do
+    it 'should capture a integer as data' do
+      @data = 100
+      script = Bitcoin::Script.new
+      script << 100
+      expect(compile_script_pubkey('@data')[1]).to be == script
+    end
+    it 'should capture a string as data' do
+      @data = '100'
+      script = Bitcoin::Script.new
+      script << '100'
+      expect(compile_script_pubkey('@data')[1]).to be == script
     end
   end
 end
