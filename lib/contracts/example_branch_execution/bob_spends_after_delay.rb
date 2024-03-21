@@ -17,24 +17,18 @@
 
 # frozen_string_literal: false
 
-# Generate new keys
-@alice = key :new
-@bob = key :new
-
-# Mine to an address with miniscript policy with CSV
-extend_chain num_blocks: 1, policy: 'or(and(older(10),pk(@alice)),pk(@bob))'
-
-# Make coinbase at block 1 spendable
-extend_chain num_blocks: 100
+# tag::bob_spends_after_delay[]
+run_script './setup.rb' # <1>
 
 # Load the coinbase with miniscript policy
 @alice_coinbase_tx = get_coinbase_at 1
 
 @csv_tx = transaction inputs: [
-                        { tx: @alice_coinbase_tx,
+                        {
+                          tx: @alice_coinbase_tx,
                           vout: 0,
-                          script_sig: 'sig:@alice ""',
-                          csv: 110 }
+                          script_sig: 'sig:@bob' # <2>
+                        }
                       ],
                       outputs: [
                         {
@@ -43,13 +37,8 @@ extend_chain num_blocks: 100
                         }
                       ]
 
-assert_not_mempool_accept @csv_tx
+extend_chain num_blocks: 10 # <3>
 
-# Mine blocks for CSV requirements and making coinbase spendable
-extend_chain num_blocks: 10
-
-assert_mempool_accept @csv_tx
-
-broadcast @csv_tx
-extend_chain to: @alice
-assert_confirmations @csv_tx, confirmations: 1
+broadcast @csv_tx # <4>
+extend_chain
+# end::bob_spends_after_delay[]

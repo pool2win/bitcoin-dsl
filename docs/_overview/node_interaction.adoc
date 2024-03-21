@@ -1,22 +1,21 @@
----
-layout: page
-title: Node Interaction
-nav_order: 4
----
-
-# Node Interaction
+= Node Interaction
+:page-layout: page
+:page-title: Node Interaction
+:page-nav_order: 4
 
 The DSL makes it easy to interact with bitcoin node with complete
 contract state available.
 
 ---
 
-The DSL supports all JSON-API commands supported by bitcoin. You don't
-need to worry about (de)serialization of arguments. Just provide the
-transaction object or any other parameter directly from the DSL. Here
-are a few examples:
+The DSL supports all
+link:https://en.bitcoin.it/wiki/API_reference_%28JSON-RPC%29[ JSON-RPC
+API commands] supported by bitcoin. You don't need to worry about
+(de)serialization of arguments. Just provide the transaction object or
+any other parameter directly from the DSL. Here are a few examples:
 
-```ruby
+[source,ruby]
+----
 @address = ...
 
 # Mine blocks to the address
@@ -26,12 +25,12 @@ generatetoaddress num_blocks: 100, to: @address
 
 # Send raw transaction
 sendrawtransaction tx: @tx
-```
+----
 
 Apart from providing access to the raw JSON-API commands, the DSL also
 provides commands that use the JSON-API to make life easier for a
 contract developer. For example, there are commands to extend chain
 and finding a spendable UTXO controlled by a key.
 
-See details under [Node Interaction](/reference#node-interaction)
-section of the reference for details.
+See details under link:/reference#node-interaction[Node Interaction under Reference]
+for details.

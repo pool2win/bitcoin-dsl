@@ -1,11 +1,8 @@
----
-layout: page
-title: Funding Transaction
-nav_order: 2
-parent: Lightning Contracts
----
-
-# Funding transaction 
+= Funding transaction
+:page-layout: page
+:page-title: Funding Transaction
+:page-nav_order: 2
+:page-parent: Lightning Contracts
 
 Lightning uses a multisig transaction to open a channel. The
 transaction goes through various stages of signing where one party

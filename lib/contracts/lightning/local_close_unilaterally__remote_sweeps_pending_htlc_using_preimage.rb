@@ -23,7 +23,7 @@ run_script './add_htlc.rb'
 broadcast @alice_commitment_tx
 confirm transaction: @alice_commitment_tx, to: @alice
 
-# Bob sweeps the local output for Alice using revocation key
+# Bob sweeps the local output for Alice using the revocation key
 @bob_sweep_alice_funds =
   transaction inputs: [
                 { tx: @alice_commitment_tx,
@@ -34,7 +34,7 @@ confirm transaction: @alice_commitment_tx, to: @alice
                 { descriptor: 'wpkh(@bob)', amount: 49.898.sats }
               ]
 
-# Bob sweeps the not yet settled HTLC, again using the revocation key
+# Bob sweeps the not yet settled HTLC using the revocation key
 @bob_sweep_htlc_output_using_preimage =
   transaction inputs: [
                 { tx: @alice_commitment_tx,

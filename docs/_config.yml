@@ -29,8 +29,11 @@ github_username:  pool2win
 
 # Build settings
 theme: just-the-docs
-# plugins:
-#   - jekyll-feed
+plugins:
+  - jekyll-feed
+  - jekyll-asciidoc
+  - asciidoctor-diagram
+  
 
 # Exclude from processing.
 # The following items will not be processed, by default.
@@ -71,6 +74,9 @@ collections:
   examples:
     permalink: ":collection/:path"
     output: true
+  dev:
+    permalink: ":collection/:path"
+    output: true
 
 just_the_docs:
   # Define which collections are used in just-the-docs
@@ -95,8 +101,23 @@ just_the_docs:
     #   name: Script Pub Key
     examples:
       name: Examples
+    dev:
+      name: Developer Setup
 
 mermaid:
   version: "10.8.0"
 
-favicon_ico: "/assets/img/dsl.png"
+favicon_ico: "/assets/img/bitcoin-dsl.png"
+
+asciidoc:
+    ext: asciidoc,adoc,ad
+asciidoctor:
+  base_dir: :docdir
+  safe: unsafe
+  attributes:
+    source-highlighter: rouge
+    imagesdir: /images
+    icons: font
+
+keep_files:
+- images    

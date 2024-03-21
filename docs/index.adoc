@@ -1,0 +1,170 @@
+= Bitcoin DSL
+:page-layout: page
+:page-nav_order: 1
+
+Make it easy to build and execute bitcoin transactions.
+
+---
+
+Lets start with what Bitcoin DSL is NOT
+
+. **Not a language to write Bitcoin Script**:
+link:https://bitcoinops.org/en/topics/miniscript/[Miniscript] and
+link:https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md[Descriptors]
+already do a great job of this. The DSL instead uses these
+innovations.
+. **Not dependent on a specific BIP**: Bitcoin DSL is not meant to
+demonstrate any new bitcoin improvements opcodes or forks.
+
+== What is Bitcoin DSL?
+
+Bitcoin DSL makes it easier to experiment with Bitcoin transactions
+and contracts by providing a highlevel language to build and execute
+transactions.
+
+The DSL does so by providing a **declarative syntax** for the following.
+
+. Building transactions
+. Writing locking and unlocking scripts
+. Executing multiple branches of contracts
+. Interaction with bitcoin node
+. Asserting system state
+
+NOTE: The DSL's declarative syntax specifies what needs to be done, not how.
+
+For example, we simply declare what a transaction should look like and
+don't have to construct it one command at a time, as shown in the
+example next.
+
+== Example
+
+The following script, which can be executed by the DSL runtime, will
+do the following:
+
+. Start a bitcoin node
+. Mine new blocks with coinbase using a specified policy
+. Create new keys and transaction that spends the coinbase
+. broadcast and confirm the transaction
+. Clean up after itself by kill the bitcoin node and removing any data files
+
+[source,ruby]
+----
+@alice = key :new # <1>
+
+extend_chain to: @alice, num_blocks: 101 # <2>
+
+@alice_coinbase = get_coinbase_at 1 # <3>
+
+@alice_to_bob = transaction # <4>
+	      inputs: [
+	        { tx: @alice_coinbase, vout: 0, script_sig: 'sig:wpkh(@alice)' } # <5>
+              ],
+              outputs: [
+	        { address: 'p2wpkh:bob', amount: 49.99.sats } # <6>
+              ]
+
+broadcast @alice_to_bob # <6>
+
+confirm @alice_to_bob # <7>
+
+assert_confirmations @alice_to_bob, confirmations: 1 # <8>
+----
+<1> Build a new key pair and assign it to variable `@alice`
+<2> Mine 101 blocks, making the first block spendable
+<3> Get the coinbase from the first block
+<4> Start building a new transaction and assign it to `@alice_to_bob`
+<5> Spend first output from `@alice_coinbase`. `sig:wpkh(@alice)` signs the transaction by using the correct witness program.
+<6> Broadcast the new transaction
+<7> Mine a new block to confirm the new transaction
+<8> Assert that `@alice_to_bob` transaction has one confirmation
+
+
+NOTE: The DSL uses sane defaults like using SegWit and defaulting to P2SWH.
+
+
+=== Locking script
+
+DSL supports using miniscript, descriptors and Script to specify the
+locking script for an output. The example shows the policy for funding
+transaction of the ARK protocol - described using miniscript. See the
+details of the various options at
+link:overview/scripting[Locking and unlocking script].
+
+[source,ruby]
+----
+outputs: [
+  {
+    policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(10),pk(@asp_timelock)))',
+    amount: 49.999.sats
+  }
+]
+----
+
+---
+
+=== Contract Branch Executions
+
+Bitcoin DSL makes it easy way to run various branches of a contract
+specification, by allowing composition of scripts.
+
+[source,ruby]
+----
+# Load and run setup script
+run './lib/ark/setup.rb'
+
+# Next create and spend a transaction 
+@spend_tx = transaction inputs: [...], outputs: [...]
+----
+
+Jump to link:overview/contract_branch_executions[Contract Branch Executions].
+
+The link:examples/lightning/index[Lightning Contracts] is an
+excellent overview of how we use multiple scripts and compose the
+execution of the contract along various branches.
+
+---
+
+=== Interact with bitcoin node
+
+All the
+link:https://en.bitcoin.it/wiki/API_reference_%28JSON-RPC%29[Bitcoin
+JSON-RPC API commands] are directly available from the DSL, so we
+don't have to copy paste transactions around, and can query the
+bitcoin node to find transactions and then operate on them.
+
+[source,ruby]
+----
+# Broadcast a transaction to local regtest node
+broadcast @alice_tx
+
+# Extend the local regest chain with a coinbase for pwkh(@alice)
+extend_chain to: @alice
+
+# Find a coinbase spendable by the keypair @alice
+@alice_coinbase_utxo = spendable_coinbase_for @alice
+----
+
+Jump to link:overview/node_interaction[Node Interaction].
+
+---
+
+=== Assert system state
+
+Contract developers can verify the state of the transactions and the
+chain using high level commands.
+
+[source,ruby]
+----
+# Confirm a transaction is confirmed
+assert_confirmations @alice_tx, confirmations: 10
+
+# Assert a transaction will be accepted by mempool
+assert_mempool_accept @alice_tx
+
+# Assert height of chain
+assert_height 100
+----
+
+Jump to link:overview/assertions[Assertions]
+
+---

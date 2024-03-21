@@ -1,9 +1,8 @@
----
-layout: page
-title: Lightning Contracts
-nav_order: 1
-has_children: true
----
+= Lighting Contracts
+:page-layout: page
+:page-title: Lightning Contracts
+:page-nav_order: 1
+:page-has_children: true
 
 Lightning contracts make a good example for showing how the DSL is
 useful.
@@ -11,11 +10,11 @@ useful.
 We need the following transactions that are in various states of being
 signed and are sometimes spendable, sometimes not.
 
-1. Funding transactions
-2. Redeem transactions
-3. HTLC contracts
-4. Cooperative close of channels
-5. Forced close of channels
+. Funding transactions
+. Redeem transactions
+. HTLC contracts
+. Cooperative close of channels
+. Forced close of channels
 
 
 Things get even more interesting as there are conversations around

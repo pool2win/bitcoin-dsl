@@ -1,10 +1,8 @@
----
-layout: page
-title: Assertions
-nav_order: 5
----
+= Assertions
+:page-layout: page
+:page-title: Assertions
+:page-nav_order: 5
 
-# Assertions
 
 Assertions help a contract developer check progress of a contract
 along the execution path they are exploring.
@@ -22,9 +20,10 @@ Assertions are commands that strive to remain intuitive. For example
 `assert_mempool_accept` asserts the transaction argument will be
 accepted by the mempool.
 
-```ruby
+[source,ruby]
+----
 assert_mempool_accept @alice_tx
-```
+----
 
 All the available assertions are documented under
-[Assertions](/reference#assertions) in the Reference page.
+link:/reference#assertions[Assertions] in the Reference page.

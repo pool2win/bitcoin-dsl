@@ -1,0 +1,99 @@
+= Locking and unlocking scripts
+:page-layout: page
+:page-title: Locking and unlocking scripts
+:page-nav_order: 2
+
+The DSL provides flexibility in how locking and unlocking script are
+specified.
+
+---
+
+.Support for Script, Miniscript and Descriptor
+[cols="1,1,1"]
+|===
+|Method | Locking | Unlocking
+
+|Script |icon:check[2x] |icon:check[2x]
+|Miniscript |icon:check[2x] |icon:x[2x]
+|Descriptor |icon:check[2x] |icon:check[2x]
+|Sig extension |icon:check[2x] |icon:x[2x]
+|===
+
+== Script
+
+To provide the most flexibility, the DSL support Script provided as an
+interpolated string. Developers can drop in variable names prefixed by
+a command to generate signatures and/or hashes.
+
+For example, the script below will replace `hash160(@alice)` with a
+hash160 of the public key referred to by the variable `@alice`.
+
+[source,ruby]
+----
+'OP_DUP OP_HASH160 hash160(@alice) OP_EQUALVERIFY OP_CHECKSIG'
+----
+
+There are a number of commands that are interpolated in script, see
+the link:/reference#script_interpolation[Script interpolation] section
+for list of commands supported.
+
+NOTE: Script can be used in both locking and unlocking script.
+
+== Miniscript Policy 
+
+For generating output scripts, the DSL support miniscript Policy to
+allow for flexible contract construction.
+
+For example, the policy
+`'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(10),pk(@asp_timelock)))'`
+is processed by rust-miniscript after `@alice`, `@asp` and
+`@asp_timelock` have been replaced by hex formatted public keys.
+
+There are a number of commands that are interpolated in script, see
+the link:/reference#interpolated-miniscript-policy[Interpolated miniscript policy] section of the
+reference for details.
+
+WARNING: Miniscript can be only be used for locking scripts in outputs.
+
+== Descriptors
+
+link:https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md[Descriptors
+for outputs] are supported by Bitcoin DSL.
+
+Output scripts can be defined using descriptors like in the transaction below.
+
+[source,ruby]
+----
+transaction inputs: [
+      { tx: @opcodes_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
+    ],
+    outputs: [
+      { descriptor: 'wpkh(@bob)', amount: 49.998.sats }
+    ]
+----
+
+NOTE: Descriptors can be used in only in locking scripts.
+
+== Custom `sig` extension
+
+One of the biggest challenges when using P2WSH is to have access to
+the script witness programs when you need to sign an input that is
+spending from a SegWit output.
+
+Bitcoin DSL automatically tracks the required witness program for an
+output and uses it to create signatures when required. The `sig`
+prefix is used to provide a signature. The `script_sig` parameter is
+first interpolated replaces all occurences of `sig:.*` with a
+signature for the specified options provided to `sig`.
+
+Here is a list of options that `sig` currently supports.
+
+. `sig:<key>`: The `<key>` is a variable that will be used to
+generate the signature. Example: `sig:@alice`.
+. `sig:(wpkh(<key>))`: The `<key>` is used to generate the signature
+as per the P2WPKH specifications. Example: `sig:wpkh(@alice)`.
+. `sig:multi(<key1>,<key2>)`: Signatures for `<key1>` and `<key2>` are
+generated as per requirements for multisig. Either of the key options
+can be `_empty` or `_skip`, where `_empty` means use an empty
+signature and `_skip` means skip updating any signature if it exists already.
+

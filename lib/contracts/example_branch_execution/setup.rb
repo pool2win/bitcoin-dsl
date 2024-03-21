@@ -17,10 +17,14 @@
 
 # frozen_string_literal: false
 
+# tag::setup[]
+# Generate new keys
 @alice = key :new
+@bob = key :new
 
-# Mine 100 blocks, all with coinbase to alice.
-extend_chain to: @alice, num_blocks: 101
+# Mine to an address with miniscript policy with CSV
+extend_chain num_blocks: 1, policy: 'or(and(older(10),pk(@alice)),pk(@bob))' # <1>
 
-assert_height 101
-
+# Make coinbase at block 1 spendable
+extend_chain num_blocks: 100 # <2>
+# end::setup[]

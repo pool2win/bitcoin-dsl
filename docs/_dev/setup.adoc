@@ -1,10 +1,8 @@
----
-layout: page
-title: Setup
-nav_order: 5
----
-
-# Setup for developers
+= Setup
+:page-layout: page
+:page-title: Setup
+:page-nav_order: 5
+:page-show-toc: false
 
 1. Install Ruby using any means. I usually prefer using [RVM](https://rvm.io/)
 2. Install Rust.

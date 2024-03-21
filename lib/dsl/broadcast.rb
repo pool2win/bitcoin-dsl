@@ -65,8 +65,9 @@ module Broadcast
 
   # Confirm transaction, by mining block to given address
   # Returns raw transaction loaded from the bitcoin node
-  def confirm(transaction:, to:)
+  def confirm(transaction:, to: nil)
     height = get_height
+    to ||= key :new
     extend_chain num_blocks: 1, to: to
     assert_equal height + 1, get_height, 'Tip height mismatch'
     assert_confirmations transaction, confirmations: 1
