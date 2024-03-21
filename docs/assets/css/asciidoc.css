@@ -66,3 +66,14 @@ b.conum * {
 .conum:not([data-value]):empty {
   display: none;
 }
+
+
+.colist table {
+    background: none repeat scroll 0 0 transparent;
+    border: 0 none;
+}
+
+.colist table td {
+    border: 0 none;
+    min-width: auto;
+}
