@@ -17,6 +17,7 @@
 
 # frozen_string_literal: false
 
+# tag::setup[]
 # Generate keys for channel funding tx
 @alice = key :new
 @alice_revocation_key_for_bob = key :new
@@ -26,6 +27,7 @@
 @bob_revocation_key_for_alice = key :new
 @bob_htlc_key = key :new
 
+# Delay used for local CLTV locks
 @local_delay = 1008
 
 # 32 byte preimage in hex
@@ -36,3 +38,4 @@ extend_chain to: @alice
 
 # Seed bob with some coins and make coinbase spendable
 extend_chain num_blocks: 101, to: @bob
+# end::setup[]

@@ -17,18 +17,23 @@
 
 # frozen_string_literal: false
 
+# tag::funding[]
 run_script './setup.rb'
 
 @alice_funding_input_tx = spendable_coinbase_for @alice
 @bob_funding_input_tx = spendable_coinbase_for @bob
 
 @channel_funding_tx = transaction inputs: [
-                                    { tx: @alice_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@alice)' },
-                                    { tx: @bob_funding_input_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
+                                    { tx: @alice_funding_input_tx,
+                                      vout: 0,
+                                      script_sig: 'sig:wpkh(@alice)' }, # <1>
+                                    { tx: @bob_funding_input_tx,
+                                      vout: 0,
+                                      script_sig: 'sig:wpkh(@bob)' } # <1>
                                   ],
                                   outputs: [
                                     {
-                                      descriptor: 'wsh(multi(2,@alice,@bob))',
+                                      descriptor: 'wsh(multi(2,@alice,@bob))', # <2>
                                       amount: 99.999.sats
                                     }
                                   ]
@@ -38,3 +43,4 @@ broadcast @channel_funding_tx
 confirm transaction: @channel_funding_tx, to: @alice
 
 log 'Funding transaction confirmed'
+# end::funding[]

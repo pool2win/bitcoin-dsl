@@ -17,10 +17,11 @@
 
 # frozen_string_literal: false
 
+# tag::sweep[]
 run_script './add_htlc.rb'
 
 # Alice broadcasts her commitment transaction unilaterally
-broadcast @alice_commitment_tx
+broadcast @alice_commitment_tx # <1>
 confirm transaction: @alice_commitment_tx, to: @alice
 
 # Bob sweeps the local output for Alice using the revocation key
@@ -28,7 +29,7 @@ confirm transaction: @alice_commitment_tx, to: @alice
   transaction inputs: [
                 { tx: @alice_commitment_tx,
                   vout: 0,
-                  script_sig: 'sig:@alice_revocation_key_for_bob 0x01' }
+                  script_sig: 'sig:@alice_revocation_key_for_bob 0x01' } # <2>
               ],
               outputs: [
                 { descriptor: 'wpkh(@bob)', amount: 49.898.sats }
@@ -39,7 +40,7 @@ confirm transaction: @alice_commitment_tx, to: @alice
   transaction inputs: [
                 { tx: @alice_commitment_tx,
                   vout: 1,
-                  script_sig: 'sig:@bob_htlc_key @payment_preimage' }
+                  script_sig: 'sig:@bob_htlc_key @payment_preimage' } # <3>
               ],
               outputs: [
                 { descriptor: 'wpkh(@bob)', amount: 0.09.sats }
@@ -50,3 +51,4 @@ confirm transaction: @bob_sweep_alice_funds, to: @bob
 
 broadcast @bob_sweep_htlc_output_using_preimage
 confirm transaction: @bob_sweep_htlc_output_using_preimage, to: @bob
+# end::sweep[]

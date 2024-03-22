@@ -17,6 +17,7 @@
 
 # frozen_string_literal: false
 
+# tag::close[]
 run_script './commitment_without_htlcs.rb'
 
 # Alice broadcasts her commitment transaction unilaterally
@@ -30,7 +31,7 @@ assert_not_mempool_accept @bob_commitment_tx
 @alice_sweep_tx = transaction inputs: [
                                 { tx: @alice_commitment_tx,
                                   vout: 0,
-                                  script_sig: 'sig:@alice ""',
+                                  script_sig: 'sig:@alice ""', # <1>
                                   csv: @local_delay }
                               ],
                               outputs: [
@@ -40,8 +41,9 @@ assert_not_mempool_accept @bob_commitment_tx
 # Alice can't sweep until local_delay blocks have been generated
 assert_not_mempool_accept @alice_sweep_tx
 
-extend_chain num_blocks: @local_delay, to: @alice
+extend_chain num_blocks: @local_delay, to: @alice # <2>
 
 # Now alice can sweep the output from commitment transaction
 broadcast @alice_sweep_tx
 confirm transaction: @alice_sweep_tx, to: @alice
+# end::close[]

@@ -1,0 +1,109 @@
+= Lighting Contracts
+:page-layout: page
+:page-title: Lightning Contracts
+:page-nav_order: 1
+:sourcedir: ../../
+
+Lightning contracts make a good example for showing how the DSL is
+useful. LN contracts use `csv`, `cltv` as well as anchor
+transactions. The transactions between channel participants transition
+through a number of states, and we can capture those using the DSL.
+
+.Setup Keys and Coinbases
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/setup.rb[tags=setup]
+----
+
+.Alice and Bob create funding transaction
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/funding.rb[tags=funding]
+----
+<1> Sign inputs using `sig:wpkh` construct
+<2> Create a multisig output using a descriptor
+
+== Branch point 1 - Close without HTLCs
+
+Here we branch off to close the channel without adding any HTLCs
+
+.Alice and Bob cooperatively close without adding any HTLC
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/close_cooperatively_without_htlcs.rb[tags=close]
+----
+<1> Run the setup and funding scripts first
+
+
+== Branch point 1 - Close unilaterally without HTLCs
+
+Here we branch off to close the channel without adding any HTLCs
+
+.Alice closes unilaterally
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/close_unilaterally_without_htlcs.rb[tags=close]
+----
+<1> We use bitcoin Script to provide the unlocking script. The witness
+program is automatically looked up by the DSL.
+<2> We need to extend the chain before Alice can broadcast the sweeping transaction.
+
+== Branch point 1 - Add HTLCs
+
+Here we branch off to close the channel without adding any HTLCs
+
+.Add HTLC
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/add_htlc.rb[tags=add]
+----
+<1> Capture the offered and received HTLC contracts using bitcoin Script.
+<2> The commitment transaction now has HTLC outputs.
+<3> Use `update_script_sig` to update signatures for existing transactions.	
+<4> Updated transactions are ready to braodcast now.
+
+== Branch point 2 - Alice closes unilaterally and Bob sweeps Alice\'s Offered HTLC
+
+.Bob sweeps Alice's offered HTLC
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_revocation_key.rb[tags=sweep]
+----
+<1> Alice unilaterally broadcasts a revoked commitment
+<2> Bob has revocation key so he can sweep funds before Alice.
+<3> Bob can access his own funds from Alice's commitment transaction.
+
+== Branch point 2 - Alice closes unilaterally and Bob sweeps using preimage key
+
+.Bob sweeps Alice's offered HTLC
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_revocation_key.rb[tags=sweep]
+----
+<1> Alice unilaterally broadcasts a revoked commitment
+<2> Bob has revocation key so he can sweep funds before Alice.
+<3> Bob can access his own funds from Alice's commitment transaction.
+
+// The state transition diagram below shows the states that we cover in
+// our example.
+
+// .State transitions for an LN commitment that we cover below
+// [plantuml]
+// ----
+// @startuml
+//     state "Alice commitment" as AliceCommitment
+    
+//     [*] --> AliceCommitment: Create Alice commitment
+//     [*] --> BobCommitment: Create Bob commitment
+
+//     AliceCommitment --> Commitment: Add Bob signature
+//     Commitment --> Commitment: Add HTLC offered by Alice
+
+//     Commitment --> AliceSweepsLocalOutputAfterDelay: Cooperative close
+//     Commitment --> BobSweepsRemoteOutput: Cooperative close
+    
+//     Commitment --> AliceSweepsAliceCommitmentOutputs: Unilateral close
+//     Commitment --> BobSweepsUsingRevocationKey: Unilateral close
+//     Commitment --> BobSweepsUsingPreimage: Unilateral close
+// @enduml
+// ----

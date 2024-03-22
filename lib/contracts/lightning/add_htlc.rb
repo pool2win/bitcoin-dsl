@@ -25,6 +25,7 @@ run_script './funding.rb'
 # optimised Script that doesn't match spending scripts as per the
 # BOLTS
 
+# tag::add[]
 @alice_offered_htlc = %(OP_DUP OP_HASH160 hash160(@alice_revocation_key_for_bob) OP_EQUAL
 OP_IF
     OP_CHECKSIG
@@ -36,7 +37,7 @@ OP_ELSE
         OP_HASH160 hash160(@payment_preimage) OP_EQUALVERIFY
         OP_CHECKSIG
     OP_ENDIF
-OP_ENDIF)
+OP_ENDIF) # <1>
 
 @cltv_expiry = get_height + 10
 
@@ -54,48 +55,55 @@ OP_ELSE
         OP_CHECKSIG
     OP_ENDIF
 OP_ENDIF
-)
+) # <1>
 
 # New commitment transactions are created. With received and offered
 # HTLCs.
 
-@alice_commitment_tx = transaction inputs: [
-                                     { tx: @channel_funding_tx, vout: 0, script_sig: 'sig:multi(_empty,@bob)' }
-                                   ],
-                                   outputs: [
-                                     # local output for Alice
-                                     { script: %(OP_IF @alice_revocation_key_for_bob
-                                                 OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @alice
-                                                 OP_ENDIF OP_CHECKSIG),
-                                       amount: 49.899.sats },
-                                     # HTLC offered by Alice
-                                     { script: @alice_offered_htlc, amount: 0.1.sats },
-                                     # remote output for Bob
-                                     { descriptor: 'wpkh(@bob)', amount: 49.999.sats }
-                                   ]
+@alice_commitment_tx =
+  transaction inputs: [
+                { tx: @channel_funding_tx, vout: 0, script_sig: 'sig:multi(_empty,@bob)' }
+              ],
+              outputs: [
+                # local output for Alice
+                { script: %(OP_IF @alice_revocation_key_for_bob
+                            OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @alice
+                            OP_ENDIF OP_CHECKSIG),
+                  amount: 49.899.sats },
+                # HTLC offered by Alice
+                { script: @alice_offered_htlc, amount: 0.1.sats }, # <2>
+                # remote output for Bob
+                { descriptor: 'wpkh(@bob)', amount: 49.999.sats }
+              ]
 
-@bob_commitment_tx = transaction inputs: [
-                                   { tx: @channel_funding_tx, vout: 0, script_sig: 'sig:multi(@alice,_empty)' }
-                                 ],
-                                 outputs: [
-                                   # local output for Bob
-                                   { script: %(OP_IF @bob_revocation_key_for_alice
-                                               OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @bob
-                                               OP_ENDIF OP_CHECKSIG),
-                                     amount: 49.899.sats },
-                                   # HTLC received by Bob
-                                   { script: @bob_received_htlc, amount: 0.1.sats },
-                                   # remote output for Alice
-                                   { descriptor: 'wpkh(@alice)', amount: 49.999.sats }
-                                 ]
+@bob_commitment_tx =
+  transaction inputs: [
+                { tx: @channel_funding_tx, vout: 0, script_sig: 'sig:multi(@alice,_empty)' }
+              ],
+              outputs: [
+                # local output for Bob
+                { script: %(OP_IF @bob_revocation_key_for_alice
+                            OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @bob
+                            OP_ENDIF OP_CHECKSIG),
+                  amount: 49.899.sats },
+                # HTLC received by Bob
+                { script: @bob_received_htlc, amount: 0.1.sats },
+                # remote output for Alice
+                { descriptor: 'wpkh(@alice)', amount: 49.999.sats }
+              ]
 
 # Can't broadcast the commitment transactions until fully signed
 assert_not_mempool_accept @alice_commitment_tx
 assert_not_mempool_accept @bob_commitment_tx
 
 # Alice and bob arrange to sign the commitment transactions
-update_script_sig for_tx: @alice_commitment_tx, at_index: 0, with_script_sig: 'sig:multi(@alice,@bob)'
-assert_mempool_accept @alice_commitment_tx
+update_script_sig for_tx: @alice_commitment_tx, at_index: 0,
+                  with_script_sig: 'sig:multi(@alice,@bob)' # <3>
 
-update_script_sig for_tx: @bob_commitment_tx, at_index: 0, with_script_sig: 'sig:multi(@alice,@bob)'
-assert_mempool_accept @bob_commitment_tx
+
+update_script_sig for_tx: @bob_commitment_tx, at_index: 0,
+                  with_script_sig: 'sig:multi(@alice,@bob)' # <3>
+
+assert_mempool_accept @alice_commitment_tx # <4>
+assert_mempool_accept @bob_commitment_tx # <4>
+# end::add[]

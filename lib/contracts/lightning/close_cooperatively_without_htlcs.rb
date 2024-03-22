@@ -17,7 +17,8 @@
 
 # frozen_string_literal: false
 
-run_script './commitment_without_htlcs.rb'
+# tag::close[]
+run_script './commitment_without_htlcs.rb' # <1>
 
 # Alice broadcasts commitment tx
 broadcast @alice_commitment_tx
@@ -25,3 +26,4 @@ confirm transaction: @alice_commitment_tx, to: @alice
 
 # Bob's commitment can no longer be broadcast
 assert_not_mempool_accept @bob_commitment_tx
+# end::close[]
