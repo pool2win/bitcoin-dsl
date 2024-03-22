@@ -30,7 +30,8 @@ module Transaction
   #   script_sig: signature script to spend the above output. This includes tags to direct signature generation.
   # Outputs:
   #   script: Optional script for scriptPubkey
-  #   address: Optional address to derice scriptPubkey from
+  #   descriptor: Optional descriptor defining the scriptPubkey
+  #   policy: Optional miniscript policy defining the scriptPubkey
   #   amount: Value being spent
   def transaction(params)
     params[:inputs].each do |input|

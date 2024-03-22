@@ -49,10 +49,9 @@ do the following:
 
 [source,ruby]
 ----
+# When executing this script, the DSL runtime starts a new bitcoin node
 @alice = key :new # <1>
-
 extend_chain to: @alice, num_blocks: 101 # <2>
-
 @alice_coinbase = get_coinbase_at 1 # <3>
 
 @alice_to_bob = transaction # <4>
@@ -60,14 +59,13 @@ extend_chain to: @alice, num_blocks: 101 # <2>
 	        { tx: @alice_coinbase, vout: 0, script_sig: 'sig:wpkh(@alice)' } # <5>
               ],
               outputs: [
-	        { address: 'p2wpkh:bob', amount: 49.99.sats } # <6>
+	        { descriptor: 'wpkh(@bob)', amount: 49.99.sats } # <6>
               ]
 
 broadcast @alice_to_bob # <6>
-
 confirm @alice_to_bob # <7>
-
 assert_confirmations @alice_to_bob, confirmations: 1 # <8>
+# When the script ends, the DSL runtime stops the bitcoin node and removes all data files
 ----
 <1> Build a new key pair and assign it to variable `@alice`
 <2> Mine 101 blocks, making the first block spendable

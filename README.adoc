@@ -227,7 +227,7 @@ transaction inputs: [
      { tx: @alice_coinbase, vout: 0, script_sig: 'wpkh(@alice)' }
    ],
    outputs: [
-     { address: 'wpkh(@bob)', amount: 49.99.sats }
+     { descriptor: 'wpkh(@bob)', amount: 49.99.sats }
    ]
 ----
 
@@ -298,7 +298,7 @@ transaction inputs: [
    ],
    outputs: [
      {
-       address: 'wpkh(@alice)',
+       descriptor: 'wpkh(@alice)',
        amount: 49.998.sats
      }
    ]

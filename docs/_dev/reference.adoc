@@ -77,7 +77,7 @@ objects. Each dictionary object must have the following arguments:
 A simple transaction that spends the `@alice_coinbase_tx` fetched
 above is below. We sign the transaction declaratively by saying
 `script_sig: 'p2wpkh:alice'` and generate an output pubkey by saying
-`address: 'p2wpkh:bob'`.
+`descriptor: 'wpkh(@bob)'`.
 
 [source,ruby]
 ----
@@ -85,7 +85,7 @@ above is below. We sign the transaction declaratively by saying
                               { tx: @alice_coinbase_tx, vout: 0, script_sig: 'p2wpkh:alice' }
                             ],
                             outputs: [
-                              { address: 'p2wpkh:bob', amount: 49.99.sats }
+                              { descriptor: 'wpkh(@bob)', amount: 49.99.sats }
                             ]
 ----
 

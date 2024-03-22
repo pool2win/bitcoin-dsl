@@ -43,7 +43,7 @@ Here's an example from the ARK transactions using the `csv` keyword.
                         ],
                         outputs: [
                           {
-                            address: 'p2wpkh:asp',
+                            descriptor: 'wpkh(@asp)',
                             amount: 49.998.sats
                           }
                         ]
