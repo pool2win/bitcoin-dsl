@@ -104,9 +104,6 @@ just_the_docs:
     dev:
       name: Developer Setup
 
-mermaid:
-  version: "10.8.0"
-
 favicon_ico: "/assets/img/bitcoin-dsl.png"
 
 asciidoc:

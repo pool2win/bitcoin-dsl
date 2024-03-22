@@ -46,20 +46,20 @@ the miniscript policy `'or(and(older(10),pk(@alice)),pk(@bob))'`. Such a contrac
 has the following state transitions.
 
 .State transitions for a contract using `'or(and(older(10),pk(@alice)),pk(@bob))'` miniscript policy.
-[mermaid]
+[plantuml]
 ----
-stateDiagram-v2
+@startuml
     [*] --> ConfirmedOnChain
 
     ConfirmedOnChain --> SpentByBob
 
-    ConfirmedOnChain -->  DelayExpired
-    DelayExpired --> SpentByAlice
-    DelayExpired --> SpentByBobAfterDelay
+    ConfirmedOnChain -->  SpentByAlice : Delay expired
+    ConfirmedOnChain --> SpentByBobAfterDelay : Delay expired
 
     SpentByBob --> [*]
     SpentByAlice --> [*]
     SpentByBobAfterDelay --> [*]
+@enduml
 ----
 
 The state transition of the contract above shows how even in a simple
