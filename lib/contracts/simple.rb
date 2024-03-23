@@ -17,10 +17,10 @@
 
 # frozen_string_literal: false
 
-@alice = key :new
-
-# Mine 100 blocks, all with coinbase to alice.
-extend_chain to: @alice, num_blocks: 101
-
-assert_height 101
-
+# tag::simple[]
+# <1>
+@alice = key :new # <2>
+extend_chain to: @alice, num_blocks: 101 # <3>
+assert_height 101 # <4>
+# <5>
+# end::simple[]

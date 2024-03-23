@@ -1,12 +1,32 @@
 = Bitcoin DSL
 :page-layout: page
 :page-nav_order: 1
+:sourcedir: ../
 
 Make it easy to build and execute bitcoin transactions.
 
 ---
 
-Lets start with what Bitcoin DSL is NOT
+== An example script
+
+Here is the simplest script that mines a block to WPKH and makes the
+coinbase spendable by mining 101 blocks.
+
+A bitcoin regtest node is automatically setup, started, stopped and
+cleaned up for you.
+
+.Setup Keys and Coinbases
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/simple.rb[tags=simple]
+----
+<1> A bitcoin regtest node is setup and started before running the script
+<2> Setup a key pair and assign it to variable `@alice`
+<3> Mine 101 blocks to WPKH for `@alice`
+<4> Assert block height 
+<5> The bitcoin node is stopped and all data directories are deleted
+
+== Bitcoin DSL is NOT
 
 . **Not a language to write Bitcoin Script**:
 link:https://bitcoinops.org/en/topics/miniscript/[Miniscript] and
@@ -36,16 +56,16 @@ For example, we simply declare what a transaction should look like and
 don't have to construct it one command at a time, as shown in the
 example next.
 
-== Example
+== Example: Find and spend a coinbase
 
 The following script, which can be executed by the DSL runtime, will
 do the following:
 
-. Start a bitcoin node
-. Mine new blocks with coinbase using a specified policy
-. Create new keys and transaction that spends the coinbase
-. broadcast and confirm the transaction
-. Clean up after itself by kill the bitcoin node and removing any data files
+* Start a bitcoin node
+* Mine new blocks with coinbase using a specified policy
+* Create new keys and transaction that spends the coinbase
+* broadcast and confirm the transaction
+* Clean up after itself by kill the bitcoin node and removing any data files
 
 [source,ruby]
 ----
@@ -80,27 +100,29 @@ assert_confirmations @alice_to_bob, confirmations: 1 # <8>
 NOTE: The DSL uses sane defaults like using SegWit and defaulting to P2SWH.
 
 
-=== Locking script
+== Locking and unlocking scripts
 
-DSL supports using miniscript, descriptors and Script to specify the
-locking script for an output. The example shows the policy for funding
-transaction of the ARK protocol - described using miniscript. See the
-details of the various options at
+Bitcoin DSL supports using **miniscript, descriptors and Script** to
+specify the locking script for an output. The example shows the policy
+for funding transaction of the ARK protocol - described using
+miniscript. See the details of the various options at
 link:overview/scripting[Locking and unlocking script].
 
+.Example locking script using Policy
 [source,ruby]
 ----
-outputs: [
-  {
-    policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(10),pk(@asp_timelock)))',
-    amount: 49.999.sats
-  }
-]
+policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(10),pk(@asp_timelock)))'
+----
+
+.Example unlocking script using DSL extension
+[source,ruby]
+----
+script_sig: 'sig:@asp_timelock @asp_timelock 0x01'
 ----
 
 ---
 
-=== Contract Branch Executions
+== Contract Branch Executions
 
 Bitcoin DSL makes it easy way to run various branches of a contract
 specification, by allowing composition of scripts.
@@ -122,7 +144,7 @@ execution of the contract along various branches.
 
 ---
 
-=== Interact with bitcoin node
+== Interact with bitcoin node
 
 All the
 link:https://en.bitcoin.it/wiki/API_reference_%28JSON-RPC%29[Bitcoin
@@ -146,7 +168,7 @@ Jump to link:overview/node_interaction[Node Interaction].
 
 ---
 
-=== Assert system state
+== Assert system state
 
 Contract developers can verify the state of the transactions and the
 chain using high level commands.

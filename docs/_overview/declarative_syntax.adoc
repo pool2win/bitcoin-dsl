@@ -1,6 +1,6 @@
 = Declarative Syntax
 :page-layout: page
-:page-title: Declarative Sytax
+:page-title: Declarative Syntax
 :page-nav_order: 1
 
 The DSL specifies what needs to be done, not how. 
@@ -16,15 +16,15 @@ output for Bob and creating a new UTXO as 2 of 2 multisig.
 
 [source,ruby]
 ----
-@multisig_tx = transaction inputs: [
-                             { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:bob', sighash: :all }
-                           ],
-                           outputs: [
-                             {
-                               policy: 'thresh(2,pk(@alice),pk(@bob))',
-                               amount: 49.999.sats
-                             }
-                           ]
+transaction inputs: [
+              { tx: coinbase_tx, vout: 0, script_sig: 'p2wpkh:bob', sighash: :all }
+            ],
+            outputs: [
+              {
+	        policy: 'thresh(2,pk(@alice),pk(@bob))',
+	        amount: 49.999.sats
+              }
+            ]
 ----
 
 Similarly, to add a OP_CSV constraint on a transaction output we
@@ -35,18 +35,18 @@ Here's an example from the ARK transactions using the `csv` keyword.
 
 [source,ruby]
 ----
-@spend_tx = transaction inputs: [
-                          { tx: @alice_boarding_tx,
-                            vout: 0,
-                            script_sig: 'p2wpkh:asp_timelock nulldummy nulldummy nulldummy',
-                            csv: 10 }
-                        ],
-                        outputs: [
-                          {
-                            descriptor: 'wpkh(@asp)',
-                            amount: 49.998.sats
-                          }
-                        ]
+transaction inputs: [
+              { tx: @alice_boarding_tx,
+                vout: 0,
+                script_sig: 'p2wpkh:asp_timelock nulldummy nulldummy nulldummy',
+                csv: 10 }
+            ],
+            outputs: [
+              {
+                descriptor: 'wpkh(@asp)',
+                amount: 49.998.sats
+              }
+            ]
 ----
 
 == Sane defaults

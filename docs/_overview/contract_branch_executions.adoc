@@ -32,7 +32,7 @@ run_script './setup.rb'
 ----
 
 After each branch execution the developer can then run assertions on
-the state of the system. See link:/reference#assertions[Assertions]
+the state of the system. See link:/dev/reference#assertions[Assertions]
 for all the supported assertions.
 
 The execution paths are best described with an simple contract that

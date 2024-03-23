@@ -26,4 +26,4 @@ assert_mempool_accept @alice_tx
 ----
 
 All the available assertions are documented under
-link:/reference#assertions[Assertions] in the Reference page.
+link:/dev/reference#assertions[Assertions] in the Reference page.
