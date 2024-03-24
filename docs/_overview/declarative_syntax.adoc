@@ -36,7 +36,7 @@ Here's an example from the ARK transactions using the `csv` keyword.
 [source,ruby]
 ----
 transaction inputs: [
-              { tx: @alice_boarding_tx,
+              { tx: @funding_tx,
                 vout: 0,
                 script_sig: 'p2wpkh:asp_timelock nulldummy nulldummy nulldummy',
                 csv: 10 }

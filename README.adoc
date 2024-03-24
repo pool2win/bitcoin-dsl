@@ -367,14 +367,14 @@ Here's how you do all of the above.
 
 [source,ruby]
 ----
-broadcast @alice_boarding_tx
+broadcast @alice_bob_multisig_tx
 ----
 
 === Verify signatures for a transaction
 
 [source,ruby]
 ----
-verify_signature for_transaction: @alice_boarding_tx,
+verify_signature for_transaction: @alice_bob_multisig_tx,
                  at_index: 0,
                  with_prevout: [coinbase_tx, 0]
 ----
@@ -383,7 +383,7 @@ verify_signature for_transaction: @alice_boarding_tx,
 
 [source,ruby]
 ----
-assert_mempool_accept @alice_boarding_tx
+assert_mempool_accept @alice_bob_multisig_tx
 ----
 
 === Assert a transaction is confirmed
@@ -392,7 +392,7 @@ To assert that a transaction is confirmed at a given height:
 
 [source,ruby]
 ----
-assert_confirmed transaction: @alice_boarding_tx, at_height: 100
+assert_confirmed transaction: @alice_bob_multisig_tx, at_height: 100
 ----
 
 == Tools Used
