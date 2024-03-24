@@ -22,8 +22,8 @@ title: Bitcoin DSL Docs
 email: kp@opdup.com
 description: >- # this means to ignore newlines until "baseurl:"
   Bitcoin DSL documentation
-baseurl: "" # the subpath of your site, e.g. /blog
-url: "https://bitcoin-dsl.opdup.com" # the base hostname & protocol for your site, e.g. http://example.com
+url: "https://opdup.com/index.html" # the base hostname & protocol for your site, e.g. http://example.com
+baseurl: /bitcoin-dsl
 twitter_username: jungly
 github_username:  pool2win
 
@@ -60,7 +60,7 @@ plugins:
 collections:
   # Define a collection named "tests", its documents reside in the "_tests" directory
   overview:
-    permalink: ":collection/:path"
+    permalink: ":collection/:path:output_ext"
     output: true
   # transactions:
   #   permalink: ":collection/:path"
@@ -72,10 +72,10 @@ collections:
   #   permalink: ":collection/:path"
   #   output: true
   examples:
-    permalink: ":collection/:path"
+    permalink: ":collection/:path:output_ext"
     output: true
   dev:
-    permalink: ":collection/:path"
+    permalink: ":collection/:path:output_ext"
     output: true
 
 just_the_docs:

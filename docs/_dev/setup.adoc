@@ -4,7 +4,7 @@
 :page-nav_order: 5
 :page-show-toc: false
 
-1. Install Ruby using any means. I usually prefer using [RVM](https://rvm.io/)
+1. Install Ruby using any means. I usually prefer using link:https://rvm.io/[RVM]
 2. Install Rust.
 3. Install `miniscript-cli` by `cd miniscript-cli && cargo intall --path .`.
    This will give your DSL access to `miniscript-cli` binary.

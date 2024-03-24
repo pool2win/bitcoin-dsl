@@ -1,5 +1,6 @@
 = Bitcoin DSL
 :page-layout: page
+:page-permalink: '/index.html'
 :page-nav_order: 1
 :sourcedir: ../
 
