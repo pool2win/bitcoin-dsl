@@ -37,6 +37,7 @@ require_relative 'dsl/query_node'
 require_relative 'dsl/transaction'
 require_relative 'dsl/anchor'
 require_relative 'dsl/assertions'
+require_relative 'dsl/transitions'
 
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL
