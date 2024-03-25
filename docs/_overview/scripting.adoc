@@ -16,7 +16,7 @@ specified.
 |Script |icon:check[2x] |icon:check[2x]
 |Miniscript |icon:check[2x] |icon:x[2x]
 |Descriptor |icon:check[2x] |icon:check[2x]
-|Sig extension |icon:check[2x] |icon:x[2x]
+|Sig extension |icon:xmark[2x] |icon:check[2x]
 |===
 
 == Script
