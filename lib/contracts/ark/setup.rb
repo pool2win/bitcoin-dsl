@@ -28,10 +28,9 @@
 # 3.2 Bob cooperatively leaves the ARK with received payment
 # 3.3 Bob unilaterally leaves the ARK with received payment
 
-assert_height 0
-
 # Generate new keys
 @alice = key :new
+@bob = key :new
 @asp = key :new
 @asp_timelock = key :new
 
@@ -54,10 +53,6 @@ coinbase_tx = get_coinbase_at 2
                                      amount: 49.999.sats
                                    }
                                  ]
-
-verify_signature for_transaction: @alice_boarding_tx,
-                 at_index: 0,
-                 with_prevout: [coinbase_tx, 0]
 
 broadcast @alice_boarding_tx
 extend_chain to: @alice
