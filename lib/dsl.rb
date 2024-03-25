@@ -54,6 +54,7 @@ module DSL
   include ScriptCompiler::ScriptPubKey
   include ScriptCompiler::ScriptSig
   include Broadcast
+  include Transitions
 
   def pretty_print(result)
     puts JSON.pretty_generate result

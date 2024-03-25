@@ -37,6 +37,10 @@ RSpec.describe Runner do
     it_behaves_like 'script evaluation', './lib/contracts/simple.rb'
   end
 
+  describe 'Transitions' do
+    it_behaves_like 'script evaluation', './lib/contracts/simple_transitions.rb'
+  end
+
   describe 'Running ARK contracts' do
     it_behaves_like 'script evaluation', './lib/contracts/ark/setup.rb'
     it_behaves_like 'script evaluation', './lib/contracts/ark/spend_cooperatively.rb'
