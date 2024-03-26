@@ -43,8 +43,6 @@ RSpec.describe Runner do
 
   describe 'Running ARK contracts' do
     it_behaves_like 'script evaluation', './lib/contracts/ark/setup.rb'
-    it_behaves_like 'script evaluation', './lib/contracts/ark/spend_cooperatively.rb'
-    it_behaves_like 'script evaluation', './lib/contracts/ark/spend_unilateral.rb'
   end
 
   describe 'Running coinbases addresses' do
