@@ -85,6 +85,12 @@ module Transaction
     tx_in.sequence = input[:csv]
   end
 
+  def add_csv_to_transaction(transaction, index:, csv:)
+    transaction.lock_time = csv
+    transaction.inputs[index].sequence = csv
+    add_signatures(transaction, regen: true)
+  end
+
   # Only number of blocks is supported for now.
   #
   # TODO: Switch to libfaketime to generate blocks in the future to
@@ -147,5 +153,12 @@ module Transaction
                    index: index,
                    amount: vout['value'],
                    script_pubkey: Bitcoin::Script.parse_from_payload(script_pubkey['hex'].htb))
+  end
+
+  def debug(transaction)
+    log transaction
+    transaction.outputs.each do |output|
+      log "Address: #{output.script_pubkey.to_addr} -- Script: #{@witness_scripts[output.script_pubkey.to_addr]}"
+    end
   end
 end

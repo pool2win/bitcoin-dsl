@@ -44,16 +44,16 @@ RSpec.describe Transitions do
     it 'runs an added transition' do
       test_flag = false
       test_flag2 = false
-      transition :test do
+      transition :test_transition do
         test_flag = true
       end
-      transition :test2 do
+      transition 'test second transition' do
         test_flag2 = true
       end
-      run_transitions(:test)
+      run_transitions(:test_transition)
       expect(test_flag).to be_truthy
       expect(test_flag2).to be_falsey
-      run_transitions(:test2)
+      run_transitions 'test second transition'
       expect(test_flag).to be_truthy
       expect(test_flag2).to be_truthy
     end

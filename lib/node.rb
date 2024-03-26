@@ -45,6 +45,9 @@ def node(command, *params)
     start_node
   when :stop
     stop_node
+  when :reset
+    stop_node
+    start_node
   else
     run_rpc_command(command, *params)
   end

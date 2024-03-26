@@ -17,15 +17,22 @@
 
 # frozen_string_literal: false
 
+require_relative '../../lib/logging'
+
 # DSL module for state transitions
 module Transitions
+  include Logging
   def transition(name, &block)
     @transitions[name] = block
   end
 
+  alias state_transition transition
+
   def run_transitions(*transitions)
     transitions.each do |transition|
+      logger.info "Start #{transition}"
       @transitions[transition].call
+      logger.info "Finish #{transition}"
     end
   end
 end
