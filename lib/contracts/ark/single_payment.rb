@@ -40,19 +40,40 @@ state_transition :setup do
   @timeout_period = 10
 end
 
-state_transition :create_funding_tx do
+# tag::create_funding_tx[]
+state_transition :create_funding_tx do # <1>
   @funding_tx = transaction inputs: [
-                              { tx: @alice_coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@alice)', sighash: :all }
+                              { tx: @alice_coinbase_tx, vout: 0, script_sig: 'sig:_empty' } # <2>
                             ],
                             outputs: [
                               {
-                                policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@asp_timelock)))',
+                                policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@asp_timelock)))', # <3>
                                 amount: 49.999.sats
                               }
                             ]
+  assert_not_mempool_accept @funding_tx # <4>
 end
+# end::create_funding_tx[]
 
+# tag::create_redeem_tx[]
+state_transition :create_redeem_tx do
+  # Redeem transaction for Alice is only signed by ASP at this point
+  @redeem_tx = transaction inputs: [
+                             { tx: @funding_tx, vout: 0, script_sig: 'sig:@asp sig:_empty' } # <1>
+                           ],
+                           outputs: [
+                             {
+                               policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@alice_timelock)))', # <2>
+                               amount: 49.998.sats
+                             }
+                           ]
+  assert_not_mempool_accept @redeem_tx # <3>
+end
+# end::create_redeem_tx[]
+
+# tag::broadcast_funding_tx[]
 state_transition :broadcast_funding_tx do
+  update_script_sig for_tx: @funding_tx, at_index: 0, with_script_sig: 'sig:wpkh(@alice)'
   broadcast @funding_tx
   extend_chain
 
@@ -61,23 +82,11 @@ state_transition :broadcast_funding_tx do
   # Extend chain so that ASP can spend some coinbases
   extend_chain num_blocks: 101, to: @asp
 end
-
-state_transition :create_redeem_tx do
-  # Redeem transaction for Alice is only signed by ASP at this point
-  @redeem_tx = transaction inputs: [
-                             { tx: @funding_tx, vout: 0, script_sig: 'sig:@asp sig:_empty' }
-                           ],
-                           outputs: [
-                             {
-                               policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@alice_timelock)))',
-                               amount: 49.998.sats
-                             }
-                           ]
-  assert_not_mempool_accept @redeem_tx
-end
+# end::broadcast_funding_tx[]
 
 # ASP now sends the redeem transaction to Alice
 
+# tag::initialize_payment_to_bob[]
 # Alices sends a signed request to ASP for initiating a payment to Bob
 # ASP creates a Redeem transaction for Bob
 state_transition :initialize_payment_to_bob do
@@ -109,7 +118,9 @@ state_transition :initialize_payment_to_bob do
   # pool_tx is not confirmed yet, so Bob's redeem tx can't be accepted
   assert_not_mempool_accept @redeem_tx_for_bob
 end
+# end::initialize_payment_to_bob[]
 
+# tag::build_alice_forfeit_tx[]
 state_transition :build_alice_forfeit_tx do
   @forfeit_tx = transaction inputs: [
                               # Only signed by Alice
@@ -123,12 +134,16 @@ state_transition :build_alice_forfeit_tx do
   # Can't broadcast forfeit tx until redeem tx is confirmed
   assert_not_mempool_accept @forfeit_tx
 end
+# end::build_alice_forfeit_tx[]
 
+# tag::publish_pool_tx[]
 state_transition :publish_pool_tx do
   broadcast @pool_tx
   confirm transaction: @pool_tx
 end
+# tag::publish_pool_tx[]
 
+# tag::bob_redeems_coins[]
 state_transition :bob_redeems_coins do
   # Bob adds his signature to redeem tx
   update_script_sig for_tx: @redeem_tx_for_bob, at_index: 0, with_script_sig: 'sig:@asp sig:@bob ""'
@@ -137,7 +152,9 @@ state_transition :bob_redeems_coins do
   # Alice can no longer redeem her coins
   assert_not_mempool_accept @redeem_tx
 end
+# end::bob_redeems_coins[]
 
+# tag::alice_redeems_coins_after_timeout[]
 state_transition :alice_redeems_coins_after_timeout do
   add_csv_to_transaction @redeem_tx, index: 0, csv: @timeout_period
   update_script_sig for_tx: @redeem_tx, at_index: 0, with_script_sig: 'sig:@asp sig:@alice ""'
@@ -158,7 +175,9 @@ state_transition :alice_redeems_coins_after_timeout do
   # Alice can now redeem her coins
   assert_mempool_accept @spend_alice_coins
 end
+# end::alice_redeems_coins_after_timeout[]
 
+# tag::pay_alice_to_bob[]
 # Publish pool transaction, paying Alice to Bob
 run_transitions :setup,
                 :create_funding_tx,
@@ -168,9 +187,13 @@ run_transitions :setup,
                 :build_alice_forfeit_tx,
                 :publish_pool_tx,
                 :bob_redeems_coins
+# end::pay_alice_to_bob[]
 
+# tag::reset[]
 node :reset
+# end::reset[]
 
+# tag::cancelled_payment[]
 run_transitions :setup,
                 :create_funding_tx,
                 :create_redeem_tx,
@@ -178,3 +201,4 @@ run_transitions :setup,
                 :initialize_payment_to_bob,
                 :build_alice_forfeit_tx,
                 :alice_redeems_coins_after_timeout
+# tag::cancelled_payment[]
