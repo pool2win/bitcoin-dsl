@@ -44,13 +44,13 @@ state_transition :setup do
   # Seed asp with some coins and make coinbase spendable
   extend_chain num_blocks: 110, to: @asp
 
-  @asp_coinbase_tx = get_coinbase_at 2
+  @alice_coinbase_tx = spendable_coinbase_for @alice
   @asp_payment_coinbase_tx = get_coinbase_at 3
 end
 
 state_transition :create_funding_tx do
   @funding_tx = transaction inputs: [
-                              { tx: @asp_coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@asp)', sighash: :all }
+                              { tx: @alice_coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@alice)', sighash: :all }
                             ],
                             outputs: [
                               {
