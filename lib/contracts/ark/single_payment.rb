@@ -35,6 +35,9 @@ state_transition :setup do
 
   @alice_coinbase_tx = spendable_coinbase_for @alice
   @asp_payment_coinbase_tx = get_coinbase_at 3
+
+  # A timeout period it can be weeks or months, we use 10 blocks for now.
+  @timeout_period = 10
 end
 
 state_transition :create_funding_tx do
@@ -43,7 +46,7 @@ state_transition :create_funding_tx do
                             ],
                             outputs: [
                               {
-                                policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(10),pk(@asp_timelock)))',
+                                policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@asp_timelock)))',
                                 amount: 49.999.sats
                               }
                             ]
@@ -66,7 +69,7 @@ state_transition :create_redeem_tx do
                            ],
                            outputs: [
                              {
-                               policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(10),pk(@alice_timelock)))',
+                               policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@alice_timelock)))',
                                amount: 49.998.sats
                              }
                            ]
@@ -83,7 +86,7 @@ state_transition :initialize_payment_to_bob do
                          ],
                          outputs: [
                            {
-                             policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(10),pk(@asp_timelock)))',
+                             policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(@timeout_period),pk(@asp_timelock)))',
                              amount: 49.997.sats
                            },
                            {
@@ -98,7 +101,7 @@ state_transition :initialize_payment_to_bob do
                                    ],
                                    outputs: [
                                      {
-                                       policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(10),pk(@bob_timelock)))',
+                                       policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(@timeout_period),pk(@bob_timelock)))',
                                        amount: 49.996.sats
                                      }
                                    ]
@@ -136,7 +139,7 @@ state_transition :bob_redeems_coins do
 end
 
 state_transition :alice_redeems_coins_after_timeout do
-  add_csv_to_transaction @redeem_tx, index: 0, csv: 10
+  add_csv_to_transaction @redeem_tx, index: 0, csv: @timeout_period
   update_script_sig for_tx: @redeem_tx, at_index: 0, with_script_sig: 'sig:@asp sig:@alice ""'
 
   broadcast @redeem_tx
@@ -145,13 +148,13 @@ state_transition :alice_redeems_coins_after_timeout do
   @spend_alice_coins = transaction inputs: [
                                      { tx: @redeem_tx, vout: 0,
                                        script_sig: 'sig:@alice_timelock @alice_timelock 0x01',
-                                       csv: 10 }
+                                       csv: @timeout_period }
                                    ],
                                    outputs: [
                                      { descriptor: 'wpkh(@alice)', amount: 49.997.sats }
                                    ]
 
-  extend_chain num_blocks: 10
+  extend_chain num_blocks: @timeout_period
   # Alice can now redeem her coins
   assert_mempool_accept @spend_alice_coins
 end

@@ -22,7 +22,15 @@ module ScriptCompiler
   # Miniscript compiler
   module Miniscript
     def interpolate(script)
-      script.gsub(/(?<!\d)@\w+/) { instance_eval(Regexp.last_match(0), __FILE__, __LINE__).pubkey }
+      script.gsub(/(?<!\d)@\w+/) do
+        obj = instance_eval(Regexp.last_match(0), __FILE__, __LINE__)
+        case obj
+        when Bitcoin::Key
+          obj.pubkey
+        else
+          obj
+        end
+      end
     end
 
     def compile_miniscript(script)
