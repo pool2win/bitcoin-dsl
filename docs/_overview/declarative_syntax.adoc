@@ -49,7 +49,7 @@ transaction inputs: [
             ]
 ----
 
-== Sane defaults
+== Sane Defaults
 
 The DSL by default assumes we only want to build SegWit transactions
 and all contracts are wrapped in P2WSH.

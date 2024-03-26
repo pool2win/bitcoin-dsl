@@ -25,7 +25,7 @@ To generate a key using WIF, use the `wif:` keyword.
 @alice = key wif: 'L1Rg5xdVZ9pZqn7s2UreiDxaFP81RHYL2DjFBUP6BfT9QRw8jERR'
 ----
 
-== Generate coinbases and spending them
+== Generate Coinbases and Spending Them
 
 The DSL provides a convinient way to mine coins controlled by a key
 and then load the coinbase to spend in future transactions.
@@ -89,7 +89,7 @@ above is below. We sign the transaction declaratively by saying
                             ]
 ----
 
-== Broadcast and confirm transactions
+== Broadcast and Confirm Transactions
 
 A transaction can be easily broadcast by using the `broadcast`
 command. Even though we can use low level JSON-API calls like
@@ -179,7 +179,7 @@ extend_chain to: @alice
 extend_chain num_blocks: 101, to: @bob
 ----
 
-=== Find spendable coinbase transactions
+=== Find Spendable Coinbase Transactions
 
 To look up a coinbase UTXO controlled by a key use
 `spendable_coinbase_for` and provide a key.
@@ -192,28 +192,28 @@ key as a P2WPKH transaction.
 @tx = spendable_coinbase_for @alice
 ----
 
-=== Get chain height
+=== Get Chain Height
 
 [source,ruby]
 ----
 get_height
 ----
 
-=== Get block at height
+=== Get Block at Height
 
 [source,ruby]
 ----
 @block = get_block_at_height 100
 ----
 
-=== Get coinbase at height
+=== Get Coinbase at Height
 
 [source,ruby]
 ----
 @tx = get_coinbase_at_height 100
 ----
 
-=== Get TxId for transaction in block
+=== Get TxId for Transaction in Block
 
 [source,ruby]
 ----
@@ -225,7 +225,7 @@ get_height
 The DSL provides a number of assertions for verifying the state of
 transactions and chain.
 
-=== Verify signatures for a transaction
+=== Verify Signatures for a Transaction
 
 [source,ruby]
 ----
@@ -234,21 +234,21 @@ verify_signature for_transaction: @alice_tx,
                  with_prevout: [coinbase_tx, 0]
 ----
 
-=== Assert mempool will accept a transaction
+=== Assert Mempool Will Accept a Transaction
 
 [source,ruby]
 ----
 assert_mempool_accept @alice_tx
 ----
 
-=== Assert mempool will not accept a transaction
+=== Assert Mempool Will Not Accept a Transaction
 
 [source,ruby]
 ----
 assert_not_mempool_accept @alice_tx
 ----
 
-=== Assert a transaction is confirmed
+=== Assert a Transaction is Confirmed
 
 [source,ruby]
 ----
@@ -262,7 +262,7 @@ assert_confirmed txid: @alice_tx.txid
 if the transaction has been confirmed in the block at that height.
 
 
-== Script interpolation
+== Script Interpolation
 
 The DSL provides a number of commands to interpolate in a Script.
 
@@ -300,7 +300,7 @@ push them to the witness stack.
 'multisig:(@alice,@bob)'
 ----
 
-=== Interpolated miniscript policy
+=== Interpolated Miniscript Policy
 
 Miniscript is interpolated by replacing all references to variables
 and bitcoin hash functions by their corresponding computed hex values.

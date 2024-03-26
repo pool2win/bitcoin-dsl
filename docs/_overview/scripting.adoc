@@ -74,7 +74,7 @@ transaction inputs: [
 
 NOTE: Descriptors can be used in only in locking scripts.
 
-== Custom `sig` extension
+== Custom `sig` Extension
 
 One of the biggest challenges when using P2WSH is to have access to
 the script witness programs when you need to sign an input that is

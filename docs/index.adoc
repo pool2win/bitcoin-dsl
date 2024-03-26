@@ -8,7 +8,7 @@ Make it easy to build and execute bitcoin transactions.
 
 ---
 
-== An example script
+== An Example Script
 
 Here is the simplest script that mines a block to WPKH and makes the
 coinbase spendable by mining 101 blocks.
@@ -57,7 +57,7 @@ For example, we simply declare what a transaction should look like and
 don't have to construct it one command at a time, as shown in the
 example next.
 
-== Example: Find and spend a coinbase
+== Example: Find and Spend a Coinbase
 
 The following script, which can be executed by the DSL runtime, will
 do the following:
@@ -101,7 +101,7 @@ assert_confirmations @alice_to_bob, confirmations: 1 # <8>
 NOTE: The DSL uses sane defaults like using SegWit and defaulting to P2SWH.
 
 
-== Locking and unlocking scripts
+== Locking and Unlocking Scripts
 
 Bitcoin DSL supports using **miniscript, descriptors and Script** to
 specify the locking script for an output. The example shows the policy
@@ -145,7 +145,7 @@ execution of the contract along various branches.
 
 ---
 
-== Interact with bitcoin node
+== Interact With Bitcoin Node
 
 All the
 link:https://en.bitcoin.it/wiki/API_reference_%28JSON-RPC%29[Bitcoin
@@ -169,7 +169,7 @@ Jump to link:overview/node_interaction[Node Interaction].
 
 ---
 
-== Assert system state
+== Assert System State
 
 Contract developers can verify the state of the transactions and the
 chain using high level commands.
