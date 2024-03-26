@@ -17,17 +17,6 @@
 
 # frozen_string_literal: false
 
-# ARK script goals:
-# 1. Alice onboards with an ASP
-# 1.1 ASP is non-cooperative and Alice leaves after 1y with her coins
-# 2. Alice makes off chain payment to Bob
-# 3. Now multiple branches need to exploration:
-# 3.0 ASP refuses to accept Alice's request to make payment
-# 3.1 Alice cooperatively reverts and undoes off chain payment
-# 3.2 Alice unilaterally reverts and undoes off chain payment
-# 3.2 Bob cooperatively leaves the ARK with received payment
-# 3.3 Bob unilaterally leaves the ARK with received payment
-
 state_transition :setup do
   # Generate new keys
   @alice = key :new
