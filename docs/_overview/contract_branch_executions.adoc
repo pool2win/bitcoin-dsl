@@ -19,6 +19,9 @@ With the DSL a developer can declaratively specify state transitions
 and then run a sequence of transitions to exercise the various
 branches of a contract.
 
+TIP: `state_transition` and `run_transitions` are new DSL commands
+introduced to enable contract composition and execution along
+branches.
 
 The execution paths are best described with an simple contract that
 has two branches - a simple timelock contract.
@@ -86,6 +89,14 @@ include::{sourcedir}/lib/contracts/branch_executions.rb[tags=bob_spends_immediat
 <1> Bob signs the transaction to spend it immediately
 <2> The spending transaction is broadcast and confirmed
 
+Next we run the state transitions that lead to Bob spending the
+coinbase immediately - without waiting for 10 blocks.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=run_bob_spends_immediately_transistions]
+----
+
 === Alice Can Not Spend Immediately
 
 We run assertions to check that Alice can't spend the transaction immediately.
@@ -98,7 +109,8 @@ include::{sourcedir}/lib/contracts/branch_executions.rb[tags=alice_cant_spend]
 <2> Alice's attempt is spend is not accepted by the mempool
 
 Next we run the transitions we want to execute the branch where we
-check Alice can't spend the transaction immediately.  [source,ruby]
+check Alice can't spend the transaction immediately.
+
 [source,ruby]
 ----
 include::{sourcedir}/lib/contracts/branch_executions.rb[tags=run_alice_cant_spend_transistions]
