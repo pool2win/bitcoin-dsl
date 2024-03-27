@@ -28,14 +28,13 @@ state_transition :setup do
 
   # Make coinbase at block 1 spendable
   extend_chain num_blocks: 100 # <2>
+  @alice_coinbase_tx = get_coinbase_at 1
 end
 # end::setup[]
 
 # tag::bob_spends_immediately[]
 state_transition :bob_spends_immediately do
   # Load the coinbase with miniscript policy
-  @alice_coinbase_tx = get_coinbase_at 1
-
   @csv_tx = transaction inputs: [
                           {
                             tx: @alice_coinbase_tx,
@@ -64,8 +63,6 @@ run_transitions :setup, :bob_spends_immediately
 # tag::alice_cant_spend[]
 state_transition :alice_cant_spend do
   # Load the coinbase with miniscript policy
-  @alice_coinbase_tx = get_coinbase_at 1
-
   @csv_tx = transaction inputs: [
                           {
                             tx: @alice_coinbase_tx,
@@ -91,8 +88,6 @@ run_transitions :reset, :setup, :alice_cant_spend
 # tag::alice_spends_after_delay[]
 state_transition :alice_spends_after_delay do
   # Load the coinbase with miniscript policy
-  @alice_coinbase_tx = get_coinbase_at 1
-
   @csv_tx = transaction inputs: [
                           {
                             tx: @alice_coinbase_tx,
@@ -118,3 +113,31 @@ end
 # tag::run_alice_spends_transistions[]
 run_transitions :reset, :setup, :alice_spends_after_delay
 # end::run_alice_spends_transistions[]
+
+# tag::bob_spends_after_delay[]
+state_transition :bob_spends_after_delay do
+  # Load the coinbase with miniscript policy
+  @csv_tx = transaction inputs: [
+                          {
+                            tx: @alice_coinbase_tx,
+                            vout: 0,
+                            script_sig: 'sig:@bob' # <1>
+                          }
+                        ],
+                        outputs: [
+                          {
+                            descriptor: 'wpkh(@alice)',
+                            amount: 49.998.sats
+                          }
+                        ]
+
+  extend_chain num_blocks: 10 # <2>
+
+  broadcast @csv_tx # <3>
+  extend_chain
+end
+# end::bob_spends_after_delay[]
+
+# tag::run_bob_spends_transistions[]
+run_transitions :reset, :setup, :bob_spends_after_delay # <4>
+# end::run_bob_spends_transistions[]

@@ -34,7 +34,6 @@ module Broadcast
       to ||= key :new
       address = to.to_p2wpkh
     end
-    logger.info "Extending chain by #{num_blocks} blocks to address #{address}"
     result = generatetoaddress num_blocks: num_blocks, to: address
     raise "Unable to extend chaing to #{address}" unless result
 

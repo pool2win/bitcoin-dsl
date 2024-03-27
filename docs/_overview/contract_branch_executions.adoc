@@ -86,18 +86,6 @@ include::{sourcedir}/lib/contracts/branch_executions.rb[tags=bob_spends_immediat
 <1> Bob signs the transaction to spend it immediately
 <2> The spending transaction is broadcast and confirmed
 
-=== Bob Spends After Delay
-
-[source,ruby]
-----
-include::{sourcedir}/lib/contracts/example_branch_execution/bob_spends_after_delay.rb[tags=bob_spends_after_delay]
-----
-<1> Run setup to make this branch executable
-<2> Bob signs the transaction to spend it immediately
-<3> Extend chain by mining 10 blocks
-<4> The spending transaction is broadcast and confirmed
-
-
 === Alice Can Not Spend Immediately
 
 We run assertions to check that Alice can't spend the transaction immediately.
@@ -133,3 +121,18 @@ check Alice spends the transaction after a delay.
 ----
 include::{sourcedir}/lib/contracts/branch_executions.rb[tags=run_alice_spends_transistions]
 ----
+
+=== Bob Spends After Delay
+
+For completeness sake, we also cover the final case where Bob can
+spend the CSV UTXO after the timeout period.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=bob_spends_after_delay]
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=run_bob_spends_transistions]
+----
+<1> Bob signs the transaction to spend it immediately
+<2> Extend chain by mining 10 blocks
+<3> The spending transaction is broadcast and confirmed
+<4> Finally, we run the required transitions
