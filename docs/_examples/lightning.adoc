@@ -60,7 +60,7 @@ include::{sourcedir}/lib/contracts/lightning/add_htlc.rb[tags=add]
 <1> Capture the offered and received HTLC contracts using bitcoin Script.
 <2> The commitment transaction now has HTLC outputs.
 <3> Use `update_script_sig` to update signatures for existing transactions.	
-<4> Updated transactions are ready to braodcast now.
+<4> Updated transactions are ready to broadcast now.
 
 == Branch Point 2 - Alice Closes Unilaterally and Bob Sweeps Alice\'s Offered HTLC
 
