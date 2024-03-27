@@ -9,9 +9,42 @@ Make is easy to experiment with bitcoin contracts.
 
 == Quick Start
 
+There's three things you can do:
+
+. Run a jupyter notebook.
+. Run a script from terminal.
+. Build a docker image locally - if you really need to save bandwidth.
+
+=== Run a Jupyter Notebook 
+
+[source,bash]
+----
+docker run -p 8888:8888 ghcr.io/pool2win/bitcoin-dsl:release
+----
+
+Look up the URL output by jupter and paste it into your browser
+location bar. You know the drill.
+
+=== Running a Script from Terminal
+
+Install
+link:https://github.com/casey/just?tab=readme-ov-file#installation[Just]
+and your life will be easier.
+
+[source,bash]
+----
+just run_script <path-to-your-script>
+# example, running the ARK single payment example
+just run_script ./lib/contracts/ark/single_payment.rb
+----
+
+=== Build Docker Image Locally
+
+We need to build docker image locally.
+
 . Install link:https://github.com/casey/just?tab=readme-ov-file#installation[Just].
-. Build docker image `just build`.
-. Run a contract `just run ./lib/contracts/simple.rb`.
+. Build docker image `just build`
+. Run docker image `just run <path-to-your-script>`, e.g. `just run ./lib/contracts/ark/single_payment.rb`
 
 
 == Example Contracts
