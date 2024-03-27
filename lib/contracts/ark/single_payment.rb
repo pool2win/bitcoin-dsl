@@ -84,10 +84,10 @@ end
 
 # ASP now sends the redeem transaction to Alice
 
-# tag::initialize_payment_to_bob[]
+# tag::initialise_payment_to_bob[]
 # Alices sends a signed request to ASP for initiating a payment to Bob
 # ASP creates a Redeem transaction for Bob
-state_transition :initialize_payment_to_bob do
+state_transition :initialise_payment_to_bob do
   @pool_tx = transaction inputs: [
                            { tx: @asp_payment_coinbase_tx, vout: 0, script_sig: 'sig:wpkh(@asp)' }
                          ],
@@ -116,7 +116,7 @@ state_transition :initialize_payment_to_bob do
   # pool_tx is not confirmed yet, so Bob's redeem tx can't be accepted
   assert_not_mempool_accept @redeem_tx_for_bob
 end
-# end::initialize_payment_to_bob[]
+# end::initialise_payment_to_bob[]
 
 # tag::build_alice_forfeit_tx[]
 state_transition :build_alice_forfeit_tx do
@@ -181,7 +181,7 @@ run_transitions :setup,
                 :create_funding_tx,
                 :create_redeem_tx,
                 :broadcast_funding_tx,
-                :initialize_payment_to_bob,
+                :initialise_payment_to_bob,
                 :build_alice_forfeit_tx,
                 :publish_pool_tx, # <1>
                 :bob_redeems_coins
@@ -197,7 +197,7 @@ run_transitions :setup,
                 :create_funding_tx,
                 :create_redeem_tx,
                 :broadcast_funding_tx,
-                :initialize_payment_to_bob,
+                :initialise_payment_to_bob,
                 :build_alice_forfeit_tx,
                 :alice_redeems_coins_after_timeout # <1>
 # end::cancelled_payment[]

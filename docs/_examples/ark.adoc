@@ -9,7 +9,7 @@
 == Introduction
 
 The link:https://arkdev.info/[ARK] protocol is a bitcoin layer 2
-proposal that focusses on making reducing liquidity locking
+proposal that focuses on making reducing liquidity locking
 requirements and channel setup requirements for end users. The trade
 off is to push the liquidity provision and management to "ARK Service
 Providers" - ASPs.
@@ -30,7 +30,7 @@ Alice, creates a funding transaction with it's own input and an output
 that can be spent by Alice & ASP or only by ASP after a timeout
 period.
 
-The funding transaction can be spent co-operatively by the two parties
+The funding transaction can be spent cooperatively by the two parties
 signing the funding transaction or by user after a timeout period (say
 1 month)
 
@@ -93,7 +93,7 @@ later use.
 
 [source,ruby]
 ----
-include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=initialize_payment_to_bob]
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=initialise_payment_to_bob]
 ----
 <1> The connector output, that Alice will use in the next step
 <2> ASP adds its signature
