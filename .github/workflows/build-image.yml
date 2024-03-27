@@ -52,7 +52,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
       - name: Run rake spec
-        run: docker run ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} rake spec
+        run: docker run ${{ env.DOCKER_METADATA_OUTPUT_TAGS }} rake spec
       - name: Push Docker image
         uses: docker/build-push-action@v5
         with:
