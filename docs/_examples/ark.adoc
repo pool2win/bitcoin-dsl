@@ -3,6 +3,8 @@
 :page-title: ARK
 :page-nav_order: 2
 :sourcedir: ../../
+:page-has_toc: true
+:page-show-toc: true
 
 == Introduction
 
@@ -122,7 +124,7 @@ The ASP then broadcasts the pool transaction.
 include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=publish_pool_tx]
 ----
 
-=== Two Possible Outcomes From Here
+== Fork: We Cover Two Outcomes From Here
 
 At this point there are a few possible outcomes but to demonstrate the
 Bitcoin DSL and at the same time capture how ARK makes the payments,
@@ -131,7 +133,7 @@ we cover only two of the outcomes.
 . Bob redeems the coins and ASP plays fair.
 . ASP does nothing and Alice redeems the coins.
 
-==== Bob Redeems the Coins
+=== Bob Redeems the Coins
 
 [source,ruby]
 ----
@@ -139,14 +141,28 @@ include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=bob_redeems_coins]
 ----
 <1> Bob adds his signature the redeem transaction before broadcasting it
 
-==== Alice Redeems the Coins After Timeout
+This outcome is execute by running the transitions as:
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=pay_alice_to_bob]
+----
+<1> Pool transaction is published
+
+=== Alice Redeems the Coins After Timeout
 
 [source,ruby]
 ----
 include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=alice_redeems_coins_after_timeout]
 ----
-<1> Alice adds her signature to the redeem transaction
-<2> Alice broadcasts redeem transaction
-<3> Alice now spends the output of the redeem transaction after timeout
+<1> Alice adds her signature the redeem transaction before broadcasting it
+<2> Alice spends the redeem tx output after a timeout period
+<3> As usual, we move chain forward before we can spend a timeout transaction
 
+This outcome is execute by running the transitions as:
 
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=cancelled_payment]
+----
+<1> Pool transaction is not published and therefore redeem tx can be spent

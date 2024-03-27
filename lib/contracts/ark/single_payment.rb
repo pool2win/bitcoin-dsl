@@ -73,12 +73,10 @@ end
 
 # tag::broadcast_funding_tx[]
 state_transition :broadcast_funding_tx do
-  update_script_sig for_tx: @funding_tx, at_index: 0, with_script_sig: 'sig:wpkh(@alice)'
+  update_script_sig for_tx: @funding_tx, at_index: 0, with_script_sig: 'sig:wpkh(@alice)' # <1>
   broadcast @funding_tx
   extend_chain
-
   assert_confirmations @funding_tx, confirmations: 1
-
   # Extend chain so that ASP can spend some coinbases
   extend_chain num_blocks: 101, to: @asp
 end
@@ -99,18 +97,18 @@ state_transition :initialize_payment_to_bob do
                              amount: 49.997.sats
                            },
                            {
-                             descriptor: 'wpkh(@asp)', # The connector output
+                             descriptor: 'wpkh(@asp)', # The connector output # <1>
                              amount: 0.001.sats
                            }
                          ]
   assert_mempool_accept @pool_tx
 
   @redeem_tx_for_bob = transaction inputs: [
-                                     { tx: @pool_tx, vout: 0, script_sig: 'sig:@asp sig:_empty ""' }
+                                     { tx: @pool_tx, vout: 0, script_sig: 'sig:@asp sig:_empty ""' } # <2>
                                    ],
                                    outputs: [
                                      {
-                                       policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(@timeout_period),pk(@bob_timelock)))',
+                                       policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(@timeout_period),pk(@bob_timelock)))', # <3>
                                        amount: 49.996.sats
                                      }
                                    ]
@@ -124,9 +122,9 @@ end
 state_transition :build_alice_forfeit_tx do
   @forfeit_tx = transaction inputs: [
                               # Only signed by Alice
-                              { tx: @redeem_tx, vout: 0, script_sig: 'sig:_empty sig:@alice ""' },
+                              { tx: @redeem_tx, vout: 0, script_sig: 'sig:_empty sig:@alice ""' }, # <1>
                               # connector output from pool_tx
-                              { tx: @pool_tx, vout: 1, script_sig: 'sig:wpkh(@asp)' }
+                              { tx: @pool_tx, vout: 1, script_sig: 'sig:wpkh(@asp)' } # <2>
                             ],
                             outputs: [
                               { descriptor: 'wpkh(@asp)', amount: 49.997.sats }
@@ -141,12 +139,12 @@ state_transition :publish_pool_tx do
   broadcast @pool_tx
   confirm transaction: @pool_tx
 end
-# tag::publish_pool_tx[]
+# end::publish_pool_tx[]
 
 # tag::bob_redeems_coins[]
 state_transition :bob_redeems_coins do
   # Bob adds his signature to redeem tx
-  update_script_sig for_tx: @redeem_tx_for_bob, at_index: 0, with_script_sig: 'sig:@asp sig:@bob ""'
+  update_script_sig for_tx: @redeem_tx_for_bob, at_index: 0, with_script_sig: 'sig:@asp sig:@bob ""' # <1>
   # Bob can redeem his coins
   assert_mempool_accept @redeem_tx_for_bob
   # Alice can no longer redeem her coins
@@ -157,21 +155,21 @@ end
 # tag::alice_redeems_coins_after_timeout[]
 state_transition :alice_redeems_coins_after_timeout do
   add_csv_to_transaction @redeem_tx, index: 0, csv: @timeout_period
-  update_script_sig for_tx: @redeem_tx, at_index: 0, with_script_sig: 'sig:@asp sig:@alice ""'
+  update_script_sig for_tx: @redeem_tx, at_index: 0, with_script_sig: 'sig:@asp sig:@alice ""' # <1>
 
   broadcast @redeem_tx
   confirm transaction: @redeem_tx
 
   @spend_alice_coins = transaction inputs: [
                                      { tx: @redeem_tx, vout: 0,
-                                       script_sig: 'sig:@alice_timelock @alice_timelock 0x01',
+                                       script_sig: 'sig:@alice_timelock @alice_timelock 0x01', # <2>
                                        csv: @timeout_period }
                                    ],
                                    outputs: [
                                      { descriptor: 'wpkh(@alice)', amount: 49.997.sats }
                                    ]
 
-  extend_chain num_blocks: @timeout_period
+  extend_chain num_blocks: @timeout_period # <3>
   # Alice can now redeem her coins
   assert_mempool_accept @spend_alice_coins
 end
@@ -185,7 +183,7 @@ run_transitions :setup,
                 :broadcast_funding_tx,
                 :initialize_payment_to_bob,
                 :build_alice_forfeit_tx,
-                :publish_pool_tx,
+                :publish_pool_tx, # <1>
                 :bob_redeems_coins
 # end::pay_alice_to_bob[]
 
@@ -194,11 +192,12 @@ node :reset
 # end::reset[]
 
 # tag::cancelled_payment[]
+# Cancel the payment because ASP is not responsive
 run_transitions :setup,
                 :create_funding_tx,
                 :create_redeem_tx,
                 :broadcast_funding_tx,
                 :initialize_payment_to_bob,
                 :build_alice_forfeit_tx,
-                :alice_redeems_coins_after_timeout
-# tag::cancelled_payment[]
+                :alice_redeems_coins_after_timeout # <1>
+# end::cancelled_payment[]
