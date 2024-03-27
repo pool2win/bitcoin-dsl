@@ -128,13 +128,33 @@ script_sig: 'sig:@asp_timelock @asp_timelock 0x01'
 Bitcoin DSL makes it easy way to run various branches of a contract
 specification, by allowing composition of scripts.
 
+We define `state_transitions` of the system and then run a series of
+`state_transitions` by using `run_transitions`.
+
 [source,ruby]
 ----
-# Load and run setup script
-run './lib/ark/setup.rb'
+# Define state transitions
+state_transition :setup do
+ ...
+end
 
-# Next create and spend a transaction 
-@spend_tx = transaction inputs: [...], outputs: [...]
+state_transition :exchange_signatures do
+ ...
+end
+
+state_transition :cooperative_close do
+ ...
+end
+
+state_transition :unilateral_close do
+ ...
+end
+
+# Setup to cooperative close
+run_transitions :setup, :exchange_signatures, :cooperate_close
+
+# Setup to unilateral close
+run_transitions :setup, :exchange_signatures, :unilateral_close
 ----
 
 Jump to link:overview/contract_branch_executions[Contract Branch Executions].

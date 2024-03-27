@@ -47,7 +47,8 @@ state_transition :create_funding_tx do # <1>
                             ],
                             outputs: [
                               {
-                                policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@asp_timelock)))', # <3>
+                                policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),'\
+                                        'and(older(@timeout_period),pk(@asp_timelock)))', # <3>
                                 amount: 49.999.sats
                               }
                             ]
@@ -63,7 +64,8 @@ state_transition :create_redeem_tx do
                            ],
                            outputs: [
                              {
-                               policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),and(older(@timeout_period),pk(@alice_timelock)))', # <2>
+                               policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),'\
+                                       'and(older(@timeout_period),pk(@alice_timelock)))', # <2>
                                amount: 49.998.sats
                              }
                            ]
@@ -73,7 +75,9 @@ end
 
 # tag::broadcast_funding_tx[]
 state_transition :broadcast_funding_tx do
-  update_script_sig for_tx: @funding_tx, at_index: 0, with_script_sig: 'sig:wpkh(@alice)' # <1>
+  update_script_sig for_tx: @funding_tx,
+                    at_index: 0,
+                    with_script_sig: 'sig:wpkh(@alice)' # <1>
   broadcast @funding_tx
   extend_chain
   assert_confirmations @funding_tx, confirmations: 1
@@ -93,7 +97,8 @@ state_transition :initialise_payment_to_bob do
                          ],
                          outputs: [
                            {
-                             policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(@timeout_period),pk(@asp_timelock)))',
+                             policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),'\
+                                     'and(older(@timeout_period),pk(@asp_timelock)))',
                              amount: 49.997.sats
                            },
                            {
@@ -108,7 +113,8 @@ state_transition :initialise_payment_to_bob do
                                    ],
                                    outputs: [
                                      {
-                                       policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),and(older(@timeout_period),pk(@bob_timelock)))', # <3>
+                                       policy: 'or(99@thresh(2,pk(@bob),pk(@asp)),'\
+                                               'and(older(@timeout_period),pk(@bob_timelock)))', # <3>
                                        amount: 49.996.sats
                                      }
                                    ]
@@ -144,7 +150,9 @@ end
 # tag::bob_redeems_coins[]
 state_transition :bob_redeems_coins do
   # Bob adds his signature to redeem tx
-  update_script_sig for_tx: @redeem_tx_for_bob, at_index: 0, with_script_sig: 'sig:@asp sig:@bob ""' # <1>
+  update_script_sig for_tx: @redeem_tx_for_bob,
+                    at_index: 0,
+                    with_script_sig: 'sig:@asp sig:@bob ""' # <1>
   # Bob can redeem his coins
   assert_mempool_accept @redeem_tx_for_bob
   # Alice can no longer redeem her coins
@@ -155,7 +163,9 @@ end
 # tag::alice_redeems_coins_after_timeout[]
 state_transition :alice_redeems_coins_after_timeout do
   add_csv_to_transaction @redeem_tx, index: 0, csv: @timeout_period
-  update_script_sig for_tx: @redeem_tx, at_index: 0, with_script_sig: 'sig:@asp sig:@alice ""' # <1>
+  update_script_sig for_tx: @redeem_tx,
+                    at_index: 0,
+                    with_script_sig: 'sig:@asp sig:@alice ""' # <1>
 
   broadcast @redeem_tx
   confirm transaction: @redeem_tx
