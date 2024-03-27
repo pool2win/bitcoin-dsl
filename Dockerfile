@@ -39,4 +39,22 @@ COPY lib lib
 COPY spec spec
 COPY Rakefile.rb Rakefile.rb
 
-COPY ci-entrypoint.sh ci-entrypoint.sh
+# Jupyter notebook setup begin
+RUN apk --no-cache add python3-dev pipx
+RUN pipx install jupyterlab notebook
+
+ENV PATH="/root/.local/bin:${PATH}"
+
+ENV JUPYTER_PORT=8888
+EXPOSE $JUPYTER_PORT
+
+# Configure container startup
+CMD ["jupyter-notebook", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]
+
+# COPY jupyter/start-notebook.py jupyter/start-notebook.sh jupyter/start-singleuser.py jupyter/start-singleuser.sh /usr/local/bin/
+# COPY jupyter/jupyter_server_config.py jupyter/docker_healthcheck.py /etc/jupyter/
+
+# HEALTHCHECK --interval=3s --timeout=1s --start-period=3s --retries=3 \
+#     CMD /etc/jupyter/docker_healthcheck.py || exit 1
+
+# Jupyter notebook setup end
