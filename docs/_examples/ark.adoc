@@ -2,45 +2,31 @@
 :page-layout: page
 :page-title: ARK
 :page-nav_order: 2
+:sourcedir: ../../
 
 == Introduction
 
-The ARK protocol is a bitcoin layer 2 proposal that focusses on making
-reducing liquidity locking requirements and channel setup requirements
-for end users. The trade off is to push the liquidity provision and
-management to "ARK Service Providers" - ASPs.
+The link:https://arkdev.info/[ARK] protocol is a bitcoin layer 2
+proposal that focusses on making reducing liquidity locking
+requirements and channel setup requirements for end users. The trade
+off is to push the liquidity provision and management to "ARK Service
+Providers" - ASPs.
 
-== Overview
+In ARK, a user gets access to a virtual output that the server and the
+user control. The user can unilaterally exit after paying the fees to
+confirm 1 or more transactions. Ideally, the user asks the server to
+pay another user off-chain. The server can't steal any of the user's
+funds and the user to user transfers are atomic.
 
-The ARK protocol requires a funding transaction which is a 2 of 2
-multisig betwen an end user, Alice, and the ASP.
+The protocol has a few subtleties and the Bitcoin DSL can help clarify
+how ARK works. In the following we describe the ARK approach without
+using any covenants.
 
-The system state transitions can be succinctly described as:
+== Alice Builds Funding Transaction
 
-. Alice onboards with an ASP
-.. ASP is non-cooperative and Alice leaves after 1y with her coins
-. Alice makes off chain payment to Bob
-. Now multiple branches need to exploration:
-.. ASP refuses to accept Alice's request to make payment
-.. Alice cooperatively reverts and undoes off chain payment
-.. Alice unilaterally reverts and undoes off chain payment
-.. Bob cooperatively leaves the ARK with received payment
-.. Bob unilaterally leaves the ARK with received payment
-
-
-.State transitions for ARK
-[plantuml]
-----
-@startuml
-	Init: alice_coinbase:
-	Init: asp_coinbase
-
-	[*] --> FundingTx
-	FundingTx --> ConfirmedFundingTx: Broadcast and confirmed on chain
-@enduml
-----
-
-=== Funding Transaction
+Alice, creates a funding transaction with it's own input and an output
+that can be spent by Alice & ASP or only by ASP after a timeout
+period.
 
 The funding transaction can be spent co-operatively by the two parties
 signing the funding transaction or by user after a timeout period (say
@@ -49,8 +35,118 @@ signing the funding transaction or by user after a timeout period (say
 Using Bitcoin DSL we capture the funding transaction output script as
 a miniscript policy
 
-.Funding transaction output miniscript policy
+The Bitcoin DSL state transition for funding transaction is:
+
 [source,ruby]
 ----
-or(99@thresh(2,pk(@alice),pk(@asp)),and(older(10),pk(@asp_timelock)))
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=create_funding_tx]
 ----
+<1> Create a state transition that will allow us to run things in various orders
+<2> Alice does not sign the transaction yet
+<3> Policy is used to define the locking condition
+<4> The transaction can't be spent yet, because it is not fully signed
+
+== ASP Builds Redeem Transaction for Alice
+
+Alice sends the funding transaction without adding a signature to it
+and the ASP creates a redeem transaction for Alice, which is signed by
+ASP and sent back to Alice.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=create_redeem_tx]
+----
+<1> ASP adds its signature
+<2> Policy states Alice can sweep after timeout, else Alice and ASP cooperate
+<3> The transaction can't be spent yet, because it is not fully signed
+
+== Confirm Funding Transaction
+
+Once Alice has the redeem transaction she adds her signature to the
+input of the funding transaction and broadcasts it to the network.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=broadcast_funding_tx]
+----
+<1> Alice signs the input to the funding transaction
+
+== Initiate Payment from Alice to Bob
+
+Alice next asks ASP to send a payment to Bob on her behalf. This
+requires that
+
+. Alice's redeem transaction is consumed and Bob gets a new redeem
+transaction - this exchange has to be atomic.
+. Neither party can steal funds from any other party, or lose funds
+in any other way.
+
+=== ASP Creates a Pool Transaction and Redeem Tx for Bob
+
+To execute such a payment, the ASP creates a pool transaction that is
+funded by an ASP UTXO. The pool transaction has two outputs - one that
+can be spent cooperatively by Alice and the ASP or by ASP after a
+timelock. The second output is the connector that Alice will
+later use.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=initialize_payment_to_bob]
+----
+<1> The connector output, that Alice will use in the next step
+<2> ASP adds its signature
+<3> Bob's redeem transaction can be spent cooperatively or by Bob after timelock
+
+=== Alice Creates Forfeit Transaction
+
+Alice now creates a forfeit transaction that has two inputs:
+
+. Alice's redeem transaction that is being used to pay Bob
+. Pool's connector output - this essentially makes the forfeit
+transaction spendable only if the pool transaction is confirmed on
+chain.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=build_alice_forfeit_tx]
+----
+<1> Alice uses the redeem transaction output, and signs the input.
+<2> The second input is the connector output from the pool transaction.
+
+=== ASP broadcasts the Pool Transaction
+
+The ASP then broadcasts the pool transaction.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=publish_pool_tx]
+----
+
+=== Two Possible Outcomes From Here
+
+At this point there are a few possible outcomes but to demonstrate the
+Bitcoin DSL and at the same time capture how ARK makes the payments,
+we cover only two of the outcomes.
+
+. Bob redeems the coins and ASP plays fair.
+. ASP does nothing and Alice redeems the coins.
+
+==== Bob Redeems the Coins
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=bob_redeems_coins]
+----
+<1> Bob adds his signature the redeem transaction before broadcasting it
+
+==== Alice Redeems the Coins After Timeout
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/ark/single_payment.rb[tags=alice_redeems_coins_after_timeout]
+----
+<1> Alice adds her signature to the redeem transaction
+<2> Alice broadcasts redeem transaction
+<3> Alice now spends the output of the redeem transaction after timeout
+
+
