@@ -102,6 +102,16 @@ module Transaction
     tx_in.sequence = 0
   end
 
+  # Only number of blocks is supported for now.
+  #
+  # TODO: Switch to libfaketime to generate blocks in the future to
+  # support MTP
+  def add_cltv_to_transaction(transaction, index:, cltv:)
+    transaction.lock_time = cltv
+    transaction.inputs[index].sequence = 0
+    add_signatures(transaction, regen: true)
+  end
+
   def add_outputs(transaction)
     return transaction unless transaction.build_params.include? :outputs
 
