@@ -15,25 +15,10 @@ branches the contracts can execute on. The branches that are executed
 depend on the state of the chain and the data provided by the parties
 executing the contract transactions. 
 
-With the DSL a developer can declaratively move the state of the
-system (bitcoin, transactions and user data) and then execute branches
-of their choosing.
+With the DSL a developer can declaratively specify state transitions
+and then run a sequence of transitions to exercise the various
+branches of a contract.
 
-We solve this problem by breaking up the contract execution into
-multiple scripts and then running the various branches in serial. Each
-execution is automatically run in a different chain instance - by
-deleting the old chain and starting a new one.
-
-[source,ruby]
-----
-run_script './setup.rb'
-
-# Run any branch that can be executed after setup has finished.
-----
-
-After each branch execution the developer can then run assertions on
-the state of the system. See link:/dev/reference#assertions[Assertions]
-for all the supported assertions.
 
 The execution paths are best described with an simple contract that
 has two branches - a simple timelock contract.
@@ -87,7 +72,7 @@ We first setup the keys, generate a confirmation transaction and get
 
 [source,ruby]
 ----
-include::{sourcedir}/lib/contracts/example_branch_execution/setup.rb[tags=setup]
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=setup]
 ----
 <1> Use miniscript policy as coinbase
 <2> Extend chain such that the coinbase is spendable
@@ -96,11 +81,10 @@ include::{sourcedir}/lib/contracts/example_branch_execution/setup.rb[tags=setup]
 
 [source,ruby]
 ----
-include::{sourcedir}/lib/contracts/example_branch_execution/bob_spends_immediately.rb[tags=bob_spends_immediately]
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=bob_spends_immediately]
 ----
-<1> Run setup to make this branch executable
-<2> Bob signs the transaction to spend it immediately
-<3> The spending transaction is broadcast and confirmed
+<1> Bob signs the transaction to spend it immediately
+<2> The spending transaction is broadcast and confirmed
 
 === Bob Spends After Delay
 
@@ -116,21 +100,36 @@ include::{sourcedir}/lib/contracts/example_branch_execution/bob_spends_after_del
 
 === Alice Can Not Spend Immediately
 
+We run assertions to check that Alice can't spend the transaction immediately.
+
 [source,ruby]
 ----
-include::{sourcedir}/lib/contracts/example_branch_execution/alice_cant_spend_immediately.rb[tags=alice_cant_spend]
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=alice_cant_spend]
 ----
-<1> Run setup to make this branch executable
-<2> Alice signs the transaction to spend it immediately
-<3> Alice's attempt is spend is not accepted by the mempool
+<1> Alice signs the transaction to spend it immediately
+<2> Alice's attempt is spend is not accepted by the mempool
+
+Next we run the transitions we want to execute the branch where we
+check Alice can't spend the transaction immediately.  [source,ruby]
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=run_alice_cant_spend_transistions]
+----
 
 === Alice Can Spend After a Delay
 
 [source,ruby]
 ----
-include::{sourcedir}/lib/contracts/example_branch_execution/alice_spends_after_delay.rb[tags=alice_spends_after_delay]
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=alice_spends_after_delay]
 ----
-<1> Run setup to make this branch executable
-<2> Alice signs the transaction
+<1> Alice signs the transaction
+<2> Set CSV for the transaction
 <3> Extend chain by mining 10 blocks
 <4> Alice's spending transaction is broadcast and confirmed
+
+Finally we run the transitions we want to execute the branch where we
+check Alice spends the transaction after a delay.
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/branch_executions.rb[tags=run_alice_spends_transistions]
+----

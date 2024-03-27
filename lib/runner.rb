@@ -32,7 +32,6 @@ class Runner
     @txid_signers = {}
     @witness_scripts = {}
     @coinbases = Hash.new { |h, k| h[k] = [] }
-    @transitions = {} # Map transition label to block
   end
 
   # Use method missing to invoke bitcoin RPC commands

@@ -22,8 +22,10 @@ require_relative '../../lib/logging'
 # DSL module for state transitions
 module Transitions
   include Logging
+  @@transitions = {} # We know we are setting module class variable.
+
   def transition(name, &block)
-    @transitions[name] = block
+    @@transitions[name] = block
   end
 
   alias state_transition transition
@@ -31,8 +33,15 @@ module Transitions
   def run_transitions(*transitions)
     transitions.each do |transition|
       logger.info "Start #{transition}"
-      @transitions[transition].call
+      @@transitions[transition].call
       logger.info "Finish #{transition}"
     end
+  end
+
+  def self.included(_mod)
+    # Add a default reset state transition
+    @@transitions[:reset] = proc {
+      node :reset
+    }
   end
 end

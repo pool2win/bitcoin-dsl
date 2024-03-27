@@ -23,8 +23,10 @@ require_relative '../../lib/dsl/transitions'
 RSpec.describe Transitions do
   include Transitions
 
-  before(:context) do
-    @transitions = {}
+  describe 'init transitions' do
+    it 'should have reset transition' do
+      expect(Transitions.class_variable_get(:@@transitions).include?(:reset)).to be_truthy
+    end
   end
 
   describe 'adding transitions' do
@@ -35,8 +37,8 @@ RSpec.describe Transitions do
       transition :test2 do
         100
       end
-      expect(@transitions.include?(:test)).to be_truthy
-      expect(@transitions.include?(:test2)).to be_truthy
+      expect(Transitions.class_variable_get(:@@transitions).include?(:test)).to be_truthy
+      expect(Transitions.class_variable_get(:@@transitions).include?(:test2)).to be_truthy
     end
   end
 
