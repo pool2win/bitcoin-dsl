@@ -33,10 +33,18 @@ def start_node
   system command
 end
 
+# We simply kill the process and remove the directory as we don't
+# intend to preserve the database.
 def stop_node
-  command = "kill -9 `cat #{DIR}/regtest/bitcoind.pid` && rm -rf #{DIR}"
-  puts command
-  system command
+  pid_file = "#{DIR}/regtest/bitcoind.pid"
+  return unless File.exist? pid_file
+
+  pid = File.read pid_file
+  if pid
+    pid = pid.strip!.to_i
+    Process.kill :KILL, pid if Process.getpgid(pid)
+  end
+  FileUtils.rm_r DIR
 end
 
 def node(command, *params)
