@@ -21,10 +21,12 @@ require_relative 'commands'
 require_relative 'dsl'
 require_relative 'node'
 
+require 'singleton'
 require 'test/unit/assertions'
 
 # Runner interprets the bitcoin DSL using instance_eval
 class Runner
+  include Singleton
   include Test::Unit::Assertions
   include DSL
 

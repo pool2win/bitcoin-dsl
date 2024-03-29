@@ -1,0 +1,9 @@
+{"argv":
+ ["/usr/bin/iruby",
+  "kernel",
+  "{connection_file}",
+  "/bitcoin-dsl/lib/jupyter_runner.rb"
+ ],
+ "display_name":"Bitcoin DSL",
+ "language":"ruby"
+}

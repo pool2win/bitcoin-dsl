@@ -37,6 +37,7 @@ RUN bundle install
 
 COPY lib lib
 COPY spec spec
+COPY notebooks notebooks
 COPY Rakefile.rb Rakefile.rb
 
 # Jupyter notebook setup begin
@@ -48,7 +49,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 ENV JUPYTER_PORT=8888
 EXPOSE $JUPYTER_PORT
 
-CMD ["jupyter-lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]
+CMD ["jupyter-lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root", "--notebook-dir", "notebooks"]
 
 # COPY jupyter/start-notebook.py jupyter/start-notebook.sh jupyter/start-singleuser.py jupyter/start-singleuser.sh /usr/local/bin/
 # COPY jupyter/jupyter_server_config.py jupyter/docker_healthcheck.py /etc/jupyter/
@@ -56,3 +57,9 @@ CMD ["jupyter-lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root"]
 # HEALTHCHECK --interval=3s --timeout=1s --start-period=3s --retries=3 \
 #     CMD /etc/jupyter/docker_healthcheck.py || exit 1
 # Jupyter notebook setup end
+
+# iruby setup
+RUN git clone --depth=1 https://github.com/pool2win/iruby.git
+RUN cd iruby && gem build iruby.gemspec && gem install iruby-0.7.4.gem
+COPY jupyter/kernel.json /root/.local/share/jupyter/kernels/ruby/kernel.json
+# iruby setup end

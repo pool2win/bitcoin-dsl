@@ -1,6 +1,6 @@
 dir := justfile_directory()
-docker_command := "docker run -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec bitcoin-dsl"
-remote_docker_command := "docker run -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec ghcr.io/pool2win/bitcoin-dsl:release"
+docker_command := "docker run -p 8888:8888 -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec bitcoin-dsl"
+remote_docker_command := "docker run -p 8888:8888 -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec ghcr.io/pool2win/bitcoin-dsl:release"
 
 default:
 	@just --list
@@ -24,3 +24,15 @@ test:
 # Get a bash shell on local docker image
 bash:
 	{{docker_command}} bash
+
+# Start jupyterlab
+lab:
+	{{docker_command}}
+
+# Get a kernel shell
+kernel_shell:
+	jupyter console --kernel ruby
+
+# List available kernels
+kernel list:
+	jupyter kernelspec list

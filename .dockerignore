@@ -1,0 +1,7 @@
+bin
+.bundle
+docs
+.git
+.github
+.ipynb*
+.venv

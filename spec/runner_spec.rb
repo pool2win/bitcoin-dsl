@@ -27,7 +27,7 @@ RSpec.shared_examples 'script evaluation' do |script_file|
   end
 end
 
-RSpec.describe Runner do
+RSpec.describe Runner.instance do
   describe 'Running DSL scripts' do
     it_behaves_like 'script evaluation', './lib/contracts/using_bitcoin_script.rb'
 
