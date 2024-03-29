@@ -36,16 +36,6 @@ We need to build docker image locally.
 . Build docker image `just build`
 . Run docker image `just run <path-to-your-script>`, e.g. `just run ./lib/contracts/ark/single_payment.rb`
 
-=== COMING SOON: Run a Jupyter Notebook 
-
-[source,bash]
-----
-docker run -p 8888:8888 ghcr.io/pool2win/bitcoin-dsl:release
-----
-
-Look up the URL output by jupter and paste it into your browser
-location bar. You know the drill.
-
 
 == Example Contracts
 
