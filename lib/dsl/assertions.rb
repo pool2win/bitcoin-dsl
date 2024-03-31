@@ -26,21 +26,25 @@ module Assertions
                                                            utxo_details.script_pubkey,
                                                            amount: utxo_details.amount.sats)
     assert verification_result, 'Input signature verification failed'
+    'signature verified'
   end
 
   def assert_mempool_accept(*transactions)
     accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
     assert accepted[0]['allowed'], "Transaction not accepted for mempool.\n#{accepted}"
+    'accepted'
   end
 
   def assert_not_mempool_accept(*transactions)
     accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
     assert !accepted[0]['allowed'], 'Transaction accepted by mempool when it should not be'
+    'not accepted'
   end
 
   def assert_height(height)
     current_height = get_height
     assert_equal current_height, height, "Current height #{current_height} is not at #{height}"
+    height
   end
 
   # Assert the provided transaction is spent on chain
@@ -58,6 +62,8 @@ module Assertions
     tx = transaction.to_h.with_indifferent_access
     rawtx = getrawtransaction transaction: tx['txid'], verbose: true
     assert false, 'Transaction not found' unless rawtx
+    assert false, 'No confirmations found' unless rawtx.include?('confirmations')
     assert rawtx['confirmations'] >= confirmations, "Transaction confirmations: #{rawtx['confirmations']}"
+    transaction
   end
 end
