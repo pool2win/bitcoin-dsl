@@ -1,6 +1,6 @@
 dir := justfile_directory()
-docker_command := "docker run -p 8888:8888 -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec bitcoin-dsl"
-remote_docker_command := "docker run -p 8888:8888 -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec ghcr.io/pool2win/bitcoin-dsl:release"
+docker_command := "docker run -p 8888:8888 -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec --mount type=bind,source="+dir+"/notebooks,target=/bitcoin-dsl/notebooks bitcoin-dsl"
+remote_docker_command := "docker run -p 8888:8888 -it --mount type=bind,source="+dir+"/lib,target=/bitcoin-dsl/lib --mount type=bind,source="+dir+"/spec,target=/bitcoin-dsl/spec --mount type=bind,source="+dir+"/notebooks,target=/bitcoin-dsl/notebooks ghcr.io/pool2win/bitcoin-dsl:release"
 
 default:
 	@just --list
