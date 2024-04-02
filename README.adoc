@@ -9,33 +9,44 @@ Make is easy to experiment with bitcoin contracts.
 
 == Quick Start
 
-There's three things you can do:
-
-. Run a script from terminal.
-. Build a docker image locally - if you really need to save bandwidth.
-. Run a jupyter notebook.
-
-=== Running a Script from Terminal
+The easiest way to run Bitcoin DSL is using the docker image provided
+on github.
 
 Install
 link:https://github.com/casey/just?tab=readme-ov-file#installation[Just]
 and your life will be easier.
 
+
+.Pull the latest docker image
 [source,bash]
 ----
-just run_script <path-to-your-script>
-# example, running the ARK single payment example
-just run_script ./lib/contracts/ark/single_payment.rb
+docker pull
+----
+
+.Run a script from terminal
+[source,bash]
+----
+# Run a script using pulled docker image
+just run <path-to-your-script>
+
+# Example, running the ARK single payment example
+just run ./lib/contracts/ark/single_payment.rb
+----
+
+.Run Jupyter notebook
+[source,bash]
+----
+just lab
 ----
 
 === Build Docker Image Locally
 
-We need to build docker image locally.
+If you want to buid a docker image locally you can use the just
+recipes provided. We build bitcoind from source, so it'll take some
+time.
 
-. Install link:https://github.com/casey/just?tab=readme-ov-file#installation[Just].
-. Build docker image `just build`
-. Run docker image `just run <path-to-your-script>`, e.g. `just run ./lib/contracts/ark/single_payment.rb`
-
+. Build docker image `just build-docker`
+. Run local docker image `DSL_IMAGE=local just run <path-to-your-script>`.
 
 == Example Contracts
 
