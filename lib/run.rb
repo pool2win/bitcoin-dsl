@@ -35,5 +35,5 @@ end
 
 puts "Running script from #{options[:script]}"
 
-runner = Runner.new
+runner = Runner.instance
 runner.run options[:script]
