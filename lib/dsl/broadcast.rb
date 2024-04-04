@@ -37,7 +37,7 @@ module Broadcast
     result = generatetoaddress num_blocks: num_blocks, to: address
     raise "Unable to extend chain to #{address}" unless result
 
-    "Genereated #{num_blocks}"
+    "Generated #{num_blocks} blocks"
   end
 
   # Broadcast a transaction
