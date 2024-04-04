@@ -35,11 +35,6 @@ RUN gem install bundler
 RUN apk --no-cache add ruby-dev
 RUN bundle install
 
-COPY lib lib
-COPY spec spec
-COPY notebooks notebooks
-COPY Rakefile.rb Rakefile.rb
-
 # Jupyter notebook setup begin
 RUN apk --no-cache add python3-dev pipx
 RUN pipx install jupyterlab notebook
@@ -61,5 +56,10 @@ RUN git clone -b dsl-binding --depth=1 https://github.com/pool2win/iruby.git
 RUN cd iruby && gem build iruby.gemspec && gem install iruby-0.7.4.gem
 COPY jupyter/kernel.json /root/.local/share/jupyter/kernels/ruby/kernel.json
 # iruby setup end
+
+COPY lib lib
+COPY spec spec
+COPY notebooks notebooks
+COPY Rakefile.rb Rakefile.rb
 
 CMD ["jupyter-lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root", "--notebook-dir", "/bitcoin-dsl/notebooks"]

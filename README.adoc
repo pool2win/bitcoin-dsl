@@ -45,7 +45,7 @@ If you want to buid a docker image locally you can use the just
 recipes provided. We build bitcoind from source, so it'll take some
 time.
 
-. Build docker image `just build-docker`
+. Build docker image `just dockerize`
 . Run local docker image `DSL_IMAGE=local just run <path-to-your-script>`.
 
 == Example Contracts

@@ -1,0 +1,21 @@
+version: '2'
+
+x-common:
+  &common
+  ports:
+    - 8888:8888
+  volumes:
+    - ./lib:/bitcoin-dsl/lib
+    - ./spec:/bitcoin-dsl/spec
+    - ./notebooks:/bitcoin-dsl/notebooks
+
+services:
+  dev-notebooks:
+    build:
+      context: .
+    image: bitcoin-dsl
+    << : *common
+
+  notebooks:
+    image: ghcr.io/pool2win/bitcoin-dsl:release
+    << : *common
