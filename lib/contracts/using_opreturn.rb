@@ -21,9 +21,6 @@
 @alice = key :new
 @bob = key :new
 
-@alice = key wif: 'L4bEFrQrfXH9mZBbq2SoTEx8FkyrG4aP2TZerN8DwSTaGoUcohJd'
-@bob = key wif: 'KyWBUpCZF5n9WifoBcDDtCGYmX13SkubfQp3zCiDA4r2vozL5jE8'
-
 # Seed alice with some coins
 extend_chain to: @alice
 
