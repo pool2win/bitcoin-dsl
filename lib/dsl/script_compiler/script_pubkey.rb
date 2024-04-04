@@ -25,22 +25,29 @@ module ScriptCompiler
   module ScriptPubKey
     include Util
 
-    def compile_script_pubkey(script)
-      witness_program = Bitcoin::Script.new
+    def interpolate_script(script)
+      program = Bitcoin::Script.new
       script.split.each do |element|
         obj = instance_eval(element)
         case obj
         when Bitcoin::Key
-          witness_program << obj.pubkey
+          program << obj.pubkey
         else
-          witness_program << obj || element
+          program << obj || element
         end
       end
-      pubscript = Bitcoin::Script.to_p2wsh(witness_program)
-      logger.debug "PUBSCRIPT: #{pubscript}"
+      program
+    end
+
+    def compile_script_pubkey(script)
+      witness_program = interpolate_script(script)
+      return [witness_program, nil] if witness_program.op_return?
+
+      script_pubkey = Bitcoin::Script.to_p2wsh(witness_program)
+      logger.debug "SCRIPT_PUBKEY: #{script_pubkey}"
       logger.debug "WITNESS: #{witness_program}"
-      store_witness(pubscript.to_addr, witness_program)
-      [pubscript, witness_program]
+      store_witness(script_pubkey.to_addr, witness_program)
+      [script_pubkey, witness_program]
     end
   end
 end
