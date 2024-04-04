@@ -30,6 +30,7 @@ end
 RSpec.describe Runner.instance do
   describe 'Running DSL scripts' do
     it_behaves_like 'script evaluation', './lib/contracts/using_bitcoin_script.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/using_opreturn.rb'
 
     it_behaves_like 'script evaluation', './lib/contracts/anchor_transactions.rb'
     it_behaves_like 'script evaluation', './lib/contracts/fold_transactions.rb'
