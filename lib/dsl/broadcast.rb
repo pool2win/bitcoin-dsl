@@ -35,9 +35,9 @@ module Broadcast
       address = to.to_p2wpkh
     end
     result = generatetoaddress num_blocks: num_blocks, to: address
-    raise "Unable to extend chaing to #{address}" unless result
+    raise "Unable to extend chain to #{address}" unless result
 
-    result
+    "Genereated #{num_blocks}"
   end
 
   # Broadcast a transaction
