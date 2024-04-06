@@ -29,7 +29,7 @@ extend_chain num_blocks: 101, to: @alice
 
 @alice_coinbase = spendable_coinbase_for @alice
 
-@data = 'ABCD'
+@data = [800000, 800000]
 
 @opcodes_tx = transaction inputs: [
                             { tx: @alice_coinbase, vout: 0, script_sig: 'sig:@alice @alice' }
@@ -40,7 +40,7 @@ extend_chain num_blocks: 101, to: @alice
                               amount: 49.999.sats
                             },
                             {
-                              script: 'OP_RETURN "ABCD"',
+                              script: 'OP_RETURN @data',
                               amount: 0
                             }
                           ]
