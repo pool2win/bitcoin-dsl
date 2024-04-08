@@ -47,8 +47,6 @@ module Assertions
     height
   end
 
-  # Assert the provided transaction is spent on chain
-  # Returns the raw transaction loaded from the chain
   def assert_confirmed(transaction:, at_height: nil, txid: nil)
     at_height ||= get_height
     blockhash = getblockhash height: at_height
@@ -65,5 +63,59 @@ module Assertions
     assert false, 'No confirmations found' unless rawtx.include?('confirmations')
     assert rawtx['confirmations'] >= confirmations, "Transaction confirmations: #{rawtx['confirmations']}"
     transaction
+  end
+
+  # This assertion iterates over all blocks from transaction conf
+  # height to chain height.
+  #
+  # Use with care.
+  def assert_output_is_spent(transaction:, vout:)
+    transaction = transaction.to_h
+    tx = getrawtransaction txid: transaction['txid'], verbose: true
+    assert false, 'No such transaction found' unless tx
+    assert false, 'Transaction not yet confirmed' unless tx['confirmations']
+
+    chain_height = get_height
+    confirmation_block = getblock blockhash: tx['blockhash']
+    assert false, 'No block confirmation found for transaction' unless confirmation_block
+
+    confirmation_blockheight = confirmation_block['height']
+    assert false, 'Chain height at transaction confirmation' unless chain_height >= confirmation_blockheight
+
+    spent = spent_between_heights?(confirmation_blockheight, chain_height, txid: transaction['txid'], vout: vout)
+    assert spent, 'Specified output not yet spent'
+  end
+
+  # This assertion iterates over all blocks from transaction conf
+  # height to chain height.
+  #
+  # Use with care.
+  def assert_output_is_not_spent(transaction:, vout:)
+    transaction = transaction.to_h
+    tx = getrawtransaction txid: transaction['txid'], verbose: true
+    return if tx.nil? || !tx.include?('confirmations')
+
+    chain_height = get_height
+    confirmation_block = getblock blockhash: tx['blockhash']
+    return unless confirmation_block
+
+    confirmation_blockheight = confirmation_block['height']
+    return unless chain_height >= confirmation_blockheight
+
+    spent = spent_between_heights?(confirmation_blockheight, chain_height, txid: transaction['txid'], vout: vout)
+    assert spent, 'Specified output not yet spent'
+  end
+
+  def spent_between_heights?(from, to, txid:, vout:)
+    (from..to).each do |height|
+      blockhash = getblockhash height: height
+      block = getblock blockhash: blockhash, verbose: true
+      block['tx'].each do |input_txid|
+        input_tx = getrawtransaction txid: input_txid, verbose: true
+        input_tx['vin'].each do |input|
+          return true if input['txid'] == txid && input['vout'] == vout
+        end
+      end
+    end
   end
 end

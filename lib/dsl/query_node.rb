@@ -67,4 +67,11 @@ module QueryNode
     end
     raise 'No coinbase found for the given key'
   end
+
+  def get_block_confirmed_at(transaction:)
+    tx = getrawtransaction txid: transaction.txid, verbose: true
+    return 'No such transaction found' unless tx
+
+    tx['blockhash']
+  end
 end
