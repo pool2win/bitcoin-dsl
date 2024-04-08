@@ -29,7 +29,7 @@ extend_chain num_blocks: 101, to: @alice
 
 @alice_coinbase = spendable_coinbase_for @alice
 
-@data = [800000, 800000]
+@data = [800_000, 800_000]
 
 @opcodes_tx = transaction inputs: [
                             { tx: @alice_coinbase, vout: 0, script_sig: 'sig:@alice @alice' }
@@ -63,3 +63,7 @@ log 'Opcodes transaction confirmed'
                                 ]
 
 broadcast @spend_opcodes_tx
+
+@data_from_output = all_pushdata transaction: @opcodes_tx, vout: 1, start: 1
+
+assert_equal @data_from_output, [Bitcoin::Script.encode_number(800_000).htb, Bitcoin::Script.encode_number(800_000).htb]

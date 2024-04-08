@@ -38,6 +38,7 @@ require_relative 'dsl/transaction'
 require_relative 'dsl/anchor'
 require_relative 'dsl/assertions'
 require_relative 'dsl/transitions'
+require_relative 'dsl/script_data_reader'
 
 # All the DSL supported functions that are not part of RPC API, go here.
 module DSL
@@ -55,6 +56,7 @@ module DSL
   include ScriptCompiler::ScriptSig
   include Broadcast
   include Transitions
+  include ScriptDataReader
 
   def pretty_print(result)
     puts JSON.pretty_generate result
