@@ -103,17 +103,17 @@ module Assertions
     return unless chain_height >= confirmation_blockheight
 
     spent = spent_between_heights?(confirmation_blockheight, chain_height, txid: transaction['txid'], vout: vout)
-    assert spent, 'Specified output not yet spent'
+    assert !spent, 'Specified output already spent'
   end
 
   def spent_between_heights?(from, to, txid:, vout:)
-    (from..to).each do |height|
+    (from..to).any? do |height|
       blockhash = getblockhash height: height
       block = getblock blockhash: blockhash, verbose: true
-      block['tx'].each do |input_txid|
+      block['tx'].any? do |input_txid|
         input_tx = getrawtransaction txid: input_txid, verbose: true
-        input_tx['vin'].each do |input|
-          return true if input['txid'] == txid && input['vout'] == vout
+        input_tx['vin'].any? do |input|
+          input['txid'] == txid && input['vout'] == vout
         end
       end
     end
