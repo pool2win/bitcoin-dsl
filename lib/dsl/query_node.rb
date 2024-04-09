@@ -65,7 +65,7 @@ module QueryNode
       coinbase = get_coinbase_at h
       return coinbase if coinbase['vout'][0]['scriptPubKey']['address'] == address
     end
-    raise 'No coinbase found for the given key'
+    nil
   end
 
   def get_block_confirmed_at(transaction:)

@@ -67,4 +67,8 @@ RSpec.describe Runner.instance do
     it_behaves_like 'script evaluation', './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_revocation_key.rb'
     it_behaves_like 'script evaluation', './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_preimage.rb'
   end
+
+  describe 'reorg chain' do
+    it_behaves_like 'script evaluation', './lib/contracts/reorg_chain.rb'
+  end
 end
