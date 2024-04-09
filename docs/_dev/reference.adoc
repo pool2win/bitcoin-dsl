@@ -258,6 +258,15 @@ assert_confirmed transaction: @alice_tx
 assert_confirmed txid: @alice_tx.txid
 ----
 
+=== Assert an Output is (not) Spent
+
+[source,ruby]
+----
+assert_output_is_spent(transaction: @alice_tx, vout: 0)
+
+assert_output_is_not_spent(transaction: @alice_tx, vout: 0)
+----
+
 `assert_confirmed` takes an optional `at_height` parameter to assert
 if the transaction has been confirmed in the block at that height.
 
