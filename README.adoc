@@ -20,7 +20,7 @@ and your life will be easier.
 .Pull the latest docker image
 [source,bash]
 ----
-docker pull
+just pull
 ----
 
 .Run a script from terminal
