@@ -179,6 +179,22 @@ extend_chain to: @alice
 extend_chain num_blocks: 101, to: @bob
 ----
 
+=== Reorganise Chain
+
+You can also roll back a chain to a height or to a blockhash. You can
+also rollback the chain up to a point to unconfirm a given
+transaction - this enables you to broadcast and confirm the
+transaction again along a different chain fork.
+
+[source,ruby]
+----
+reorg_chain height: 95
+
+reorg_chain blockhash: @blockhash
+
+reorg_chain unconfirm_tx: @reorg_to_tx
+----
+
 === Find Spendable Coinbase Transactions
 
 To look up a coinbase UTXO controlled by a key use
