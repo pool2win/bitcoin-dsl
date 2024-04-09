@@ -40,6 +40,36 @@ module Broadcast
     "Generated #{num_blocks} blocks"
   end
 
+  # Looking at the lightning examples, it seems like it would be
+  # helpful to have a reorg_chain command along the lines of
+  # “extend_chain” that combines invalidateblock and generate and
+  # potentially replaces some previously confirmed transactions.
+  def reorg_chain(height: nil, blockhash: nil, unconfirm_tx: nil)
+    raise 'Provide height or blockhash to reorg' unless height || blockhash || unconfirm_tx
+
+    if unconfirm_tx
+      tx = getrawtransaction txid: unconfirm_tx.to_h['txid'], verbose: true
+      blockhash = tx['blockhash']
+    end
+
+    if blockhash
+      block = getblock blockhash: blockhash
+      height = block['height']
+    end
+
+    reorg_chain_to_height(height) if height
+  end
+
+  def reorg_chain_to_height(to_height)
+    current_height = get_height
+    raise 'Target height is more than current chain height' if current_height < to_height
+
+    (current_height..to_height + 1).step(-1).each do |height|
+      blockhash = getblockhash height: height
+      invalidateblock blockhash: blockhash
+    end
+  end
+
   # Broadcast a transaction
   def broadcast(transaction)
     accepted = testmempoolaccept rawtxs: [transaction.to_hex]

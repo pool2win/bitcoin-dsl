@@ -154,7 +154,8 @@ COMMANDS = [
   :walletlock,
   :walletpassphrase,
   :walletpassphrasechange,
-  :walletprocesspsb
+  :walletprocesspsb,
+  :invalidateblock
 ]
 
 BITCOIN_HASHES = %i[hash160 sha256 hmac_sha256 hmac_sha512].freeze
