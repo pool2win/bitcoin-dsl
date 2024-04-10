@@ -78,6 +78,7 @@ module Broadcast
     assert_equal(sendrawtransaction(tx: transaction.to_hex),
                  transaction.txid,
                  'Sending raw transaction failed')
+    'Transaction successfully broadcast'
   end
 
   # Broadcast multiple transactions
@@ -90,6 +91,7 @@ module Broadcast
                    tx.txid,
                    'Sending raw transaction failed')
     end
+    'Transactions successfully broadcast'
   end
 
   # Confirm transaction, by mining block to given address
@@ -100,5 +102,6 @@ module Broadcast
     extend_chain num_blocks: 1, to: to
     assert_equal height + 1, get_height, 'Tip height mismatch'
     assert_confirmations transaction, confirmations: 1
+    'Transaction confirmed'
   end
 end

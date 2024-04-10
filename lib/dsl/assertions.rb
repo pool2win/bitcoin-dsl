@@ -32,13 +32,13 @@ module Assertions
   def assert_mempool_accept(*transactions)
     accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
     assert accepted[0]['allowed'], "Transaction not accepted for mempool.\n#{accepted}"
-    'accepted'
+    'acceptable'
   end
 
   def assert_not_mempool_accept(*transactions)
     accepted = testmempoolaccept rawtxs: transactions.map(&:to_hex)
     assert !accepted[0]['allowed'], 'Transaction accepted by mempool when it should not be'
-    'not accepted'
+    'not acceptable'
   end
 
   def assert_height(height)
@@ -53,7 +53,7 @@ module Assertions
     txid ||= transaction.txid if transaction
     tx = getrawtransaction txid: txid, verbose: true, block: blockhash['hash']
     assert_equal blockhash, tx['blockhash'], "Transaction #{txid} not confirmed"
-    tx
+    'Transaction confirmed'
   end
 
   def assert_confirmations(transaction, confirmations: 1)
@@ -62,7 +62,7 @@ module Assertions
     assert false, 'Transaction not found' unless rawtx
     assert false, 'No confirmations found' unless rawtx.include?('confirmations')
     assert rawtx['confirmations'] >= confirmations, "Transaction confirmations: #{rawtx['confirmations']}"
-    transaction
+    "Transaction has #{rawtx['confirmations']} confirmations"
   end
 
   # This assertion iterates over all blocks from transaction conf
@@ -84,6 +84,7 @@ module Assertions
 
     spent = spent_between_heights?(confirmation_blockheight, chain_height, txid: transaction['txid'], vout: vout)
     assert spent, 'Specified output not yet spent'
+    'Output is spent'
   end
 
   # This assertion iterates over all blocks from transaction conf
@@ -104,6 +105,7 @@ module Assertions
 
     spent = spent_between_heights?(confirmation_blockheight, chain_height, txid: transaction['txid'], vout: vout)
     assert !spent, 'Specified output already spent'
+    'Output is not spent'
   end
 
   def spent_between_heights?(from, to, txid:, vout:)
