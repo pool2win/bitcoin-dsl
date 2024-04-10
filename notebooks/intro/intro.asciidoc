@@ -1,0 +1,40 @@
++*In[ ]:*+
+[source, ruby]
+----
+get_height
+----
+
+
++*In[ ]:*+
+[source, ruby]
+----
+getblockchaininfo
+----
+
+
++*In[ ]:*+
+[source, ruby]
+----
+@genesis = getblockhash height: 0
+----
+
+
++*In[ ]:*+
+[source, ruby]
+----
+getblock blockhash: @genesis
+----
+
+
++*In[ ]:*+
+[source, ruby]
+----
+get_coinbase_at 0
+----
+
+
++*In[ ]:*+
+[source, ruby]
+----
+
+----
