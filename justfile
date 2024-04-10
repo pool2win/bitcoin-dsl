@@ -4,6 +4,8 @@ dir := justfile_directory()
 
 image_name := env_var_or_default("DSL_IMAGE", "notebooks")
 
+find_notebooks := "find notebooks/ -name *.ipynb ! -path *ipynb_checkpoints* ! -path *Trash*"
+
 default:
 	@just --list
 
@@ -30,3 +32,9 @@ lab:
 # Pull latest docker image from github container repo
 pull:
 	docker compose pull notebooks
+
+clean-notebooks:
+	{{find_notebooks}} -exec jupyter nbconvert --clear-output {} \;
+
+adoc-notebooks: clean-notebooks
+	{{find_notebooks}} -exec jupyter nbconvert --to asciidoc {} \;
