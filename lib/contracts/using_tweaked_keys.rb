@@ -18,8 +18,8 @@
 # frozen_string_literal: false
 
 # tag::tweaked-keys[]
-@alice = key wif: 'L55cHWGaxaeb5r7JYYzg51cLVmbghbvkkFz7M29BGsnDsHMocqfY'
-@bob = key wif: 'L5HtNMX1JLARsswfXjrPpgaKS3MnZcF9TxL9rJLWAmRqW9ktX6C7'
+@alice = key :new
+@bob = key :new
 
 @tweak = 'b57bfa183d28eeb6ad688ddaabb265b4a41fbf68e5fed2c72c74de70d5a786f4"' # <1>
 @alice_tweaked_public_key = tweak_public_key @alice, with: @tweak # <1>
