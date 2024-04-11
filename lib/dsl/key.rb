@@ -26,4 +26,20 @@ module Key
       Bitcoin::Key.generate
     end
   end
+
+  def tweak_public_key(key, with:)
+    Bitcoin::Taproot.tweak_public_key(key, with)
+  end
+
+  def tweak_private_key(key, with:)
+    Bitcoin::Taproot.tweak_private_key(key, with)
+  end
+
+  def sign_message_with_key(message:, key:)
+    key.sign(message, algo: :schnorr)
+  end
+
+  def verify_signature_using_key(sig:, message:, key:)
+    key.verify(sig, message, algo: :schnorr)
+  end
 end
