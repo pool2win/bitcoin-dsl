@@ -28,7 +28,7 @@ module Key
   end
 
   def tweak_public_key(key, with:)
-    Bitcoin::Taproot.tweak_public_key(key, with)
+    Bitcoin::Taproot.tweak_public_key(Bitcoin::Key.from_xonly_pubkey(key.xonly_pubkey), with)
   end
 
   def tweak_private_key(key, with:)
