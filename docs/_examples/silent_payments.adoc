@@ -1,6 +1,6 @@
 = Silent Payments
 :page-layout: page
 :page-title: Silent Payments
-:page-nav_order: 3
+:page-nav_order: 4
 
 TODO
