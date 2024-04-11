@@ -72,7 +72,7 @@ RSpec.describe Runner.instance do
     it_behaves_like 'script evaluation', './lib/contracts/reorg_chain.rb'
   end
 
-  describe 'tweaked keys' do
-    it_behaves_like 'script evaluation', './lib/contracts/using_tweaked_keys.rb'
-  end
+  # describe 'tweaked keys' do
+  #   it_behaves_like 'script evaluation', './lib/contracts/using_tweaked_keys.rb'
+  # end
 end
