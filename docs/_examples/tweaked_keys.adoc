@@ -1,0 +1,19 @@
+= Tweaked Keys
+:page-layout: page
+:page-title: Tweaked Keys
+:page-nav_order: 3
+:sourcedir: ../../
+
+Before we dive into taproot transactions, here is a simple example on
+how key tweaking can be used.
+
+.Tweaked Keys Example
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/using_tweaked_keys.rb[tags=tweaked-keys]
+----
+<1> The same tweak is applied to the public and private keys of the key pair
+<2> The tweaked public key is used in the script pubkey
+<3> The tweaked private key is then used to sign the transaction
+
+This is availble as notebook when you run `jupyter lab`.

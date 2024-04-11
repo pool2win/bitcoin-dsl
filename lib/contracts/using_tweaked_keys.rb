@@ -17,18 +17,21 @@
 
 # frozen_string_literal: false
 
+# tag::tweaked-keys[]
 @alice = key :new
 @bob = key :new
 
-@tweak = 'beef'
-@alice_tweaked_public_key = tweak_public_key @alice, with: @tweak
-@alice_tweaked_private_key = tweak_private_key @alice, with: @tweak
+@tweak = 'beef' # <1>
+@alice_tweaked_public_key = tweak_public_key @alice, with: @tweak # <1>
+@alice_tweaked_private_key = tweak_private_key @alice, with: @tweak # <1>
 
 extend_chain to: @alice_tweaked_public_key, num_blocks: 101
 
-@coinbase_to_spend = spendable_coinbase_for @alice_tweaked_public_key
+@coinbase_to_spend = spendable_coinbase_for @alice_tweaked_public_key # <2>
 
-@to_bob = transaction inputs: [{ tx: @coinbase_to_spend, vout: 0, script_sig: 'sig:wpkh(@alice_tweaked_private_key)'}],
+@to_bob = transaction inputs: [{ tx: @coinbase_to_spend,
+                                 vout: 0,
+                                 script_sig: 'sig:wpkh(@alice_tweaked_private_key)' }], # <3>
                       outputs: [{ amount: 49.999.sats, descriptor: 'wpkh(@bob)' }]
 
 assert_mempool_accept @to_bob
@@ -38,3 +41,4 @@ broadcast @to_bob
 confirm transaction: @to_bob
 
 assert_output_is_spent transaction: @coinbase_to_spend, vout: 0
+# end::tweaked-keys[]
