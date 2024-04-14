@@ -164,11 +164,4 @@ module Transaction
                    amount: vout['value'],
                    script_pubkey: Bitcoin::Script.parse_from_payload(script_pubkey['hex'].htb))
   end
-
-  def debug(transaction)
-    log transaction
-    transaction.outputs.each do |output|
-      log "Address: #{output.script_pubkey.to_addr} -- Script: #{@witness_scripts[output.script_pubkey.to_addr]}"
-    end
-  end
 end
