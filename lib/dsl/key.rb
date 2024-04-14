@@ -17,22 +17,43 @@
 
 # froze_string_literal: false
 
+require_relative './group_operations'
+
 # DSL module for handle bitcoin keys
 module Key
+  include GroupOperations
+
   def key(params = {})
-    if params.is_a?(Hash) && params.include?(:wif)
-      Bitcoin::Key.from_wif params[:wif]
+    if params.is_a?(Hash)
+      if params.include?(:wif)
+        Bitcoin::Key.from_wif params[:wif]
+      elsif params.include?(:from_point)
+        Bitcoin::Key.from_point params[:from_point]
+      end
     else
       Bitcoin::Key.generate
     end
   end
 
+  def point_from(key)
+    key.to_point
+  end
+
+  def scalar_from(key)
+    key.priv_key.to_i(16)
+  end
+
   def tweak_public_key(key, with:)
-    Bitcoin::Taproot.tweak_public_key(Bitcoin::Key.from_xonly_pubkey(key.xonly_pubkey), with)
+    Bitcoin::Key.from_point(key.to_point + generate_point_for(with))
   end
 
   def tweak_private_key(key, with:)
-    Bitcoin::Taproot.tweak_private_key(key, with)
+    point = key.to_point
+    private_key = point.has_even_y? ? key.priv_key.to_i(16) : ECDSA::Group::Secp256k1.order - key.priv_key.to_i(16)
+    private_key = ECDSA::Format::IntegerOctetString.encode(
+      (with.to_i(16) + private_key) % ECDSA::Group::Secp256k1.order, 32
+    )
+    Bitcoin::Key.new(priv_key: private_key.bth)
   end
 
   def sign_message_with_key(message:, key:)
