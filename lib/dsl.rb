@@ -32,6 +32,7 @@ require_relative 'dsl/script_compiler/miniscript'
 require_relative 'dsl/script_compiler/script_pubkey'
 require_relative 'dsl/script_compiler/script_sig'
 require_relative 'dsl/key'
+require_relative 'dsl/group_operations'
 require_relative 'dsl/numbers'
 require_relative 'dsl/query_node'
 require_relative 'dsl/transaction'
@@ -47,6 +48,7 @@ module DSL
   include Bitcoin::Opcodes
   include Logging
   include Key
+  include GroupOperations
   include Transaction
   include Anchor
   include Assertions

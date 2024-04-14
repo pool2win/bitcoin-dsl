@@ -59,7 +59,7 @@ module ScriptCompiler
         # return the Wsh wrapped descriptor and the witness script
         store_witness(result[0], witness_script)
       end
-      [Bitcoin::Script.parse_from_addr(result[0]), witness_script]
+      [Bitcoin::Script.parse_from_addr(result[0]), witness_script, result[0]]
     end
   end
 end
