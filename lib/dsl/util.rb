@@ -30,6 +30,8 @@ module Util
       case arg
       when Bitcoin::Key
         Bitcoin.send(hash_name, arg.pubkey)
+      when ECDSA::Point
+        Bitcoin.send(hash_name, ECDSA::Format::PointOctetString.encode(arg, compression: true).bth)
       else
         super arg
       end
