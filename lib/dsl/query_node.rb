@@ -68,6 +68,30 @@ module QueryNode
     nil
   end
 
+  # Scan all blocks and all transaction outputs to find the
+  # transaction with an output whose input matches address provided
+  # Returns a hash with block, tx and vout, if match found.
+  def find_matching(descriptor:)
+    address_to_find = compile_descriptor(descriptor)[2]
+    (0..get_height).each do |blockheight|
+      blockhash = getblockhash height: blockheight
+      block = getblock blockhash: blockhash, verbose: true
+      block['tx'].each do |txid|
+        tx = getrawtransaction txid: txid, verbose: true
+        tx&.fetch('vout', nil)&.each do |output|
+          if output['scriptPubKey']['address'] == address_to_find
+            return {
+              block: block,
+              tx: tx,
+              vout: output['n']
+            }
+          end
+        end
+      end
+    end
+    nil
+  end
+
   def get_block_confirmed_at(transaction:)
     tx = getrawtransaction txid: transaction.txid, verbose: true
     return 'No such transaction found' unless tx
