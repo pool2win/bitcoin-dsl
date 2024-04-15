@@ -29,7 +29,7 @@ module Signatures
       if regen # reset stack if regenerating all signatures
         transaction.inputs[index].script_witness = Bitcoin::ScriptWitness.new
       end
-      compile_script_sig(transaction, input, index, transaction.inputs[index].script_witness.stack)
+      compile_script_sig(transaction, input, index)
     end
     transaction
   end
@@ -40,7 +40,7 @@ module Signatures
     input = for_tx.build_params[:inputs][at_index]
     input[:script_sig] = with_script_sig
     for_tx.inputs[at_index].script_witness = Bitcoin::ScriptWitness.new
-    compile_script_sig(for_tx, input, at_index, for_tx.inputs[at_index].script_witness.stack)
+    compile_script_sig(for_tx, input, at_index)
   end
 
   def get_signature(transaction, input, index, key)

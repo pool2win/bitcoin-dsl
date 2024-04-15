@@ -27,13 +27,13 @@ module ScriptCompiler
 
     # Compile a scriptSig, replacing `sig:pk` with a signature by pk.
     # Return an array of components that will be concatenated into the witness stack
-    def compile_script_sig(transaction, input, index, stack)
-      components = get_components(input[:script_sig])
-      components.each do |component|
+    def compile_script_sig(transaction, input, index)
+      stack = transaction.inputs[index].script_witness.stack
+      get_components(input[:script_sig]).each do |component|
         if component[:type] == :opcode
           stack << Bitcoin::Script.from_string(component[:expression]).to_payload
         else
-          send("handle_#{component[:type]}", transaction, input, index, stack, component[:expression])
+          send("handle_#{component[:type]}", transaction, input, index, component[:expression])
         end
       end
       append_witness_to_stack(input, stack)
@@ -45,44 +45,48 @@ module ScriptCompiler
       stack << @witness_scripts[input[:utxo_details].script_pubkey.to_addr].to_payload
     end
 
-    def handle_wpkh(transaction, input, index, stack, key)
-      key = get_key_and_sign(transaction, input, index, stack, key)
-      stack << key.pubkey.htb
+    def handle_wpkh(transaction, input, index, key)
+      key = get_key_and_sign(transaction, input, index, key)
+      transaction.inputs[index].script_witness.stack << key.pubkey.htb
     end
 
-    def handle_multisig(transaction, input, index, stack, keys)
-      handle_nulldummy(transaction, input, index, stack, keys) # Empty byte for that infamous multisig validation bug
+    def handle_multisig(transaction, input, index, keys)
+      handle_nulldummy(transaction, input, index, keys) # Empty byte for that infamous multisig validation bug
       keys.each do |key|
-        get_key_and_sign(transaction, input, index, stack, key)
+        get_key_and_sign(transaction, input, index, key)
       end
     end
 
-    def handle_sig(transaction, input, index, stack, key)
-      get_key_and_sign(transaction, input, index, stack, key)
+    def handle_sig(transaction, input, index, key)
+      get_key_and_sign(transaction, input, index, key)
     end
 
-    def handle_nulldummy(_transaction, _input, _index, stack, _keys)
-      stack << ''
+    def handle_sig_tr_keypath(transaction, input, index, key)
+      get_key_and_sign(transaction, input, index, key, :taproot)
     end
 
-    def handle_datum(_transaction, _input, _index, stack, datum)
-      stack << datum
+    def handle_sig_tr_scriptpath(transaction, input, index, key); end
+
+    def handle_nulldummy(transaction, _input, index, _keys)
+      transaction.inputs[index].script_witness.stack << ''
     end
 
-    def get_key_and_sign(transaction, input, index, stack, key)
+    def handle_datum(transaction, _input, index, datum)
+      transaction.inputs[index].script_witness.stack << datum
+    end
+
+    def get_key_and_sign(transaction, input, index, key, taproot = nil)
+      stack = transaction.inputs[index].script_witness.stack
       return if key == '_skip'
+      stack << '' and return if key == '_empty'
 
-      if key == '_empty'
-        stack << ''
-      else
-        begin
-          key = Bitcoin::Key.from_wif(key)
-        rescue ArgumentError
-          key = instance_eval(key, __FILE__, __LINE__)
-        end
-        stack << get_signature(transaction, input, index, key)
-        key
+      begin
+        key = Bitcoin::Key.from_wif(key)
+      rescue ArgumentError
+        key = instance_eval(key, __FILE__, __LINE__)
       end
+      stack << get_signature(transaction, input, index, key, taproot)
+      key
     end
 
     def get_components(script)
