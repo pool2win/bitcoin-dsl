@@ -2,11 +2,9 @@
 
 source "https://rubygems.org"
 
-gem "bitcoinrb", "~> 1.4"
+gem 'bitcoinrb', :git => 'https://github.com/pool2win/bitcoinrb.git', :branch => 'add-witness_v1_taproot_type'
 
 gem "rubocop", "~> 1.62", :require => false, :group => :development
-
-
 
 gem "activesupport", "~> 7.1"
 
