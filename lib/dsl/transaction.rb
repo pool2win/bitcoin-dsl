@@ -164,4 +164,12 @@ module Transaction
                    amount: vout['value'],
                    script_pubkey: Bitcoin::Script.parse_from_payload(script_pubkey['hex'].htb))
   end
+
+  # Returns prevouts for all inputs in the tx
+  def get_prevouts_for(transaction)
+    transaction.build_params[:inputs].map do |input|
+      details = get_utxo_details(input[:tx], input[:vout])
+      Bitcoin::TxOut.new(value: details.amount.sats, script_pubkey: details.script_pubkey)
+    end
+  end
 end

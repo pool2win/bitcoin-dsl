@@ -35,6 +35,10 @@ struct Args {
     /// Descriptor to process
     #[arg[short, long]]
     descriptor: Option<String>,
+
+    /// Taproot descriptor to process
+    #[arg[short, long]]
+    taproot: Option<String>,
 }
 
 fn main() {
@@ -44,6 +48,8 @@ fn main() {
         parse_miniscript(args);
     } else if args.descriptor.is_some() {
         parse_descriptor(args);
+    } else if args.taproot.is_some() {
+        parse_tr_descriptor(args);
     }
 }
 
@@ -81,4 +87,29 @@ fn parse_descriptor(args: Args) {
         }
         Err(error) => println!("{}", error),
     };
+}
+
+fn parse_tr_descriptor(args: Args) {
+    let descriptor = miniscript::descriptor::Tr::<DefiniteDescriptorKey>::from_str(
+        args.taproot.unwrap().as_str(),
+    )
+    .unwrap();
+    println!("Internal key: {}", descriptor.internal_key());
+    println!("Address: {}", descriptor.address(bitcoin::Network::Regtest));
+    println!("{:?}", descriptor.spend_info());
+    println!(
+        "Internal key from spend info: {}",
+        descriptor.spend_info().internal_key()
+    );
+    println!("Output key: {}", descriptor.spend_info().output_key());
+    match descriptor.spend_info().merkle_root() {
+        Some(merkle_root) => {
+            println!("Merkle root: {}", merkle_root);
+        }
+        None => {
+            println!("Merkle root: None");
+        }
+    }
+    // let spend_info = descriptor.spend_info();
+    // println!("{}", spend_info.merkle_root())
 }

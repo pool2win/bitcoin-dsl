@@ -44,7 +44,8 @@ module Key
   end
 
   def tweak_public_key(key, with:)
-    Bitcoin::Key.from_point(key.to_point + generate_point_for(with))
+    tweak = generate_point_for(with)
+    Bitcoin::Key.from_point(key.to_point + tweak)
   end
 
   def tweak_private_key(key, with:)
@@ -54,6 +55,14 @@ module Key
       (with.to_i(16) + private_key) % ECDSA::Group::Secp256k1.order, 32
     )
     Bitcoin::Key.new(priv_key: private_key.bth)
+  end
+
+  def taproot_tweak_public_key(key, with: nil)
+    Bitcoin::Taproot.tweak_public_key(key, with)
+  end
+
+  def taproot_tweak_private_key(key, with: nil)
+    Bitcoin::Taproot.tweak_private_key(key, with)
   end
 
   def sign_message_with_key(message:, key:)
