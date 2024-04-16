@@ -96,6 +96,10 @@ module ScriptCompiler
           { type: :wpkh, expression: Regexp.last_match[1] }
         when /sig:multi\((.*)\)/
           { type: :multisig, expression: Regexp.last_match[1].split(',').map(&:strip) }
+        when /sig:tr:keypath\((.*)\)/
+          { type: :sig_tr_keypath, expression: Regexp.last_match[1] }
+        when /sig:tr:scriptpath\((.*)\)/
+          { type: :sig_tr_scriptpath, expression: Regexp.last_match[1].split(',').map(&:strip) }
         when /sig:(.*)/
           { type: :sig, expression: Regexp.last_match[1] }
         when /nulldummy/
