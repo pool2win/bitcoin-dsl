@@ -32,8 +32,8 @@ pub struct MiniscriptOutput {
 #[derive(Serialize)]
 pub struct DescriptorOutput {
     pub address: String,
-    pub witness_script: Option<String>,
-    pub script_pubkey: Option<String>,
+    pub witness_script: String,
+    pub script_pubkey: String,
 }
 
 /// Output used for leaves for script path spends

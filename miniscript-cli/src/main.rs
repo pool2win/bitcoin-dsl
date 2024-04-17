@@ -26,9 +26,7 @@ use clap::Parser;
 
 mod output;
 
-use serde::Serialize;
-
-use crate::output::{LeafOutput, TaprootOutput};
+use crate::output::{DescriptorOutput, LeafOutput, MiniscriptOutput, TaprootOutput};
 
 /// Tool to translate a Miniscript policy into Script P2WSH or inner script
 /// Prints, witness pubscript key as well as Script
@@ -71,10 +69,17 @@ fn parse_miniscript(args: Args) {
     )
     .expect("Resource limits");
 
-    println!("{:?}", descriptor.address(bitcoin::Network::Regtest));
-    println!("{:x}", descriptor.inner_script().into_bytes().as_hex());
-    println!("{}", descriptor.script_pubkey());
-    println!("{}", descriptor.inner_script());
+    let address = descriptor.address(bitcoin::Network::Regtest).to_string();
+    let witness_script = descriptor.inner_script().into_bytes().as_hex().to_string();
+    let script_pubkey = descriptor.script_pubkey().to_hex_string();
+
+    let output = MiniscriptOutput {
+        address,
+        witness_script,
+        script_pubkey,
+    };
+
+    println!("{}", serde_json::to_string(&output).unwrap());
 }
 
 fn parse_descriptor(args: Args) {
@@ -83,17 +88,22 @@ fn parse_descriptor(args: Args) {
     )
     .unwrap();
 
-    println!(
-        "{:?}",
-        descriptor.address(bitcoin::Network::Regtest).unwrap()
-    );
-    println!("{}", descriptor.script_pubkey());
-    match descriptor.script_code() {
-        Ok(script_code) => {
-            println!("{}", script_code.into_bytes().as_hex())
-        }
-        Err(error) => println!("{}", error),
+    let address = descriptor
+        .address(bitcoin::Network::Regtest)
+        .unwrap()
+        .to_string();
+    let witness_script = descriptor
+        .script_code()
+        .map(|script_code| script_code.as_bytes().to_lower_hex_string())
+        .expect("Error getting witness_script");
+    let script_pubkey = descriptor.script_pubkey().to_string();
+
+    let output = DescriptorOutput {
+        address,
+        witness_script,
+        script_pubkey,
     };
+    println!("{}", serde_json::to_string(&output).unwrap());
 }
 
 fn parse_tr_descriptor(args: Args) {
