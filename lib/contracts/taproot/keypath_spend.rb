@@ -49,7 +49,7 @@ log 'Transaction with taproot output confirmed'
 @spend_taproot_output_tx = transaction inputs: [
                                          { tx: @taproot_keypath_tx,
                                            vout: 0,
-                                           script_sig: 'sig:tr:keypath(@bob_tweaked_private_key)',
+                                           script_sig: 'sig:keypath:@bob_tweaked_private_key',
                                            sighash: :all }
                                        ],
                                        outputs: [

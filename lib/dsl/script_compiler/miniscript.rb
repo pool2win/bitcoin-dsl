@@ -38,28 +38,44 @@ module ScriptCompiler
       output = `miniscript-cli -m '#{policy}'`
       raise "Error parsing policy #{policy}" if output.empty?
 
-      result = output.split("\n")
-      logger.debug "Result: #{result}"
-      witness_script = Bitcoin::Script.parse_from_payload(result[1].htb)
+      result = JSON.parse(output)
+      witness_script = Bitcoin::Script.parse_from_payload(result['witness_script'].htb)
       # return the Wsh wrapped descriptor and the witness script
-      store_witness(result[0], witness_script)
-      [Bitcoin::Script.parse_from_addr(result[0]), witness_script]
+      store_witness(result['address'], witness_script)
+      [Bitcoin::Script.parse_from_addr(result['address']), witness_script]
     end
 
     def compile_descriptor(descriptor)
+      if descriptor.start_with?('tr(')
+        compile_taproot_descriptor(descriptor)
+      else
+        compile_v0_descriptor(descriptor)
+      end
+    end
+
+    def compile_v0_descriptor(descriptor)
       descriptor = interpolate(descriptor)
       output = `miniscript-cli -d '#{descriptor}'`
       raise "Error parsing descriptor #{descriptor}" if output.empty?
 
-      result = output.split("\n")
-      logger.debug "Result: #{result}"
+      result = JSON.parse(output)
       if descriptor.start_with? 'wsh'
-        witness_script = Bitcoin::Script.parse_from_payload(result[2].htb)
+        witness_script = Bitcoin::Script.parse_from_payload(result['witness_script'].htb)
         logger.debug "WITNESS SCRIPT #{witness_script}"
         # return the Wsh wrapped descriptor and the witness script
-        store_witness(result[0], witness_script)
+        store_witness(result['address'], witness_script)
       end
-      [Bitcoin::Script.parse_from_addr(result[0]), witness_script, result[0]]
+      [Bitcoin::Script.parse_from_addr(result['address']), witness_script, result['address']]
+    end
+
+    def compile_taproot_descriptor(descriptor)
+      descriptor = interpolate(descriptor)
+      output = `miniscript-cli -t '#{descriptor}'`
+      raise "Error parsing descriptor #{descriptor}" if output.empty?
+
+      result = JSON.parse(output)
+      store_taproot(result)
+      [Bitcoin::Script.parse_from_addr(result['address'])]
     end
   end
 end

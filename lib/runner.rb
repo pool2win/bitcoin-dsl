@@ -33,6 +33,7 @@ class Runner
   def initialize
     @txid_signers = {}
     @witness_scripts = {}
+    @taproot_details = {}
     @coinbases = Hash.new { |h, k| h[k] = [] }
   end
 
