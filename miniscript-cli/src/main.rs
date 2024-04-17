@@ -18,10 +18,17 @@
 use std::str::FromStr;
 
 use bitcoin::hex::DisplayHex;
+use miniscript::bitcoin::hashes::Hash;
 use miniscript::policy::Concrete;
 use miniscript::{bitcoin, DefiniteDescriptorKey};
 
 use clap::Parser;
+
+mod output;
+
+use serde::Serialize;
+
+use crate::output::{LeafOutput, TaprootOutput};
 
 /// Tool to translate a Miniscript policy into Script P2WSH or inner script
 /// Prints, witness pubscript key as well as Script
@@ -94,22 +101,30 @@ fn parse_tr_descriptor(args: Args) {
         args.taproot.unwrap().as_str(),
     )
     .unwrap();
-    println!("Internal key: {}", descriptor.internal_key());
-    println!("Address: {}", descriptor.address(bitcoin::Network::Regtest));
-    println!("{:?}", descriptor.spend_info());
-    println!(
-        "Internal key from spend info: {}",
-        descriptor.spend_info().internal_key()
-    );
-    println!("Output key: {}", descriptor.spend_info().output_key());
-    match descriptor.spend_info().merkle_root() {
-        Some(merkle_root) => {
-            println!("Merkle root: {}", merkle_root);
-        }
-        None => {
-            println!("Merkle root: None");
+    let merkle_root = descriptor
+        .spend_info()
+        .merkle_root()
+        .map(|root| root.as_byte_array().to_lower_hex_string());
+    let spend_info = descriptor.spend_info();
+    let script_map = spend_info.script_map();
+    let mut leaves: Vec<LeafOutput> = Vec::new();
+    for (key, value) in script_map {
+        for (index, node) in value.iter().enumerate() {
+            leaves.push(LeafOutput {
+                index,
+                leaf_version: key.1.to_string(),
+                script: key.0.to_hex_string(),
+                hash: node.serialize().as_hex().to_string(),
+            });
         }
     }
-    // let spend_info = descriptor.spend_info();
-    // println!("{}", spend_info.merkle_root())
+
+    let output = TaprootOutput {
+        address: descriptor.address(bitcoin::Network::Regtest).to_string(),
+        internal_key: descriptor.internal_key().to_string(),
+        merkle_root,
+        leaves,
+    };
+
+    println!("{}", serde_json::to_string(&output).unwrap());
 }
