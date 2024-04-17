@@ -131,9 +131,22 @@ module Transaction
     print_witness_scripts
   end
 
+  def store_taproot(taproot_details)
+    return unless taproot_details
+
+    @taproot_details[taproot_details['address']] = taproot_details
+    print_taproot_details
+  end
+
   def print_witness_scripts
     @witness_scripts.each do |addr, script|
       logger.debug "#{addr} ---- #{script}"
+    end
+  end
+
+  def print_taproot_details
+    @taproot_details.each do |addr, details|
+      logger.debug "#{addr} ---- #{details}"
     end
   end
 

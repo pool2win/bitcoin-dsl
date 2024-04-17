@@ -61,11 +61,18 @@ module ScriptCompiler
       get_key_and_sign(transaction, input, index, key)
     end
 
-    def handle_sig_tr_keypath(transaction, input, index, key)
+    def handle_sig_keypath(transaction, input, index, key)
       get_key_and_sign(transaction, input, index, key, :taproot)
     end
 
-    def handle_sig_tr_scriptpath(transaction, input, index, key); end
+    def handle_sig_scriptpath(transaction, input, index, expression)
+      leaf_index, script = expression.split(':')
+      # leaf hash to generate sighash
+      # push sig to stack
+      # push leaf script as payload
+      # push a control block as payload
+      get_key_and_sign(transaction, input, index, key, :tapscript)
+    end
 
     def handle_nulldummy(transaction, _input, index, _keys)
       transaction.inputs[index].script_witness.stack << ''
@@ -96,10 +103,10 @@ module ScriptCompiler
           { type: :wpkh, expression: Regexp.last_match[1] }
         when /sig:multi\((.*)\)/
           { type: :multisig, expression: Regexp.last_match[1].split(',').map(&:strip) }
-        when /sig:tr:keypath\((.*)\)/
-          { type: :sig_tr_keypath, expression: Regexp.last_match[1] }
-        when /sig:tr:scriptpath\((.*)\)/
-          { type: :sig_tr_scriptpath, expression: Regexp.last_match[1].split(',').map(&:strip) }
+        when /sig:keypath:(.*)/
+          { type: :sig_keypath, expression: Regexp.last_match[1] }
+        when /sig:scriptpath:(.*)/
+          { type: :sig_scriptpath, expression: Regexp.last_match[1] }
         when /sig:(.*)/
           { type: :sig, expression: Regexp.last_match[1] }
         when /nulldummy/
