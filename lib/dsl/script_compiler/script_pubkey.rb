@@ -25,13 +25,13 @@ module ScriptCompiler
   module ScriptPubKey
     include Util
 
-    def interpolate_script(script)
+    def interpolate_script(script, taproot: nil)
       program = Bitcoin::Script.new
       script.split.each do |element|
         obj = instance_eval(element)
         case obj
         when Bitcoin::Key
-          program << obj.pubkey
+          program << obj.xonly_pubkey ? :taproot : obj.pubkey
         else
           program << obj || element
         end
@@ -48,6 +48,20 @@ module ScriptCompiler
       logger.debug "WITNESS: #{witness_program}"
       store_witness(script_pubkey.to_addr, witness_program)
       [script_pubkey, witness_program]
+    end
+
+    # Compile the taproot spec in components and return the script
+    # pubkey to use in the transaction
+    def compile_taproot(components)
+      leaves = (components[:leaves] || []).map do |leaf|
+        leaf_script = interpolate_script(leaf, :taproot)
+        Bitcoin::Taproot::LeafNode.new(leaf_script)
+      end
+      builder = Bitcoin::Taproot::SimpleBuilder.new(components[:internal_key].xonly_pubkey, leaves)
+      script_pubkey = builder.build
+      address = script_pubkey.to_addr
+      store_taproot(address, script_pubkey)
+      script_pubkey
     end
   end
 end

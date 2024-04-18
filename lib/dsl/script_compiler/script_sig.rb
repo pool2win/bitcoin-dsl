@@ -29,6 +29,15 @@ module ScriptCompiler
     # Return an array of components that will be concatenated into the witness stack
     def compile_script_sig(transaction, input, index)
       stack = transaction.inputs[index].script_witness.stack
+      if input[:script_sig].is_a? String
+        parse_string_script_sig(transaction, input, index)
+      else
+        parse_hash_script_sig(transaction, input, index)
+      end
+      append_witness_to_stack(input, stack)
+    end
+
+    def parse_string_script_sig(transaction, input, index)
       get_components(input[:script_sig]).each do |component|
         if component[:type] == :opcode
           stack << Bitcoin::Script.from_string(component[:expression]).to_payload
@@ -36,7 +45,16 @@ module ScriptCompiler
           send("handle_#{component[:type]}", transaction, input, index, component[:expression])
         end
       end
-      append_witness_to_stack(input, stack)
+    end
+
+    def parse_hash_script_sig(transaction, input, index)
+      return unless taproot? input[:script_sig]
+
+      if input[:script_sig].key? :keypath
+        get_key_and_sign(transaction, input, index, input[:script_sig][:keypath], :taproot)
+      elsif input[:script_sig].key? :scriptpath
+        get_key_and_sign(transaction, input, index, key, :taproot)
+      end
     end
 
     def append_witness_to_stack(input, stack)
@@ -87,13 +105,19 @@ module ScriptCompiler
       return if key == '_skip'
       stack << '' and return if key == '_empty'
 
-      begin
-        key = Bitcoin::Key.from_wif(key)
-      rescue ArgumentError
-        key = instance_eval(key, __FILE__, __LINE__)
-      end
+      key = get_key(key)
       stack << get_signature(transaction, input, index, key, taproot)
       key
+    end
+
+    def get_key(key)
+      return key if key.is_a? Bitcoin::Key
+
+      begin
+        Bitcoin::Key.from_wif(key)
+      rescue ArgumentError
+        instance_eval(key, __FILE__, __LINE__)
+      end
     end
 
     def get_components(script)
@@ -103,10 +127,6 @@ module ScriptCompiler
           { type: :wpkh, expression: Regexp.last_match[1] }
         when /sig:multi\((.*)\)/
           { type: :multisig, expression: Regexp.last_match[1].split(',').map(&:strip) }
-        when /sig:keypath:(.*)/
-          { type: :sig_keypath, expression: Regexp.last_match[1] }
-        when /sig:scriptpath:(.*)/
-          { type: :sig_scriptpath, expression: Regexp.last_match[1] }
         when /sig:(.*)/
           { type: :sig, expression: Regexp.last_match[1] }
         when /nulldummy/
@@ -117,6 +137,10 @@ module ScriptCompiler
           parse_element(element)
         end
       end
+    end
+
+    def taproot?(script)
+      script.is_a? Hash and (script.include?(:keypath) || script.include?(:scriptpath))
     end
   end
 end

@@ -74,7 +74,7 @@ module ScriptCompiler
       raise "Error parsing descriptor #{descriptor}" if output.empty?
 
       result = JSON.parse(output)
-      store_taproot(result)
+      store_taproot(result['address'], result)
       [Bitcoin::Script.parse_from_addr(result['address'])]
     end
   end
