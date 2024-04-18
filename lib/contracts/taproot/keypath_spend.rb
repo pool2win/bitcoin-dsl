@@ -35,8 +35,10 @@ extend_chain num_blocks: 101, to: @alice
                                       script_sig: 'sig:wpkh(@alice)' }
                                   ],
                                   outputs: [
-                                    { descriptor: 'tr(@bob)',
-                                      amount: 49.999.sats }
+                                    {
+                                      taproot: { internal_key: @bob }, # No script leaves
+                                      amount: 49.999.sats
+                                    }
                                   ]
 
 broadcast @taproot_keypath_tx
@@ -49,7 +51,7 @@ log 'Transaction with taproot output confirmed'
 @spend_taproot_output_tx = transaction inputs: [
                                          { tx: @taproot_keypath_tx,
                                            vout: 0,
-                                           script_sig: 'sig:keypath:@bob_tweaked_private_key',
+                                           script_sig: { keypath: @bob_tweaked_private_key }, # Spend using keypath
                                            sighash: :all }
                                        ],
                                        outputs: [

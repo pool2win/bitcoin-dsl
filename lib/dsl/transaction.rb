@@ -131,10 +131,10 @@ module Transaction
     print_witness_scripts
   end
 
-  def store_taproot(taproot_details)
-    return unless taproot_details
+  def store_taproot(address, taproot_details)
+    return unless address and taproot_details
 
-    @taproot_details[taproot_details['address']] = taproot_details
+    @taproot_details[address] = taproot_details
     print_taproot_details
   end
 
@@ -162,6 +162,8 @@ module Transaction
       compile_miniscript(output[:policy])
     elsif output.include? :descriptor
       compile_descriptor(output[:descriptor])
+    elsif output.include?(:taproot)
+      compile_taproot(output[:taproot])
     end
   end
 
