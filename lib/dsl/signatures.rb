@@ -43,25 +43,24 @@ module Signatures
     compile_script_sig(for_tx, input, at_index)
   end
 
-  def get_signature(transaction, input, index, key, taproot = nil)
-    sighash = get_sighash(transaction, input, index, taproot)
+  def get_signature(transaction, input, index, key, opts = {})
+    sighash = get_sighash(transaction, input, index, opts)
     sighash_type = input[:sighash] || DEFAULT_SIGHASH_TYPE
-    sig_algo = taproot ? :schnorr : :ecdsa
+    sig_algo = %i[tapscript taproot].include?(opts[:sig_version]) ? :schnorr : :ecdsa
     sig = key.sign(sighash, algo: sig_algo)
     sig += [Bitcoin::SIGHASH_TYPE[sighash_type]].pack('C') unless sighash_type == Bitcoin::SIGHASH_TYPE[:default]
     sig
   end
 
-  def get_sighash(transaction, input, index, taproot = nil)
+  def get_sighash(transaction, input, index, opts = {})
     prevout_output_witness_script = get_prevout_script(input)
-    logger.debug "PREVOUT WITNESS FOUND #{prevout_output_witness_script}"
     prevouts = get_prevouts_for(transaction)
-    logger.debug prevouts
     transaction.sighash_for_input(index,
                                   prevout_output_witness_script,
                                   amount: input[:utxo_details].amount.sats,
                                   prevouts: prevouts,
-                                  sig_version: taproot || DEFAULT_SEGWIT_VERSION)
+                                  sig_version: opts[:sig_version] || DEFAULT_SEGWIT_VERSION,
+                                  opts: opts)
   end
 
   def get_prevout_script(input)
