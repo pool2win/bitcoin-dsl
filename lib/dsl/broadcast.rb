@@ -48,7 +48,8 @@ module Broadcast
     raise 'Provide height or blockhash to reorg' unless height || blockhash || unconfirm_tx
 
     if unconfirm_tx
-      tx = getrawtransaction txid: unconfirm_tx.to_h['txid'], verbose: true
+      tx = unconfirm_tx.to_h.with_indifferent_access
+      tx = getrawtransaction txid: tx['txid'], verbose: true
       blockhash = tx['blockhash']
     end
 
