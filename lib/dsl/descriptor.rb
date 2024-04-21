@@ -24,44 +24,56 @@ require 'bitcoin'
 module Descriptor
   include Bitcoin::Descriptor
 
-  def convert_keys(keys)
-    keys.map do |k|
-      k.is_a?(Bitcoin::Key) ? k.pubkey : k
+  def convert_key(key)
+    if key.is_a?(Bitcoin::Key) && @taproot_context
+      key.xonly_pubkey
+    elsif key.is_a?(Bitcoin::Key) && !@taproot_context
+      key.pubkey
+    else
+      key
     end
   end
 
+  def convert_keys(keys)
+    keys.map { |k| convert_key k}
+  end
+
   def pk(key)
+    key = convert_key key
     return super(key.pubkey) if key.is_a? Bitcoin::Key
 
     super key
   end
 
   def pkh(key)
+    key = convert_key key
     return super(key.pubkey) if key.is_a? Bitcoin::Key
 
     super key
   end
 
   def wpkh(key)
+    key = convert_key key
     return super(key.pubkey) if key.is_a? Bitcoin::Key
 
     super key
   end
 
   def wsh(script)
-    script = interpolate(script) if script.is_a?(String)
+    script = descriptor_interpolate(script) if script.is_a?(String)
 
     super script
   end
 
   def sh(script)
-    script = interpolate(script) if script.is_a?(String)
+    script = descriptor_interpolate(script) if script.is_a?(String)
 
     super script
   end
 
   def combo(key)
-    super key.pubkey
+    key = convert_key key
+    super key
   end
 
   def multi(threshold, *keys, sort: false)
@@ -74,7 +86,7 @@ module Descriptor
     super threshold, *keys
   end
 
-  def interpolate(script)
+  def descriptor_interpolate(script)
     Bitcoin::Script.from_string(script.split.collect { |e| instance_eval e }.join(' '))
   end
 end

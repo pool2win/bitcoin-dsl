@@ -30,19 +30,19 @@ module ScriptCompiler
     def compile_script_sig(transaction, input, index)
       stack = transaction.inputs[index].script_witness.stack
       if input[:script_sig].is_a? String
-        parse_string_script_sig(transaction, input, index)
+        parse_string_script_sig(transaction, input, index, input[:script_sig])
       else
         parse_hash_script_sig(transaction, input, index)
       end
       append_witness_to_stack(input, stack)
     end
 
-    def parse_string_script_sig(transaction, input, index)
-      get_components(input[:script_sig]).each do |component|
+    def parse_string_script_sig(transaction, input, index, script_sig, opts: {})
+      get_components(script_sig).each do |component|
         if component[:type] == :opcode
           stack << Bitcoin::Script.from_string(component[:expression]).to_payload
         else
-          send("handle_#{component[:type]}", transaction, input, index, component[:expression])
+          send("handle_#{component[:type]}", transaction, input, index, component[:expression], opts)
         end
       end
     end
@@ -51,10 +51,21 @@ module ScriptCompiler
       return unless taproot? input[:script_sig]
 
       if input[:script_sig].key? :keypath
-        get_key_and_sign(transaction, input, index, input[:script_sig][:keypath], :taproot)
-      elsif input[:script_sig].key? :scriptpath
-        get_key_and_sign(transaction, input, index, key, :taproot)
+        get_key_and_sign(transaction, input, index, input[:script_sig][:keypath], { sig_version: :taproot })
+      elsif input[:script_sig].key? :leaf_index
+        sign_using_script_path(transaction, input, index)
       end
+    end
+
+    def sign_using_script_path(transaction, input, index)
+      taproot_input_details = @taproot_details[input[:utxo_details].script_pubkey.to_addr]
+      leaf_index = input[:script_sig][:leaf_index]
+      leaf = taproot_input_details.branches[leaf_index / 2][leaf_index % 2]
+      logger.debug "Signing using leaf index: #{leaf_index} and script: #{leaf.script}"
+      parse_string_script_sig(transaction, input, index, input[:script_sig][:sig],
+                              opts: { leaf_hash: leaf.leaf_hash, sig_version: :tapscript })
+      transaction.inputs[index].script_witness.stack << leaf.script.to_payload
+      transaction.inputs[index].script_witness.stack << taproot_input_details.control_block(leaf).to_payload
     end
 
     def append_witness_to_stack(input, stack)
@@ -63,50 +74,41 @@ module ScriptCompiler
       stack << @witness_scripts[input[:utxo_details].script_pubkey.to_addr].to_payload
     end
 
-    def handle_wpkh(transaction, input, index, key)
-      key = get_key_and_sign(transaction, input, index, key)
+    def handle_wpkh(transaction, input, index, key, opts)
+      key = get_key_and_sign(transaction, input, index, key, opts)
       transaction.inputs[index].script_witness.stack << key.pubkey.htb
     end
 
-    def handle_multisig(transaction, input, index, keys)
-      handle_nulldummy(transaction, input, index, keys) # Empty byte for that infamous multisig validation bug
+    def handle_multisig(transaction, input, index, keys, opts)
+      handle_nulldummy(transaction, input, index, keys, opts) # Empty byte for that infamous multisig validation bug
       keys.each do |key|
-        get_key_and_sign(transaction, input, index, key)
+        get_key_and_sign(transaction, input, index, key, opts)
       end
     end
 
-    def handle_sig(transaction, input, index, key)
-      get_key_and_sign(transaction, input, index, key)
+    def handle_sig(transaction, input, index, key, opts)
+      get_key_and_sign(transaction, input, index, key, opts)
     end
 
-    def handle_sig_keypath(transaction, input, index, key)
-      get_key_and_sign(transaction, input, index, key, :taproot)
+    def handle_sig_keypath(transaction, input, index, key, opts)
+      get_key_and_sign(transaction, input, index, key, opts)
     end
 
-    def handle_sig_scriptpath(transaction, input, index, expression)
-      leaf_index, script = expression.split(':')
-      # leaf hash to generate sighash
-      # push sig to stack
-      # push leaf script as payload
-      # push a control block as payload
-      get_key_and_sign(transaction, input, index, key, :tapscript)
-    end
-
-    def handle_nulldummy(transaction, _input, index, _keys)
+    def handle_nulldummy(transaction, _input, index, _keys, _opts)
       transaction.inputs[index].script_witness.stack << ''
     end
 
-    def handle_datum(transaction, _input, index, datum)
+    def handle_datum(transaction, _input, index, datum, _opts)
       transaction.inputs[index].script_witness.stack << datum
     end
 
-    def get_key_and_sign(transaction, input, index, key, taproot = nil)
+    def get_key_and_sign(transaction, input, index, key, opts)
       stack = transaction.inputs[index].script_witness.stack
       return if key == '_skip'
       stack << '' and return if key == '_empty'
 
       key = get_key(key)
-      stack << get_signature(transaction, input, index, key, taproot)
+      stack << get_signature(transaction, input, index, key, opts)
       key
     end
 
@@ -140,7 +142,7 @@ module ScriptCompiler
     end
 
     def taproot?(script)
-      script.is_a? Hash and (script.include?(:keypath) || script.include?(:scriptpath))
+      script.is_a? Hash and (script.include?(:keypath) || script.include?(:leaf_index))
     end
   end
 end

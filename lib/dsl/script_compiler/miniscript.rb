@@ -21,7 +21,7 @@
 module ScriptCompiler
   # Miniscript compiler
   module Miniscript
-    def interpolate(script)
+    def miniscript_interpolate(script)
       script.gsub(/(?<!\d)@\w+/) do
         obj = instance_eval(Regexp.last_match(0), __FILE__, __LINE__)
         case obj
@@ -34,7 +34,7 @@ module ScriptCompiler
     end
 
     def compile_miniscript(script)
-      policy = interpolate(script)
+      policy = miniscript_interpolate(script)
       output = `miniscript-cli -m '#{policy}'`
       raise "Error parsing policy #{policy}" if output.empty?
 
@@ -46,36 +46,15 @@ module ScriptCompiler
     end
 
     def compile_descriptor(descriptor)
-      if descriptor.start_with?('tr(')
-        compile_taproot_descriptor(descriptor)
-      else
-        compile_v0_descriptor(descriptor)
-      end
-    end
-
-    def compile_v0_descriptor(descriptor)
-      descriptor = interpolate(descriptor)
-      output = `miniscript-cli -d '#{descriptor}'`
-      raise "Error parsing descriptor #{descriptor}" if output.empty?
-
-      result = JSON.parse(output)
+      parsed = descriptor_interpolate(descriptor)
+      address = parsed.to_addr
       if descriptor.start_with? 'wsh'
-        witness_script = Bitcoin::Script.parse_from_payload(result['witness_script'].htb)
-        logger.debug "WITNESS SCRIPT #{witness_script}"
+        witness = descriptor.match(/wsh\((.*)\)/)[1]
+        witness_script = descriptor_interpolate(witness)
         # return the Wsh wrapped descriptor and the witness script
-        store_witness(result['address'], witness_script)
+        store_witness(address, witness_script)
       end
-      [Bitcoin::Script.parse_from_addr(result['address']), witness_script, result['address']]
-    end
-
-    def compile_taproot_descriptor(descriptor)
-      descriptor = interpolate(descriptor)
-      output = `miniscript-cli -t '#{descriptor}'`
-      raise "Error parsing descriptor #{descriptor}" if output.empty?
-
-      result = JSON.parse(output)
-      store_taproot(result['address'], result)
-      [Bitcoin::Script.parse_from_addr(result['address'])]
+      [parsed, witness_script, address]
     end
   end
 end

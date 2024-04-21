@@ -107,34 +107,37 @@ fn parse_descriptor(args: Args) {
 }
 
 fn parse_tr_descriptor(args: Args) {
-    let descriptor = miniscript::descriptor::Tr::<DefiniteDescriptorKey>::from_str(
+    let descriptor = miniscript::descriptor::Descriptor::<DefiniteDescriptorKey>::from_str(
         args.taproot.unwrap().as_str(),
     )
     .unwrap();
-    let merkle_root = descriptor
-        .spend_info()
-        .merkle_root()
-        .map(|root| root.as_byte_array().to_lower_hex_string());
-    let spend_info = descriptor.spend_info();
-    let script_map = spend_info.script_map();
-    let mut leaves: Vec<LeafOutput> = Vec::new();
-    for (key, value) in script_map {
-        for (index, node) in value.iter().enumerate() {
-            leaves.push(LeafOutput {
-                index,
-                leaf_version: key.1.to_string(),
-                script: key.0.to_hex_string(),
-                hash: node.serialize().as_hex().to_string(),
-            });
+
+    if let miniscript::descriptor::Descriptor::Tr(ref tr_descriptor) = descriptor {
+        let merkle_root = tr_descriptor
+            .spend_info()
+            .merkle_root()
+            .map(|root| root.as_byte_array().to_lower_hex_string());
+        let spend_info = tr_descriptor.spend_info();
+        let script_map = spend_info.script_map();
+        let mut leaves: Vec<LeafOutput> = Vec::new();
+        for (key, value) in script_map {
+            for (index, node) in value.iter().enumerate() {
+                leaves.push(LeafOutput {
+                    index,
+                    leaf_version: key.1.to_string(),
+                    script: key.0.to_hex_string(),
+                    hash: node.serialize().as_hex().to_string(),
+                });
+            }
         }
+
+        let output = TaprootOutput {
+            address: tr_descriptor.address(bitcoin::Network::Regtest).to_string(),
+            internal_key: tr_descriptor.internal_key().to_string(),
+            merkle_root,
+            leaves,
+        };
+
+        println!("{}", serde_json::to_string(&output).unwrap());
     }
-
-    let output = TaprootOutput {
-        address: descriptor.address(bitcoin::Network::Regtest).to_string(),
-        internal_key: descriptor.internal_key().to_string(),
-        merkle_root,
-        leaves,
-    };
-
-    println!("{}", serde_json::to_string(&output).unwrap());
 }
