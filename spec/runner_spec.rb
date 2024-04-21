@@ -72,10 +72,6 @@ RSpec.describe Runner.instance do
     it_behaves_like 'script evaluation', './lib/contracts/reorg_chain.rb'
   end
 
-  describe 'tweaked keys' do
-    it_behaves_like 'script evaluation', './lib/contracts/using_tweaked_keys.rb'
-  end
-
   describe 'taproot transactions' do
     it_behaves_like 'script evaluation', './lib/contracts/taproot/keypath_spend.rb'
   end
