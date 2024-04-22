@@ -1,13 +1,14 @@
 # syntax=docker/dockerfile:1
 
-FROM alpine:latest
+FROM ruby:3.3.0
 
-RUN apk update
-RUN apk --no-cache add curl ruby python3 bash
-RUN apk --no-cache add --virtual build-dependencies build-base gcc wget git
-
-# Install dependencies for bitcoin core
-RUN apk add --no-cache autoconf automake libtool boost-dev libevent-dev sqlite-dev zeromq-dev linux-headers musl-dev libffi yaml-dev
+RUN apt-get update
+RUN apt-get install -y  curl \
+    python3 \
+    python3-dev \
+    python3-venv \
+    bash \
+    libboost-all-dev
 
 # Install bitcoin core from source. This allows us to experiment with various forks.
 RUN git clone --depth 1 --branch v26.0 https://github.com/bitcoin/bitcoin.git
@@ -32,12 +33,13 @@ COPY Gemfile Gemfile
 RUN gem install bundler
 
 # Install dependencies for gems
-RUN apk --no-cache add ruby-dev
 RUN bundle install
+RUN bundle binstubs --all
 
 # Jupyter notebook setup begin
-RUN apk --no-cache add python3-dev pipx
-RUN pipx install jupyterlab notebook
+RUN python3 -m venv venv
+RUN . venv/bin/activate
+RUN venv/bin/pip install jupyterlab notebook
 
 ENV PATH="/root/.local/bin:${PATH}"
 
@@ -62,4 +64,4 @@ COPY spec spec
 COPY notebooks notebooks
 COPY Rakefile.rb Rakefile.rb
 
-CMD ["jupyter-lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root", "--notebook-dir", "/bitcoin-dsl/notebooks"]
+CMD ["venv/bin/jupyter-lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root", "--notebook-dir", "/bitcoin-dsl/notebooks"]
