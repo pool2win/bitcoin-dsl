@@ -15,7 +15,7 @@ dockerize:
 
 # Run a script using local docker image
 run script:
-	docker compose run {{image_name}} ruby ./lib/run.rb -s {{script}}
+	docker compose run {{image_name}} bundle exec ruby ./lib/run.rb -s {{script}}
 
 # Run the test suite
 test:

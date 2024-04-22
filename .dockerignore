@@ -5,3 +5,4 @@ docs
 .github
 .ipynb*
 .venv
+notebooks/.Trash*
