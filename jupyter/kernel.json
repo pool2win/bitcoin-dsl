@@ -1,5 +1,5 @@
 {"argv":
- ["/usr/bin/iruby",
+ ["/bitcoin-dsl/bin/iruby",
   "kernel",
   "{connection_file}",
   "/bitcoin-dsl/lib/jupyter_runner.rb"

@@ -17,5 +17,5 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Run rake spec
-        run: docker run bitcoin-dsl rake spec
+        run: docker run bitcoin-dsl /bitcoin-dsl/bin/rake spec
   

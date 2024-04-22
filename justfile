@@ -19,7 +19,7 @@ run script:
 
 # Run the test suite
 test:
-	docker compose run {{image_name}} rake spec
+	docker compose run {{image_name}} bin/rake spec
 
 # Get a bash shell on local docker image
 bash:
