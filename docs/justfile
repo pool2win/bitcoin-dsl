@@ -2,7 +2,11 @@ default:
 	@just --list
 
 publish: build
-	/usr/local/bin/aws s3 sync _site/ s3://opdup.com/bitcoin-dsl/ --delete --cache-control 'max-age=0' --content-type 'text/html'
+	/usr/local/bin/aws s3 sync _site/ s3://opdup.com/bitcoin-dsl/ --delete --cache-control 'max-age=0' --content-type 'text/html' --exclude "*" --exclude "justfile" --include "*.html"
+	/usr/local/bin/aws s3 sync _site/ s3://opdup.com/bitcoin-dsl/ --delete --cache-control 'max-age=0'  --exclude "*.html" --exclude "justfile"
+
+clean-s3:
+	/usr/local/bin/aws s3 rm s3://opdup.com/bitcoin-dsl/ --recursive
 
 build:
 	jekyll build
