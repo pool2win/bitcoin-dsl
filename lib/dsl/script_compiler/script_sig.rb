@@ -51,7 +51,9 @@ module ScriptCompiler
       return unless taproot? input[:script_sig]
 
       if input[:script_sig].key? :keypath
-        get_key_and_sign(transaction, input, index, input[:script_sig][:keypath], { sig_version: :taproot })
+        builder = @taproot_details[input[:utxo_details].script_pubkey.to_addr]
+        tweaked_key = builder.tweak_private_key(input[:script_sig][:keypath])
+        get_key_and_sign(transaction, input, index, tweaked_key, { sig_version: :taproot })
       elsif input[:script_sig].key? :leaf_index
         sign_using_script_path(transaction, input, index)
       end

@@ -46,12 +46,11 @@ confirm transaction: @taproot_keypath_tx
 
 log 'Transaction with taproot output confirmed'
 
-@bob_tweaked_private_key = taproot_tweak_private_key @bob
-
+# tag::spend_via_keypath[]
 @spend_taproot_output_tx = transaction inputs: [
                                          { tx: @taproot_keypath_tx,
                                            vout: 0,
-                                           script_sig: { keypath: @bob_tweaked_private_key }, # Spend using keypath
+                                           script_sig: { keypath: @bob }, # <1>
                                            sighash: :all }
                                        ],
                                        outputs: [
@@ -63,5 +62,6 @@ assert_mempool_accept @spend_taproot_output_tx
 
 broadcast @spend_taproot_output_tx
 confirm transaction: @spend_taproot_output_tx
+# end::spend_via_keypath[]
 
 log 'Taproot keypath transaction spent'

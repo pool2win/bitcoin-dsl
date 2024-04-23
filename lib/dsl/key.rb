@@ -43,11 +43,13 @@ module Key
     key.priv_key.to_i(16)
   end
 
+  # Tweak a given public key with the supplied tweak
   def tweak_public_key(key, with:)
     tweak = generate_point_for(with)
     Bitcoin::Key.from_point(key.to_point + tweak)
   end
 
+  # Tweak a given private key with the supplied tweak  
   def tweak_private_key(key, with:)
     point = key.to_point
     private_key = point.has_even_y? ? key.priv_key.to_i(16) : ECDSA::Group::Secp256k1.order - key.priv_key.to_i(16)
@@ -57,12 +59,24 @@ module Key
     Bitcoin::Key.new(priv_key: private_key.bth)
   end
 
-  def taproot_tweak_public_key(key, with: nil)
-    Bitcoin::Taproot.tweak_public_key(key, with)
+  # Tweak the taproot output's internal key
+  def tweaked_internal_key(transaction: nil, vout: nil)
+    builder = builder_for(transaction: transaction, vout: vout)
+    builder.tweak_public_key
   end
 
-  def taproot_tweak_private_key(key, with: nil)
-    Bitcoin::Taproot.tweak_private_key(key, with)
+  # Tweak a given private key with taproot output's merkle root as tweak
+  def tweaked_private_key(key, transaction: nil, vout: nil)
+    builder = builder_for(transaction, vout)
+    builder.tweak_private_key(key)
+  end
+
+  def builder_for(transaction:, vout:)
+    return nil unless transaction && vout
+
+    taproot = transaction.build_params[:outputs][vout][:taproot]
+    builder = Bitcoin::Taproot::SimpleBuilder.new(taproot[:internal_key].xonly_pubkey, taproot[:leaves]).build
+    builder.merkle_root
   end
 
   def sign_message_with_key(message:, key:)
