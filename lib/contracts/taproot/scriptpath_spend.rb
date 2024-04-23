@@ -32,7 +32,7 @@ transition :create_input_tx do
   @coinbase_tx = get_coinbase_at 2
 
   # tag::taproot_tx[]
-  @taproot_keypath_tx = transaction inputs: [
+  @taproot_output_tx = transaction inputs: [
                                       { tx: @coinbase_tx,
                                         vout: 0,
                                         script_sig: 'sig:wpkh(@alice)' }
@@ -46,8 +46,8 @@ transition :create_input_tx do
                                     ]
   # end::taproot_tx[]
 
-  broadcast @taproot_keypath_tx
-  confirm transaction: @taproot_keypath_tx
+  broadcast @taproot_output_tx
+  confirm transaction: @taproot_output_tx
 
   log 'Transaction with taproot output confirmed'
 end
@@ -56,7 +56,7 @@ end
 # tag::spend_via_scriptpath[]
 transition :spend_first_leaf do
   @spend_taproot_output_tx = transaction inputs: [
-                                           { tx: @taproot_keypath_tx,
+                                           { tx: @taproot_output_tx,
                                              vout: 0,
                                              script_sig: { leaf_index: 0, # <1>
                                                            sig: 'sig:@carol' }, # <2>
@@ -74,7 +74,7 @@ end
 
 transition :spend_second_leaf do
   @spend_taproot_output_tx = transaction inputs: [
-                                           { tx: @taproot_keypath_tx,
+                                           { tx: @taproot_output_tx,
                                              vout: 0,
                                              script_sig: { leaf_index: 1, sig: 'sig:@alice' },
                                              sighash: :all }
@@ -92,7 +92,7 @@ end
 # tag::spend_via_keypath[]
 transition :spend_using_internal_key do
   @spend_taproot_output_tx = transaction inputs: [
-                                           { tx: @taproot_keypath_tx,
+                                           { tx: @taproot_output_tx,
                                              vout: 0,
                                              script_sig: { keypath: @bob }, # <1>
                                              sighash: :all }
