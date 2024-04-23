@@ -1,0 +1,87 @@
+= Taproot
+:page-layout: page
+:page-title: Taproot
+:page-nav_order: 3
+:sourcedir: ../../
+
+Taproot outputs can be spent in multiple ways. Either using an
+"internal key" or by satisfying one of the output scripts present as a
+leaf in the taproot output's merkle tree. Further, these outputs need
+to be signed using Schnorr signatures. These possibilities make it
+challenging for developers to describe a taproot output and then to
+provide signatures for it.
+
+Bitcoin descriptors use strings to describe the output conditions. For
+example the
+link:https://github.com/bitcoin/bitcoin/blob/master/doc/descriptors.md[descriptors
+page ] page specifies a taproot output with two potential script paths
+as follows:
+
+[source,]
+----
+tr(c6047f9441ed7d6d3045406e95c07cd85c778e4b8cef3ca7abac09b95c709ee5,
+  {pk(fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556),
+   pk(e493dbf1c10d80f3581e4904930b1404cc6c13900ee0758474fa94abe8c4cd13)})
+----
+
+Such a format is handy when you need to copy-paste output
+specifications across hardware wallets etc. However, such output
+descriptions will be a pain point for developers, who prefer to work
+with first class data structures like arrays and dictionaries.
+
+The DSL captures taproot outputs (and signature specifications) as an
+object notation with support for arrays to describe output
+leaves. Each of the script leaves can be bitcoin descriptors or normal
+bitcoin scripts. The DSL allows developers to explicitly state the
+keypath and the script leaves.
+
+As an example, the transaction below spends to a taproot output that
+allows spending using a tweaked internal key or any of the leaves.
+
+.Taproot output with specified internal key and two leaves
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/taproot/scriptpath_spend.rb[tags=taproot_tx]
+----
+<1> Output can be spent using tweaked internal key
+<2> Alternatively, the output can be spent using Carol's or Alice's
+untweaked keys
+
+== Example
+
+The examples below spend the above taproot output. First using the
+keypath and then using the script path.
+
+=== Spending via the Keypath
+
+To spend via a keypath, we need provide the private key that the DSL
+then tweaks for the taproot output. The developer doesn't need to
+track the taproot construction anymore, the DSL looks at the taproot
+output and figures out the tweak to apply.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/taproot/scriptpath_spend.rb[tags=spend_via_keypath]
+----
+<1> Provide the key pair or a private key and DSL tweaks the private
+key before signing the transaction
+
+=== Spending via Script Path
+
+To spend a taproot output using one of the leaves, we simply need to
+supply the unlocking script using DSL extension.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/taproot/scriptpath_spend.rb[tags=spend_via_scriptpath]
+----
+<1> Identify the leaf being spent
+<2> Provide script sig using DSL `sig` extension
+
+== Supporting Descriptor Syntax
+
+
+Once we have explored the various ways in which taproot outputs can be
+built and spent, we will work towards supporting the taproot
+descriptor syntax. For now, we believe developers will benefit from
+the explict object notation to specify the keypath and leaves.

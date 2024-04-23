@@ -390,3 +390,56 @@ include::{sourcedir}/lib/contracts/using_bitcoin_descriptor.rb[tags=sig_with_des
 ----
 <1> Use descriptor DSL extension to provide a script sig to satisfy
 the descriptor.
+
+
+=== Taproot Outputs
+
+The link:../example/taproot[Taproot Example] provides a complete
+example on the DSL's support for creating taproot outputs and spending
+the key and script paths.
+
+We support building taproot outputs by supporting `taproot` key in the
+`outputs` objects. Each `taproot` key inturn has `keypath` and
+`leaves` keys.
+
+[source,ruby]
+----
+outputs: [
+  {
+    taproot: { internal_key: @bob, # <1>
+	       leaves: ['pk(@carol)', 'pk(@alice)'] }, # <2>
+    amount: 49.999.sats
+  }
+----
+<1> Specify an internal key
+<2> Specify the leaf scripts
+
+For spending taproot outputs, the DSL allows specifying the `keypath`,
+in which case the the internal key is automatially looked up, tweaked
+and used to create signatures.
+
+[source,ruby]
+----
+inputs: [
+  { tx: @taproot_keypath_tx,
+    vout: 0,
+    script_sig: { keypath: @bob }, # <1>
+    sighash: :all }
+],
+----
+<1> Use the tweaked `@bob` key to spend taproot output.
+
+Alternatively, you can provide the script path leaf index and a script
+sig to spend along a scriptpath.
+
+[source,ruby]
+----
+inputs: [
+  { tx: @taproot_keypath_tx,
+    vout: 0,
+    script_sig: { leaf_index: 1, sig: 'sig:@alice' }, # <1>
+    sighash: :all }
+],
+----
+<1> Specify the leaf index and the signature script to spend a taproot
+output along scriptpath
