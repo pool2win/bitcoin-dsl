@@ -107,7 +107,7 @@ Bitcoin DSL supports using **miniscript, descriptors and Script** to
 specify the locking script for an output. The example shows the policy
 for funding transaction of the ARK protocol - described using
 miniscript. See the details of the various options at
-link:overview/scripting[Locking and unlocking script].
+link:overview/scripting.html[Locking and unlocking script].
 
 .Example locking script using Policy
 [source,ruby]
@@ -157,9 +157,9 @@ run_transitions :setup, :exchange_signatures, :cooperate_close
 run_transitions :setup, :exchange_signatures, :unilateral_close
 ----
 
-Jump to link:overview/contract_branch_executions[Contract Branch Executions].
+Jump to link:overview/contract_branch_executions.html[Contract Branch Executions].
 
-The link:examples/lightning/index[Lightning Contracts] is an
+The link:examples/lightning.html[Lightning Contracts] is an
 excellent overview of how we use multiple scripts and compose the
 execution of the contract along various branches.
 
@@ -185,7 +185,7 @@ extend_chain to: @alice
 @alice_coinbase_utxo = spendable_coinbase_for @alice
 ----
 
-Jump to link:overview/node_interaction[Node Interaction].
+Jump to link:overview/node_interaction.html[Node Interaction].
 
 ---
 
@@ -206,6 +206,6 @@ assert_mempool_accept @alice_tx
 assert_height 100
 ----
 
-Jump to link:overview/assertions[Assertions]
+Jump to link:overview/assertions.html[Assertions]
 
 ---
