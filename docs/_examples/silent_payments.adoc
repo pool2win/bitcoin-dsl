@@ -4,9 +4,9 @@
 :page-nav_order: 4
 :sourcedir: ../../
 
-We capture the simple case of a single payment. We also don't dig into
-how we can scan the chain to find a transaction with the sender's
-public key that can provide the tweak to spend the transaction.
+We capture the simple case of a single payment. We don't dig into how
+we can scan the chain to find a transaction with the sender's public
+key that can provide the tweak to spend the transaction.
 
 [source,ruby]
 ----
