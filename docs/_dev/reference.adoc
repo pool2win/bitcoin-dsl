@@ -127,6 +127,37 @@ broadcast @tx
 confirm @tx, to: @alice
 ----
 
+== Contract Branch Execution
+
+The DSL supports running various branches of contracts. The commands
+`state_transition` and `run_transitions` allow you to define state
+transitions and then execute them in a select order.
+
+[source,ruby]
+----
+state_transition :create_coinbase do
+ ... # Define any actions here
+end
+
+state_transition :alice_cant_spend do
+ ... # Define any actions here
+ ... # Optionally define any assertions here
+end
+
+# Run the transistions you want to run in any order
+run_transitions :create_coinbase, :alice_cant_spent
+----
+
+There is one special state transition called `reset` that resets the
+regtest node to a prestine state. You don't need to define the `reset`
+state, the DSL provides it.
+
+[source,ruby]
+----
+# Reset bitcoin node before running transistions
+run_transitions :reset, :create_coinbase, :alice_cant_spent
+----
+
 == Node Interaction
 
 The DSL supports all JSON-API commands supported by bitcoin. You don't

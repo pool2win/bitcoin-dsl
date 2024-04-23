@@ -148,3 +148,7 @@ include::{sourcedir}/lib/contracts/branch_executions.rb[tags=run_bob_spends_tran
 <2> Extend chain by mining 10 blocks
 <3> The spending transaction is broadcast and confirmed
 <4> Finally, we run the required transitions
+
+Jump to the
+link:../dev/reference.html#contract-branch-execution[Contract Branch
+Execution] section in the Reference.
