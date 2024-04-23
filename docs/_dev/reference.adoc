@@ -4,6 +4,7 @@
 :page-nav_order: 10
 :page-has_toc: true
 :page-show-toc: true
+:sourcedir: ../../
 
 == Variables
 
@@ -366,6 +367,26 @@ For example, the policy
 is processed by rust-miniscript after `@alice`, `@asp` and
 `$asp_timelock` have been replaced by hex formatted public keys.
 
-=== P2WPKH
+=== Bitcoin Descriptors
 
-TODO: Describe this using Descriptors.
+The DSL supports Bitcoin descriptors to allow for easier definition of
+output scripts.
+
+The `descriptor` key in the `outputs` object can specify a descriptor
+with a variable for the keys.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/using_bitcoin_descriptor.rb[tags=descriptor_output]
+----
+<1> Use descriptor to define an output script
+
+You can also use descriptor syntax to create signatures for descriptor
+outputs.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/using_bitcoin_descriptor.rb[tags=sig_with_descriptor]
+----
+<1> Use descriptor DSL extension to provide a script sig to satisfy
+the descriptor.

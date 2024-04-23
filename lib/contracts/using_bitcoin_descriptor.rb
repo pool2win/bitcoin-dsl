@@ -29,15 +29,17 @@ extend_chain num_blocks: 101, to: @alice
 
 @alice_coinbase = spendable_coinbase_for @alice
 
+# tag::descriptor_output[]
 @opcodes_tx = transaction inputs: [
                             { tx: @alice_coinbase, vout: 0, script_sig: 'sig:@alice @alice' }
                           ],
                           outputs: [
                             {
-                              descriptor: 'wpkh(@bob)',
+                              descriptor: 'wpkh(@bob)', # <1>
                               amount: 49.999.sats
                             }
                           ]
+# end::descriptor_output[]
 
 verify_signature for_transaction: @opcodes_tx,
                  at_index: 0,
@@ -47,11 +49,13 @@ broadcast @opcodes_tx
 
 confirm transaction: @opcodes_tx, to: @alice
 
+# tag::sig_with_descriptor[]
 @spend_opcodes_tx = transaction inputs: [
-                                  { tx: @opcodes_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' }
+                                  { tx: @opcodes_tx, vout: 0, script_sig: 'sig:wpkh(@bob)' } # <1>
                                 ],
                                 outputs: [
                                   { descriptor: 'wpkh(@bob)', amount: 49.998.sats }
                                 ]
+# end::sig_with_descriptor[]
 
 broadcast @spend_opcodes_tx

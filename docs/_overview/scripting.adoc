@@ -74,6 +74,10 @@ transaction inputs: [
 
 NOTE: Descriptors can be used in only in locking scripts.
 
+Read more about use of descriptors in the
+link:../dev/reference.html#bitcoin-descriptors[Bitcoin Descriptors]
+section on the reference page.
+
 == Custom `sig` Extension
 
 One of the biggest challenges when using P2WSH is to have access to
