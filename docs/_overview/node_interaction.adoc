@@ -32,5 +32,5 @@ provides commands that use the JSON-API to make life easier for a
 contract developer. For example, there are commands to extend chain
 and finding a spendable UTXO controlled by a key.
 
-See details under link:/dev/reference#node-interaction[Node Interaction under Reference]
+See details under link:../dev/reference.html#node-interaction[Node Interaction under Reference]
 for details.

@@ -34,7 +34,7 @@ hash160 of the public key referred to by the variable `@alice`.
 ----
 
 There are a number of commands that are interpolated in script, see
-the link:/dev/reference#script-interpolation[Script interpolation] section
+the link:../dev/reference.html#script-interpolation[Script interpolation] section
 for list of commands supported.
 
 NOTE: Script can be used in both locking and unlocking script.
@@ -50,7 +50,7 @@ is processed by rust-miniscript after `@alice`, `@asp` and
 `@asp_timelock` have been replaced by hex formatted public keys.
 
 There are a number of commands that are interpolated in script, see
-the link:/dev/reference#interpolated-miniscript-policy[Interpolated miniscript policy] section of the
+the link:../dev/reference.html#interpolated-miniscript-policy[Interpolated miniscript policy] section of the
 reference for details.
 
 WARNING: Miniscript can be only be used for locking scripts in outputs.
