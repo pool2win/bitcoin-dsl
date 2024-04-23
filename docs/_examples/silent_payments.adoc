@@ -2,5 +2,18 @@
 :page-layout: page
 :page-title: Silent Payments
 :page-nav_order: 4
+:sourcedir: ../../
 
-TODO
+We capture the simple case of a single payment. We also don't dig into
+how we can scan the chain to find a transaction with the sender's
+public key that can provide the tweak to spend the transaction.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/silent_payments.rb[tags=silent-payment]
+----
+<1> Sender's input key used in coinbases
+<2> Find a coinbase spendable by sender's input key
+<3> Generate a tweaked key using receiver's address and sender's input key
+<4> Generate a tweaked private key for receiver using the sender's input key
+<5> Spend the received payment using the receiver's tweaked key

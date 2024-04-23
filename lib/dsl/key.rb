@@ -39,6 +39,10 @@ module Key
     key.to_point
   end
 
+  def point_from_scalar(hex_value)
+    ECDSA::Group::Secp256k1.generator.to_jacobian * hex_value.to_i(16)
+  end
+
   def scalar_from(key)
     key.priv_key.to_i(16)
   end
@@ -49,7 +53,7 @@ module Key
     Bitcoin::Key.from_point(key.to_point + tweak)
   end
 
-  # Tweak a given private key with the supplied tweak  
+  # Tweak a given private key with the supplied tweak
   def tweak_private_key(key, with:)
     point = key.to_point
     private_key = point.has_even_y? ? key.priv_key.to_i(16) : ECDSA::Group::Secp256k1.order - key.priv_key.to_i(16)
