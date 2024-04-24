@@ -17,3 +17,8 @@ include::{sourcedir}/lib/contracts/silent_payments.rb[tags=silent-payment]
 <3> Generate a tweaked key using receiver's address and sender's input key
 <4> Generate a tweaked private key for receiver using the sender's input key
 <5> Spend the received payment using the receiver's tweaked key
+
+We have a jupyter notebook that walks through the above
+example. link:https://github.com/pool2win/bitcoin-dsl/blob/main/notebooks/silent-payments.ipynb[Silent Payments
+Jupyter Notebook]
+

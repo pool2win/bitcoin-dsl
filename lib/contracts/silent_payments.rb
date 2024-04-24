@@ -17,8 +17,6 @@
 
 # frozen_string_literal: false
 
-node :reset
-
 # tag::silent-payment[]
 @sender_input_key = key :new # <1>
 @sender = key :new
@@ -28,9 +26,9 @@ extend_chain to: @sender_input_key, num_blocks: 101
 
 @sender_coinbase = spendable_coinbase_for @sender_input_key # <2>
 
-@sender_dh_key = multiply point: @receiver, scalar: @sender_input_key # <3>
+@sender_dh_share = multiply point: @receiver, scalar: @sender_input_key # <3>
 
-@taproot_output_key = tweak_public_key @receiver, with: hash160(@sender_dh_key) # <3>
+@taproot_output_key = tweak_public_key @receiver, with: hash160(@sender_dh_share) # <3>
 
 @taproot_output_tx = transaction inputs: [{ tx: @sender_coinbase,
                                             vout: 0,
@@ -56,5 +54,5 @@ assert_equal @taproot_output_tx.inputs[0].script_witness.stack[1].bth, @sender_i
 
 assert_mempool_accept @spend_received_payment_tx
 broadcast @spend_received_payment_tx
-confirm transaction @spend_received_payment_tx
+confirm transaction: @spend_received_payment_tx
 # end::silent-payment[]
