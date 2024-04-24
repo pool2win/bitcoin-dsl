@@ -4,7 +4,8 @@ FROM alpine:latest
 
 RUN apk update && \
     apk --no-cache add curl ruby ruby-dev python3 bash build-base gcc wget git \
-    autoconf automake libtool boost-dev libevent-dev sqlite-dev zeromq-dev linux-headers musl-dev libffi yaml-dev bitcoin python3-dev pipx
+    autoconf automake libtool boost-dev libevent-dev sqlite-dev zeromq-dev linux-headers musl-dev libffi yaml-dev bitcoin python3-dev pipx \
+    pandoc
 
 # # Install bitcoin core from source. This allows us to experiment with various forks.
 # RUN git clone --depth 1 --branch v26.0 https://github.com/bitcoin/bitcoin.git
@@ -18,7 +19,7 @@ WORKDIR /bitcoin-dsl
 
 # Setup rust and rust-miniscript
 RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-ENV PATH="/root/.cargo/bin:${PATH}"
+ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
 
 # Install miniscript-cli
 COPY miniscript-cli miniscript-cli
@@ -32,8 +33,6 @@ RUN gem install bundler && \
 
 # Jupyter notebook setup begin
 RUN pipx install jupyterlab notebook
-
-ENV PATH="/root/.local/bin:${PATH}"
 
 ENV JUPYTER_PORT=8888
 EXPOSE $JUPYTER_PORT
