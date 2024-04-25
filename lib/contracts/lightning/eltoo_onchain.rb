@@ -18,18 +18,16 @@
 # frozen_string_literal: false
 
 @alice = key :new
-@alice_update_key = key :new
 @alice_settlement_key = key :new
 
 @bob = key :new
-@bob_update_key = key :new
 @bob_settlement_key = key :new
 
 @update_script = %(
 OP_IF
         2 @alice_settlement_key @bob_settlement_key 2 OP_CHECKMULTISIGVERIFY 10 OP_CSV
 OP_ELSE
-        2 @alice_update_key @bob_update_key 2 OP_CHECKMULTISIGVERIFY 10 OP_CSV
+        2 @alice @bob 2 OP_CHECKMULTISIG
 OP_ENDIF
 )
 
@@ -37,39 +35,18 @@ transition :setup do
   extend_chain to: @alice, num_blocks: 101
   @alice_input_tx = spendable_coinbase_for @alice
 
-  @setup_tx = transaction inputs: [
-                            {
-                              tx: @alice_input_tx,
-                              vout: 0,
-                              script_sig: 'sig:_skip'
-                            }
-                          ],
-                          outputs: [
-                            {
-                              script: @update_script,
-                              # descriptor: 'wsh(multi(2,@alice_settlement_key,@bob_settlement_key))',
-                              amount: 49.999.sats
-                            }
-                          ]
+  @setup_tx = transaction inputs: [{ tx: @alice_input_tx, vout: 0, script_sig: 'sig:_skip' }],
+                          outputs: [{ script: @update_script, amount: 49.999.sats }]
   assert_not_mempool_accept @setup_tx
 end
 
 transition :bob_creates_settlement do
-  # Bob signs a settlement transaction paying agreed amounts to Alice
-  @settlement_tx = transaction inputs: [
-                                 {
-                                   tx: @setup_tx,
-                                   vout: 0,
-                                   script_sig: 'sig:multi(_empty,@bob_settlement_key) 0x01',
-                                   csv: 10
-                                 }
-                               ],
-                               outputs: [
-                                 {
-                                   descriptor: 'wpkh(@alice)',
-                                   amount: 49.998.sats
-                                 }
-                               ]
+  @settlement_tx = transaction inputs: [{ tx: @setup_tx,
+                                          vout: 0,
+                                          script_sig: 'sig:multi(_empty,@bob_settlement_key) 0x01',
+                                          csv: 10 }],
+                               outputs: [{ descriptor: 'wpkh(@alice)',
+                                           amount: 49.998.sats }]
 end
 
 transition :alice_broadcasts_setup_tx do
@@ -91,8 +68,66 @@ transition :alice_broadcasts_settlement do
   confirm transaction: @settlement_tx
 end
 
+transition :create_new_update do
+  # new update transaction spending setup tx
+  @update_tx = transaction inputs: [{ tx: @setup_tx, vout: 0, script_sig: 'sig:multi(@alice,@bob) ""' }],
+                           outputs: [{ script: @update_script, amount: 49.998.sats }]
+  assert_mempool_accept @update_tx
+end
+
+transition :broadcast_new_update do
+  broadcast @update_tx
+  confirm transaction: @update_tx
+end
+
+transition :create_new_settlement do
+  # new settlement transaction spending update tx
+  @new_settlement_tx = transaction inputs: [{ tx: @update_tx, vout: 0,
+                                              script_sig: 'sig:multi(_empty,@bob_settlement_key) 0x01', csv: 10 }],
+                                   outputs: [{ descriptor: 'wpkh(@alice)', amount: 48.997.sats },
+                                             { descriptor: 'wpkh(@bob)', amount: 1.sats }]
+  assert_not_mempool_accept @new_settlement_tx
+end
+
+transition :broadcast_new_settlement do
+  update_script_sig for_tx: @new_settlement_tx, at_index: 0,
+                    with_script_sig: 'sig:multi(@alice_settlement_key,@bob_settlement_key) 0x01'
+  extend_chain num_blocks: 10
+  broadcast @new_settlement_tx
+  confirm transaction: @new_settlement_tx
+end
+
+transition :broadcast_new_settlement_fails do
+  update_script_sig for_tx: @new_settlement_tx, at_index: 0,
+                    with_script_sig: 'sig:multi(@alice_settlement_key,@bob_settlement_key) 0x01'
+  extend_chain num_blocks: 10
+  assert_not_mempool_accept @new_settlement_tx
+end
+
+# Simple case: settlement immediately spends from setup
 run_transitions :setup,
                 :bob_creates_settlement,
                 :alice_broadcasts_setup_tx,
                 :alice_signs_settlement,
                 :alice_broadcasts_settlement
+
+# Create an update and a new settlement, and finally spend the settlement.
+# In this case, the setup is spent by an update which is spent by the settlement.
+run_transitions :reset,
+                :setup,
+                :bob_creates_settlement,
+                :alice_broadcasts_setup_tx,
+                :create_new_update,
+                :create_new_settlement,
+                :broadcast_new_update,
+                :broadcast_new_settlement
+
+# Capture the case where a settlement fails to be spent before the
+# update has confirmed
+run_transitions :reset,
+                :setup,
+                :bob_creates_settlement,
+                :alice_broadcasts_setup_tx,
+                :create_new_update,
+                :create_new_settlement,
+                :broadcast_new_settlement_fails
