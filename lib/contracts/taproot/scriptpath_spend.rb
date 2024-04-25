@@ -18,7 +18,6 @@
 # frozen_string_literal: false
 
 # Generate new keys
-Bitcoin::Node::Configuration.new(network: :regtest)
 @alice = key wif: 'cNtZwU6mYnUXDJtPqfyEaRsZuNy6C5PCZHY16xbps85HvRSn9KqE'
 @bob = key wif: 'cMyDpdQkC1qRfWYNQHXawUwzEmXyFjv7PYw2EqYFRnhXhBs4bXt9'
 @carol = key wif: 'cRCuYhzDcPPCjfVZPzSiuRAsXUgivChpz5xEfeXPRAi2EDnuHymz'
@@ -33,17 +32,17 @@ transition :create_input_tx do
 
   # tag::taproot_tx[]
   @taproot_output_tx = transaction inputs: [
-                                      { tx: @coinbase_tx,
-                                        vout: 0,
-                                        script_sig: 'sig:wpkh(@alice)' }
-                                    ],
-                                    outputs: [
-                                      {
-                                        taproot: { internal_key: @bob, # <1>
-                                                   leaves: ['pk(@carol)', 'pk(@alice)'] }, # <2>
-                                        amount: 49.999.sats
-                                      }
-                                    ]
+                                     { tx: @coinbase_tx,
+                                       vout: 0,
+                                       script_sig: 'sig:wpkh(@alice)' }
+                                   ],
+                                   outputs: [
+                                     {
+                                       taproot: { internal_key: @bob, # <1>
+                                                  leaves: ['pk(@carol)', 'pk(@alice)'] }, # <2>
+                                       amount: 49.999.sats
+                                     }
+                                   ]
   # end::taproot_tx[]
 
   broadcast @taproot_output_tx
