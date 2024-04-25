@@ -31,6 +31,7 @@ class Runner
   include DSL
 
   def initialize
+    Bitcoin::Node::Configuration.new(network: :regtest)
     @txid_signers = {}
     @witness_scripts = {}
     @taproot_details = {}
