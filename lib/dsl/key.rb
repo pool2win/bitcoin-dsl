@@ -23,20 +23,32 @@ require_relative './group_operations'
 module Key
   include GroupOperations
 
+  def self.included(_mod)
+    Bitcoin::Node::Configuration.new(network: :regtest)
+  end
+
   def key(params = {})
     if params.is_a?(Hash)
-      if params.include?(:wif)
-        Bitcoin::Key.from_wif params[:wif]
-      elsif params.include?(:from_point)
-        Bitcoin::Key.from_point params[:from_point]
-      elsif params.include?(:even_y)
-        generated = Bitcoin::Key.generate
-        generated = Bitcoin::Key.generate until generated.to_point.has_even_y?
-        generated
-      end
+      from_params(params)
     else
       Bitcoin::Key.generate
     end
+  end
+
+  def from_params(params)
+    if params.include?(:wif)
+      Bitcoin::Key.from_wif params[:wif]
+    elsif params.include?(:from_point)
+      Bitcoin::Key.from_point params[:from_point]
+    elsif params.include?(:even_y)
+      even_y
+    end
+  end
+
+  def even_y
+    generated = Bitcoin::Key.generate
+    generated = Bitcoin::Key.generate until generated.to_point.has_even_y?
+    generated
   end
 
   def point_from(key)
