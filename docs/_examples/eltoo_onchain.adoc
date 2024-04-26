@@ -21,7 +21,7 @@ will work.
 In the script below, we make extensive use of transitions to describe
 multiple branches of execution.
 
-=== Simple case: Settlement Immediately Spends From Setup
+== Simple case: Settlement Immediately Spends From Setup
 
 We run the following transitions to capture this case.
 
@@ -31,7 +31,7 @@ We run the following transitions to capture this case.
 . alice_signs_settlement
 . alice_broadcasts_settlement
 
-=== Create a New Update
+== Create a New Update
 
 Create an update and a new settlement, and finally spend the
 settlement.  In this case, the setup is spent by an update which is
@@ -46,7 +46,7 @@ spent by the settlement.
 . broadcast_new_update
 . broadcast_new_settlemen
 
-=== Can't Spend Settlement Before Confirming Update
+== Can't Spend Settlement Before Confirming Update
 
 Capture the case where a settlement fails to be spent before the
 update has confirmed
