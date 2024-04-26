@@ -29,6 +29,10 @@ module Key
         Bitcoin::Key.from_wif params[:wif]
       elsif params.include?(:from_point)
         Bitcoin::Key.from_point params[:from_point]
+      elsif params.include?(:even_y)
+        generated = Bitcoin::Key.generate
+        generated = Bitcoin::Key.generate until generated.to_point.has_even_y?
+        generated
       end
     else
       Bitcoin::Key.generate

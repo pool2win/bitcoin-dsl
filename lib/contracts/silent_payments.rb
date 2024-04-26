@@ -20,7 +20,7 @@
 # tag::silent-payment[]
 @sender_input_key = key :new # <1>
 @sender = key :new
-@receiver = key :new
+@receiver = key even_y: true # Generate a key with even y
 
 extend_chain to: @sender_input_key, num_blocks: 101
 
