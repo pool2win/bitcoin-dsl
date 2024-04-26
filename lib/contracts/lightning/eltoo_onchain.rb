@@ -17,6 +17,7 @@
 
 # frozen_string_literal: false
 
+# tag::source[]
 @alice = key :new
 @alice_settlement_key = key :new
 
@@ -131,3 +132,4 @@ run_transitions :reset,
                 :create_new_update,
                 :create_new_settlement,
                 :broadcast_new_settlement_fails
+# end::source[]

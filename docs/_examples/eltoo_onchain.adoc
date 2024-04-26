@@ -1,0 +1,69 @@
+= Eltoo Onchain
+:page-layout: page
+:page-title: Eltoo Onchain
+:page-nav_order: 1.1
+:sourcedir: ../../
+
+link:https://blockstream.com/eltoo.pdf[Eltoo] is a proposal to make LN
+contracts symmetric and thus easier to settle. They remove the need
+for exchange of keys to invalidate previous transactions.
+
+With Eltoo, payments in the LN are still routed using HTLCs, however,
+old states of channels become cleaner to invalidate and manage.
+
+The eltoo paper describes the solution by first describing an on chain
+solution to invalidate previous states of contracts. Later they
+describe how this can be be done off-chain.
+
+This example covers transactions to show of the onchain eltoo protocol
+will work.
+
+In the script below, we make extensive use of transitions to describe
+multiple branches of execution.
+
+=== Simple case: Settlement Immediately Spends From Setup
+
+We run the following transitions to capture this case.
+
+. setup
+. bob_creates_settlement
+. alice_broadcasts_setup_tx
+. alice_signs_settlement
+. alice_broadcasts_settlement
+
+=== Create a New Update
+
+Create an update and a new settlement, and finally spend the
+settlement.  In this case, the setup is spent by an update which is
+spent by the settlement.
+
+. reset
+. setup
+. bob_creates_settlement
+. alice_broadcasts_setup_tx
+. create_new_update
+. create_new_settlement
+. broadcast_new_update
+. broadcast_new_settlemen
+
+=== Can't Spend Settlement Before Confirming Update
+
+Capture the case where a settlement fails to be spent before the
+update has confirmed
+
+. reset
+. setup
+. bob_creates_settlement
+. alice_broadcasts_setup_tx
+. create_new_update
+. create_new_settlement
+. broadcast_new_settlement_fail
+
+== Source
+
+Here is the complete source code describing all the transitions above.
+
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/lightning/eltoo_onchain.rb[tag=source]
+----
