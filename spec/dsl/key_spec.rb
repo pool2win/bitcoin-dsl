@@ -24,7 +24,7 @@ RSpec.describe Key do
   include Key
 
   before(:context) do
-    @key = key wif: 'KztsFfy2uzazyo2zLgXneWH1U97Rv2dAiRQn74tR7qGMMYAjfGhD'
+    @key = key wif: 'cT3dEHwpi1EWbRxiUQaPYUYmeHTq2hSJRA4j81WoM5hiq3ZM33UK'
     @message = Bitcoin.sha256('message')
   end
 
