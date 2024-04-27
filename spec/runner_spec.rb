@@ -35,6 +35,7 @@ RSpec.describe Runner.instance do
     it_behaves_like 'script evaluation', './lib/contracts/anchor_transactions.rb'
     it_behaves_like 'script evaluation', './lib/contracts/fold_transactions.rb'
     it_behaves_like 'script evaluation', './lib/contracts/multisig.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/multiple_inputs.rb'
     it_behaves_like 'script evaluation', './lib/contracts/simple.rb'
   end
 
