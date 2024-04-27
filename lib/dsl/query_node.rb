@@ -55,6 +55,8 @@ module QueryNode
     block['tx'][0]
   end
 
+  alias coinbase_at get_coinbase_at
+
   # Return a spendable coinbase for a key
   # If a key is provided, we use the p2wpkh address for the key
   # Later on we will add options to query by a given address
