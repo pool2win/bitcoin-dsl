@@ -1,0 +1,29 @@
+= UHPO Payout Model for Braidpool
+
+. All coinbases are outputs to the currently known threshold
+signature pubkey.
+. All payouts spend the immediately preceding coinbase and the last
+known payout unspent output.
+.. There is atleast one output for a payout
+.. The first output is the balance for the pool controlled by the
+currently known pool key
+.. The rest of the outputs are payouts for miners who can spend these
+as soon as the payout is confirmed on chain.
+
+== Example
+
+The image image::uhpo.png[] shows an example set of coinbases and
+payout transactions.
+
+Each payout has at least one input.
+
+
+== Challenges
+
+. **Group membership** We need to track the pool membership so that we
+can run the threshold signature protocol. Group membership has a
+reduction to consensus. Which is a problem.
+
+. **Miner cashouts and Unilateral exits** The protocol requires a
+threshold number of miners to agree that a miner is cashing out. A
+miner can unilaterally exit only if there is a catastrophic failure.

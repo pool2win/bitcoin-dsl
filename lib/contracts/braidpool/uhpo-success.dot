@@ -1,0 +1,46 @@
+digraph uhpo {    
+    fontname="Helvetica,Arial,sans-serif"
+    label="No failure case"
+    node [fontname="Helvetica,Arial,sans-serif"]
+    edge [fontname="Helvetica,Arial,sans-serif"]    
+    node [shape=record];
+//    rankdir="LR";
+
+    // subgraph cluster_coinbases {
+    // 	label = "coinbases";
+    // 	color=white;
+	
+	cb1 [label="{ coinbase@1 | { | {<o1> poolkey@1, 50 OR CSV alice, 50}}}"];
+
+	cb2 [label="{ coinbase@2 | { | {<o1> poolkey@2, 50 OR CSV bob, 50}}}"];
+    
+	cb3 [label="{coinbase@3 | { | {<o1> poolkey@3, 50 OR CSV alice, 50}}}"];
+
+    // }
+
+    // subgraph cluster_payout_update {
+    // 	label = "payout updates";
+    // 	color=white;
+	
+	payoutupdate1 [label="{Payout Update @ 101 | {{<i1> coinbase@1:0} | { <o1> poolkey@101, 50 OR CSV poolkey@101, 50}}}"];
+	payoutsettlement1 [label="{Payout Settlement @ 101 | {{<i1> Payout Update@101:1} | { <o> alice, 10 | bob, 20 | ... }}}" color=grey];
+	
+	payoutupdate2 [label="{Payout Update @ 102 | {{<i1> coinbase@2:0 | <i2> Payout Update@101:0} | { <o1> poolkey@102, 100 OR CSV poolkey@102, 100}}}"];
+	payoutsettlement2 [label="{Payout Settlement @ 102 | {{<i1> Payout Update@102:1} | { <o> alice, 20 | bob, 30 | ... }}}" color=grey];
+
+	payoutupdate3 [label="{Payout Update @ 103 | {{<i1> coinbase@3:0 | <i2> Payout Update@102:0} | { <o1> poolkey@103, 150 OR CSV poolkey@102, 150}}}"];
+	payoutsettlement3 [label="{Payout Settlement @ 103 | {{<i1> Payout Update@103:1} | { <o> alice, 30 | bob, 40 | ... }}}" color=grey];
+	
+    // }
+    
+    cb1:o1 -> payoutupdate1:i1;
+    payoutupdate1:o1 -> payoutsettlement1:i1 [color=grey];
+    
+    cb2:o1 -> payoutupdate2:i1;
+    payoutupdate1:o1 -> payoutupdate2:i2;
+    payoutupdate2:o1 -> payoutsettlement2:i1 [color=grey];
+
+    cb3:o1 -> payoutupdate3:i1;
+    payoutupdate2:o1 -> payoutupdate3:i2;
+    payoutupdate3:o1 -> payoutsettlement3:i1 [color=grey];
+}
