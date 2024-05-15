@@ -77,6 +77,7 @@ RSpec.describe Runner.instance do
   describe 'taproot transactions' do
     it_behaves_like 'script evaluation', './lib/contracts/taproot/keypath_spend.rb'
     it_behaves_like 'script evaluation', './lib/contracts/taproot/scriptpath_spend.rb'
+    it_behaves_like 'script evaluation', './lib/contracts/taproot/coinbase_with_taproot.rb'
   end
 
   describe 'silent payment' do

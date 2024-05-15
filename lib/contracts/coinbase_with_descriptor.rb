@@ -26,7 +26,7 @@ assert_height 1
 
 @coinbase_with_descriptor = get_coinbase_at 1
 
-# Make descripto coinbases spendable by spending to p2wkh
+# Make descriptor coinbase spendable by spending to p2wkh
 extend_chain to: @alice, num_blocks: 100
 
 assert_confirmations @coinbase_with_descriptor, confirmations: 100

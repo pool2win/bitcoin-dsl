@@ -19,7 +19,7 @@
 
 # DSL module for broadcasting transactions
 module Broadcast
-  def extend_chain(to: nil, policy: nil, descriptor: nil, script: nil, num_blocks: 1)
+  def extend_chain(to: nil, policy: nil, descriptor: nil, script: nil, taproot: nil, num_blocks: 1)
     _ = get_height # We need to seem to call getheight before generating to address
     if descriptor
       script_pubkey, = compile_descriptor(descriptor)
@@ -29,6 +29,9 @@ module Broadcast
       address = script_pubkey.to_addr
     elsif script
       script_pubkey, = compile_script_pubkey(script)
+      address = script_pubkey.to_addr
+    elsif taproot
+      script_pubkey, = compile_taproot(taproot)
       address = script_pubkey.to_addr
     else
       to ||= key :new
