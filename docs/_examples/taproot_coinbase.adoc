@@ -1,0 +1,17 @@
+= Taproot Coinbase
+:page-layout: page
+:page-title: Taproot Coinbase
+:page-nav_order: 3
+:sourcedir: ../../
+
+To generate a coinbase transaction with a taproot script pubkey, use
+the `taproot` keyword argument and provide the internal key and
+optionally the leaves just as in a normal link:taproot.html[Taproot
+output].
+
+.Taproot coinbase
+[source,ruby]
+----
+include::{sourcedir}/lib/contracts/taproot/coinbase_with_taproot.rb[tags=coinbase]
+----
+<1> Use the taproot keyword with the `internal_key` and `leaves` arguments
