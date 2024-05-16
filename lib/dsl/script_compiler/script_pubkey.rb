@@ -34,7 +34,7 @@ module ScriptCompiler
         obj = instance_eval(element, __FILE__, __LINE__)
         case obj
         when Bitcoin::Key
-          program << (@taproot_context ? xonly_pubkey : obj.pubkey)
+          program << (@taproot_context ? obj.xonly_pubkey : obj.pubkey)
         when Bitcoin::Script
           program.chunks.concat(obj.chunks)
         else
