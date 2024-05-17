@@ -38,8 +38,6 @@ ENV JUPYTER_PORT=8888
 EXPOSE $JUPYTER_PORT
 
 # iruby setup
-RUN git clone -b dsl-binding --depth=1 https://github.com/pool2win/iruby.git
-RUN cd iruby && gem build iruby.gemspec && gem install iruby-0.7.4.gem
 COPY jupyter/kernel.json /root/.local/share/jupyter/kernels/ruby/kernel.json
 # iruby setup end
 
