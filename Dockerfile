@@ -27,7 +27,7 @@ RUN cd miniscript-cli && cargo install --path .
 
 # # Install RVM, Ruby, and Bundler
 COPY Gemfile Gemfile
-RUN gem install bundler && \
+RUN gem install bundler:2.5.5 && \
     bundle install && \
     bundle binstubs --all
 
