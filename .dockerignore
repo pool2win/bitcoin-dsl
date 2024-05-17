@@ -6,3 +6,4 @@ docs
 .ipynb*
 .venv
 notebooks/.Trash*
+miniscript-cli/target

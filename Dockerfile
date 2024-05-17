@@ -1,9 +1,22 @@
 # syntax=docker/dockerfile:1
 
+FROM alpine:latest as pythonbuilder
+RUN apk add gcc python3 python3-dev musl-dev linux-headers
+RUN python -m venv /opt/venv
+# Make sure we use the virtualenv:
+ENV PATH="/opt/venv/bin:$PATH"
+RUN pip install jupyterlab notebook
+
+
+FROM rust:alpine as rustbuilder
+RUN apk --no-cache add build-base gcc
+COPY miniscript-cli miniscript-cli
+RUN cd miniscript-cli && cargo install --path .
+
+
 FROM alpine:latest
 
-RUN apk update && \
-    apk --no-cache add curl ruby ruby-dev python3 bash build-base gcc wget git \
+RUN apk --no-cache add curl ruby ruby-dev python3 bash build-base gcc wget git \
     autoconf automake libtool boost-dev libevent-dev sqlite-dev zeromq-dev linux-headers musl-dev libffi yaml-dev bitcoin python3-dev pipx \
     pandoc
 
@@ -16,34 +29,18 @@ RUN apk update && \
 #     make install
 
 WORKDIR /bitcoin-dsl
+COPY Gemfile lib spec notebooks Rakefile.rb .
 
-# Setup rust and rust-miniscript
-RUN curl https://sh.rustup.rs -sSf | bash -s -- -y
-ENV PATH="/root/.cargo/bin:/root/.local/bin:${PATH}"
-
-# Install miniscript-cli
-COPY miniscript-cli miniscript-cli
-RUN cd miniscript-cli && cargo install --path .
-
-# # Install RVM, Ruby, and Bundler
-COPY Gemfile Gemfile
 RUN gem install bundler:2.5.5 && \
-    bundle install && \
-    bundle binstubs --all
+    bundle install --without=development && \
+    bundle binstubs --all && \
+    rm -rf /usr/local/bundle/cache
 
-# Jupyter notebook setup begin
-RUN pipx install jupyterlab notebook
+COPY --from=rustbuilder /usr/local/cargo/bin/miniscript-cli /usr/local/cargo/bin/miniscript-cli
+COPY --from=pythonbuilder /opt/venv /opt/venv
 
-ENV JUPYTER_PORT=8888
-EXPOSE $JUPYTER_PORT
-
-# iruby setup
 COPY jupyter/kernel.json /root/.local/share/jupyter/kernels/ruby/kernel.json
-# iruby setup end
-
-COPY lib lib
-COPY spec spec
-COPY notebooks notebooks
-COPY Rakefile.rb Rakefile.rb
+ENV JUPYTER_PORT=8888 PATH="/opt/venv/bin:/usr/local/cargo/bin:${PATH}"
+EXPOSE $JUPYTER_PORT
 
 CMD ["jupyter-lab", "--ip", "0.0.0.0", "--no-browser", "--allow-root", "--notebook-dir", "/bitcoin-dsl/notebooks"]
