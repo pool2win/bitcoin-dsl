@@ -16,4 +16,5 @@ gem "rspec", "~> 3.13", :group => :development
 
 gem "solargraph", "~> 0.50.0", :group => :development
 
-gem "iruby", "~> 0.7.4", :group => :development
+gem "irb", "1.12.0"
+gem 'iruby', github: 'pool2win/iruby', branch: 'dsl-binding'
