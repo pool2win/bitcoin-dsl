@@ -44,15 +44,16 @@ jobs:
       # It uses the `tags` and `labels` parameters to tag and label the image with the output from the "meta" step.
       # TODO: platforms: linux/amd64,linux/arm64,darwin/amd64
       - name: Build Docker image
-        uses: docker/setup-qemu-action@v1
-      - uses: docker/setup-buildx-action@v3
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          load: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64,darwin/amd64
+        steps:
+          - uses: docker/setup-qemu-action@v1
+          - uses: docker/setup-buildx-action@v3
+          - uses: docker/build-push-action@v5
+            with:
+              context: .
+              load: true
+              tags: ${{ steps.meta.outputs.tags }}
+              labels: ${{ steps.meta.outputs.labels }}
+              platforms: linux/amd64,linux/arm64,darwin/amd64
           # cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
           # cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
       - name: Run rake spec
