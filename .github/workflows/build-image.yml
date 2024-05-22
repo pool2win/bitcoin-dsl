@@ -47,22 +47,22 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          # load: true
+          load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64,linux/arm64
-          push: true
+          # push: true
           cache-from: type=registry,ref=${{ steps.meta.outputs.tags }}
           cache-to: type=registry,ref=${{ steps.meta.outputs.tags }},mode=max
-      # - name: Run rake spec
-      #   run: docker run ${{ env.DOCKER_METADATA_OUTPUT_TAGS }} /bitcoin-dsl/bin/rake spec
-      # - name: Push Docker image
-      #   uses: docker/build-push-action@v5
-      #   with:
-      #     context: .
-      #     push: true
-      #     tags: ${{ steps.meta.outputs.tags }}
-      #     labels: ${{ steps.meta.outputs.labels }}
-      #     # cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache
-      #     # cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache,mode=max
+      - name: Run rake spec
+        run: docker run ${{ env.DOCKER_METADATA_OUTPUT_TAGS }} /bitcoin-dsl/bin/rake spec
+      - name: Push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=${{ steps.meta.outputs.tags }}
+          cache-to: type=registry,ref=${{ steps.meta.outputs.tags }},mode=max
 
