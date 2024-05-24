@@ -185,21 +185,21 @@ state_transition :alice_redeems_coins_after_timeout do
 end
 # end::alice_redeems_coins_after_timeout[]
 
-# # tag::pay_alice_to_bob[]
-# # Publish pool transaction, paying Alice to Bob
-# run_transitions :setup,
-#                 :create_funding_tx,
-#                 :create_redeem_tx,
-#                 :broadcast_funding_tx,
-#                 :initialise_payment_to_bob,
-#                 :build_alice_forfeit_tx,
-#                 :publish_pool_tx, # <1>
-#                 :bob_redeems_coins
-# # end::pay_alice_to_bob[]
+# tag::pay_alice_to_bob[]
+# Publish pool transaction, paying Alice to Bob
+run_transitions :setup,
+                :create_funding_tx,
+                :create_redeem_tx,
+                :broadcast_funding_tx,
+                :initialise_payment_to_bob,
+                :build_alice_forfeit_tx,
+                :publish_pool_tx, # <1>
+                :bob_redeems_coins
+# end::pay_alice_to_bob[]
 
-# # tag::reset[]
-# node :reset
-# # end::reset[]
+# tag::reset[]
+node :reset
+# end::reset[]
 
 # tag::cancelled_payment[]
 # Cancel the payment because ASP is not responsive
