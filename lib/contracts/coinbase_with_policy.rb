@@ -36,7 +36,7 @@ assert_confirmations @coinbase_with_policy, confirmations: 101
 @spend_coinbase = transaction inputs: [
                                 { tx: @coinbase_with_policy,
                                   vout: 0,
-                                  script_sig: 'sig:@bob sig:@alice' }
+                                  script_sig: '"" sig:@alice sig:@bob' }
                               ],
                               outputs: [
                                 {
