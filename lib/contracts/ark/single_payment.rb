@@ -64,7 +64,7 @@ state_transition :create_redeem_tx do
                            ],
                            outputs: [
                              {
-                               policy: 'or(99@thresh(2,pk(@alice),pk(@asp)),'\
+                               policy: 'or(thresh(2,pk(@alice),pk(@asp)),'\
                                        'and(older(@timeout_period),pk(@alice_timelock)))', # <2>
                                amount: 49.998.sats
                              }
@@ -89,7 +89,7 @@ end
 # ASP now sends the redeem transaction to Alice
 
 # tag::initialise_payment_to_bob[]
-# Alices sends a signed request to ASP for initiating a payment to Bob
+# Alice sends a signed request to ASP for initiating a payment to Bob
 # ASP creates a Redeem transaction for Bob
 state_transition :initialise_payment_to_bob do
   @pool_tx = transaction inputs: [
@@ -152,7 +152,7 @@ state_transition :bob_redeems_coins do
   # Bob adds his signature to redeem tx
   update_script_sig for_tx: @redeem_tx_for_bob,
                     at_index: 0,
-                    with_script_sig: 'sig:@asp sig:@bob ""' # <1>
+                    with_script_sig: '"" sig:@bob sig:@asp' # <1>
   # Bob can redeem his coins
   assert_mempool_accept @redeem_tx_for_bob
   # Alice can no longer redeem her coins
@@ -165,14 +165,14 @@ state_transition :alice_redeems_coins_after_timeout do
   add_csv_to_transaction @redeem_tx, index: 0, csv: @timeout_period
   update_script_sig for_tx: @redeem_tx,
                     at_index: 0,
-                    with_script_sig: 'sig:@asp sig:@alice ""' # <1>
+                    with_script_sig: '"" sig:@alice sig:@asp' # <1>
 
   broadcast @redeem_tx
   confirm transaction: @redeem_tx
 
   @spend_alice_coins = transaction inputs: [
                                      { tx: @redeem_tx, vout: 0,
-                                       script_sig: 'sig:@alice_timelock @alice_timelock 0x01', # <2>
+                                       script_sig: 'sig:@alice_timelock', # <2>
                                        csv: @timeout_period }
                                    ],
                                    outputs: [

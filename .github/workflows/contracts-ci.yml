@@ -6,6 +6,7 @@ on:
   workflow_dispatch:
 jobs:
   run-docker-image-ci:
+    name: Run tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
