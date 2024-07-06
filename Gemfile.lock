@@ -96,6 +96,8 @@ GEM
     murmurhash3 (0.1.7)
     mutex_m (0.2.0)
     native-package-installer (1.1.9)
+    nokogiri (1.16.5-aarch64-linux)
+      racc (~> 1.4)
     nokogiri (1.16.5-x86_64-linux)
       racc (~> 1.4)
     parallel (1.24.0)
@@ -174,6 +176,7 @@ GEM
     yard (0.9.36)
 
 PLATFORMS
+  aarch64-linux
   x86_64-linux
 
 DEPENDENCIES
