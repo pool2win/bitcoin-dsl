@@ -30,7 +30,7 @@ RUN apk --no-cache add curl ruby ruby-dev python3 bash build-base gcc wget git \
 #     make install
 
 WORKDIR /bitcoin-dsl
-COPY Gemfile Rakefile.rb .
+COPY Gemfile Gemfile.lock Rakefile.rb .
 
 RUN gem install bundler:2.5.5 && \
     bundle install --without=development && \
