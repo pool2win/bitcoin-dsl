@@ -15,15 +15,15 @@ dockerize:
 
 # Run a script using local docker image
 run script:
-	docker compose run {{image_name}} bundle exec ruby ./lib/run.rb -s {{script}}
+	docker compose run --rm {{image_name}} bundle exec ruby ./lib/run.rb -s {{script}}
 
 # Run the test suite
 test:
-	docker compose run {{image_name}} bin/rake spec
+	docker compose run --rm {{image_name}} bin/rake spec
 
 # Get a bash shell on local docker image
 bash:
-	docker compose run {{image_name}} bash
+	docker compose run --rm {{image_name}} bash
 
 # Start jupyterlab
 lab:
