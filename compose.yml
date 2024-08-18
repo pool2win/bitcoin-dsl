@@ -1,3 +1,5 @@
+name: bitcoin-dsl
+
 x-common:
   &common
   ports:
