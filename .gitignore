@@ -7,3 +7,4 @@ miniscript-cli/target
 .ipynb_checkpoints
 README.html
 .env
+*~

@@ -25,7 +25,7 @@ extend_chain policy: 'thresh(2,pk(@alice),pk(@bob))'
 
 assert_height 1
 
-@coinbase_with_policy = get_coinbase_at 1
+@coinbase_with_policy = coinbase_at_tip
 
 # Make policy coinbase spendable by spending to p2wkh
 extend_chain to: @alice, num_blocks: 100

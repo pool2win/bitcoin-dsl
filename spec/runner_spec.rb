@@ -66,8 +66,10 @@ RSpec.describe Runner.instance do
     it_behaves_like 'script evaluation', './lib/contracts/lightning/close_unilaterally_without_htlcs.rb'
 
     it_behaves_like 'script evaluation', './lib/contracts/lightning/add_htlc.rb'
-    it_behaves_like 'script evaluation', './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_revocation_key.rb'
-    it_behaves_like 'script evaluation', './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_preimage.rb'
+    it_behaves_like 'script evaluation',
+                    './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_revocation_key.rb'
+    it_behaves_like 'script evaluation',
+                    './lib/contracts/lightning/local_close_unilaterally__remote_sweeps_pending_htlc_using_preimage.rb'
   end
 
   describe 'reorg chain' do
@@ -83,5 +85,9 @@ RSpec.describe Runner.instance do
 
   describe 'silent payment' do
     it_behaves_like 'script evaluation', './lib/contracts/silent_payments.rb'
+  end
+
+  describe 'hub channels' do
+    it_behaves_like 'script evaluation', './lib/contracts/miner-payout-mechanisms/hub_channels.rb'
   end
 end

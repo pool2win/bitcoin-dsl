@@ -57,6 +57,10 @@ module QueryNode
 
   alias coinbase_at get_coinbase_at
 
+  def coinbase_at_tip
+    get_coinbase_at get_height
+  end
+
   # Return a spendable coinbase for a key
   # If a key is provided, we use the p2wpkh address for the key
   # Later on we will add options to query by a given address
