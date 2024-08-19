@@ -30,7 +30,7 @@
 
 @local_delay = 1008
 
-@hub_preimage = 'hub preimage'
+@hub_preimage = 'beef' * 16
 @hub_x = hash160(@hub_preimage)
 
 transition :hub_setup do
@@ -50,8 +50,13 @@ transition :hub_setup do
   confirm transaction: @hub_split_tx
 end
 
-transition :block_found_by_miner1 do
-  extend_chain policy: 'or(thresh(2,pk(@hub),pk(@miner1)),and(pk(@hub_alt),hash160(@hub_x)))'
+transition :miner1_finds_block do
+  extend_chain policy: 'or(99@thresh(2,pk(@hub),pk(@miner1)),and(pk(@hub_alt),hash160(@hub_x)))'
+  @pool_coinbase = coinbase_at_tip
+end
+
+transition :make_coinbase_spendable do
+  extend_chain num_blocks: 100
 end
 
 transition :create_funding_txs do
@@ -80,7 +85,7 @@ transition :create_miner1_commitment_txs do
                                              { script: %(OP_IF @miner1_revocation_key_for_hub
                                                OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @hub
                                                OP_ENDIF OP_CHECKSIG),
-                                               amount: 23.997.sats },
+                                               amount: 23.996.sats },
                                              { descriptor: 'wpkh(@miner1)',
                                                amount: 1.0.sats }
                                            ]
@@ -92,7 +97,7 @@ transition :create_miner1_commitment_txs do
                                            ],
                                            outputs: [
                                              { descriptor: 'wpkh(@hub)',
-                                               amount: 23.997.sats },
+                                               amount: 23.996.sats },
                                              { script: %(OP_IF @hub_revocation_key_for_miner1
                                                OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @miner1
                                                OP_ENDIF OP_CHECKSIG),
@@ -105,12 +110,60 @@ transition :confirm_miner1_channel do
   confirm transaction: @miner1_channel_tx
 end
 
+transition :cooperative_spend_pool_coinbase do
+  # Ideally, we also show a new commitment is created before the coop
+  # spend to pool. We leave it out for now for brevity.
+  @coop_spend_to_hub = transaction inputs: [
+                                     { tx: @pool_coinbase, vout: 0, script_sig: 'sig:multi(@hub,@miner1)' }
+                                   ],
+                                   outputs: [
+                                     { descriptor: 'wpkh(@hub)', amount: 49.998.sats }
+                                   ]
+
+  broadcast @coop_spend_to_hub
+  confirm transaction: @coop_spend_to_hub
+
+  # Miner broadcasts commitment to close channel and can claim coins after timeout.
+  update_script_sig for_tx: @hub_commitment_for_miner1, at_index: 0, with_script_sig: 'sig:multi(@hub,@miner1)'
+  broadcast @hub_commitment_for_miner1
+  confirm transaction: @hub_commitment_for_miner1
+end
+
+transition :hub_spends_revealing_preimage do
+  @non_coop_spend_by_hub = transaction inputs: [
+                                         { tx: @pool_coinbase, vout: 0, script_sig: 'sig:multi(@hub,@miner1)' }
+                                       ],
+                                       outputs: [
+                                         { descriptor: 'wpkh(@hub)', amount: 49.998.sats }
+                                       ]
+
+  broadcast @non_coop_spend_by_hub
+  confirm transaction: @non_coop_spend_by_hub
+end
+
+# The Belcher specification requires that as a block is found, the hub
+# updates the miner1 channel with new commitments and then the miner1
+# can sign the coinbase to release the rewards for the hub.
+#
+# We don't show the hub - miner interaction here, but simply show how
+# the coinbase is spent and then now the miner can claim coins.
+#
+# To see how the DSL help with revoking commitments, see the scripts
+# under contracts/lightning directory.
+
 run_transitions :hub_setup,
-                :block_found_by_miner1,
                 :create_funding_txs,
                 :create_miner1_commitment_txs,
-                :confirm_miner1_channel
+                :confirm_miner1_channel,
+                :miner1_finds_block,
+                :make_coinbase_spendable,
+                :cooperative_spend_pool_coinbase
 
-# See close transitions in contracts/lightning directory to see how
-# the commitment transaction can cooperatively or unilaterally close,
-# and how older commitment transactions can be punished
+# run_transitions :reset,
+#                 :hub_setup,
+#                 :create_funding_txs,
+#                 :create_miner1_commitment_txs,
+#                 :confirm_miner1_channel,
+#                 :miner1_finds_block,
+#                 :make_coinbase_spendable,
+#                 :hub_spends_revealing_preimage
