@@ -40,6 +40,7 @@ module ScriptCompiler
 
       result = JSON.parse(output)
       witness_script = Bitcoin::Script.parse_from_payload(result['witness_script'].htb)
+      logger.info "Provided miniscript #{script}, compiled to following: \n #{witness_script}"
       # return the Wsh wrapped descriptor and the witness script
       store_witness(result['address'], witness_script)
       [Bitcoin::Script.parse_from_addr(result['address']), witness_script]
