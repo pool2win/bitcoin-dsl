@@ -23,12 +23,7 @@
 @hub_out2 = key :new
 
 @miner1 = key :new
-@miner1_revocation_key_for_hub = key :new
-@hub_revocation_key_for_miner1 = key :new
-
 @miner2 = key :new
-
-@local_delay = 1008
 
 @hub_preimage = 'beef' * 16
 @hub_x = hash160(@hub_preimage)
@@ -75,34 +70,53 @@ transition :create_funding_txs do
                                    ]
 end
 
-transition :create_miner1_commitment_txs do
-  @miner1_commitment_for_hub = transaction inputs: [
-                                             { tx: @miner1_channel_tx,
-                                               vout: 0,
-                                               script_sig: 'sig:multi(_empty,@miner1)' }
-                                           ],
-                                           outputs: [
-                                             { script: %(OP_IF @miner1_revocation_key_for_hub
-                                               OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @hub
-                                               OP_ENDIF OP_CHECKSIG),
-                                               amount: 23.996.sats },
-                                             { descriptor: 'wpkh(@miner1)',
-                                               amount: 1.0.sats }
-                                           ]
+transition :create_miner1_commitment_tx do
+  # Partially signed by hub and sent to miner1
+  @commitment_for_miner1 = transaction inputs: [
+                                         { tx: @miner1_channel_tx,
+                                           vout: 0,
+                                           script_sig: 'sig:multi(@hub,_empty)' }
+                                       ],
+                                       outputs: [
+                                         { descriptor: 'wpkh(@hub)',
+                                           amount: 23.996.sats },
+                                         { policy: 'and(hash160(@hub_x),pk(@miner1))',
+                                           amount: 1.0.sats }
+                                       ]
+end
 
-  @hub_commitment_for_miner1 = transaction inputs: [
-                                             { tx: @miner1_channel_tx,
-                                               vout: 0,
-                                               script_sig: 'sig:multi(@hub,_empty)' }
-                                           ],
-                                           outputs: [
-                                             { descriptor: 'wpkh(@hub)',
-                                               amount: 23.996.sats },
-                                             { script: %(OP_IF @hub_revocation_key_for_miner1
-                                               OP_ELSE @local_delay OP_CHECKSEQUENCEVERIFY OP_DROP @miner1
-                                               OP_ENDIF OP_CHECKSIG),
-                                               amount: 1.0.sats }
-                                           ]
+# This payout commitment is signed by hub and sent to miner, so the
+# miner has control over their coins. As pool finds more blocks, the
+# new payout commitments will have a higher balance, so the miner has
+# no incentive to broadcast an older commitment. Therefore, we don't
+# need a revocation for these commitments.
+transition :create_miner1_payout_commitment do
+  @payout_miner1 = transaction inputs: [
+                                 { tx: @miner1_channel_tx,
+                                   vout: 0,
+                                   script_sig: 'sig:multi(@hub,_empty)' }
+                               ],
+                               outputs: [
+                                 { descriptor: 'wpkh(@hub)',
+                                   amount: 22.996.sats },
+                                 { descriptor: 'wpkh(@miner1)',
+                                   amount: 2.0.sats }
+                               ]
+end
+
+transition :create_miner1_second_commitment_tx do
+  # Partially signed by hub and sent to miner1
+  @second_commitment_for_miner1 = transaction inputs: [
+                                                { tx: @miner1_channel_tx,
+                                                  vout: 0,
+                                                  script_sig: 'sig:multi(@hub,_empty)' }
+                                              ],
+                                              outputs: [
+                                                { descriptor: 'wpkh(@hub)',
+                                                  amount: 21.996.sats },
+                                                { policy: 'and(hash160(@hub_x),pk(@miner1))',
+                                                  amount: 3.0.sats }
+                                              ]
 end
 
 transition :confirm_miner1_channel do
@@ -124,21 +138,44 @@ transition :cooperative_spend_pool_coinbase do
   confirm transaction: @coop_spend_to_hub
 
   # Miner broadcasts commitment to close channel and can claim coins after timeout.
-  update_script_sig for_tx: @hub_commitment_for_miner1, at_index: 0, with_script_sig: 'sig:multi(@hub,@miner1)'
-  broadcast @hub_commitment_for_miner1
-  confirm transaction: @hub_commitment_for_miner1
+  update_script_sig for_tx: @payout_miner1, at_index: 0, with_script_sig: 'sig:multi(@hub,@miner1)'
+  broadcast @payout_miner1
+  confirm transaction: @payout_miner1
 end
 
 transition :hub_spends_revealing_preimage do
   @non_coop_spend_by_hub = transaction inputs: [
-                                         { tx: @pool_coinbase, vout: 0, script_sig: 'sig:multi(@hub,@miner1)' }
+                                         { tx: @pool_coinbase,
+                                           vout: 0,
+                                           script_sig: "@hub_preimage sig:wpkh(@hub_alt) '' '' ''" }
                                        ],
                                        outputs: [
                                          { descriptor: 'wpkh(@hub)', amount: 49.998.sats }
                                        ]
-
   broadcast @non_coop_spend_by_hub
   confirm transaction: @non_coop_spend_by_hub
+
+  # # Miner can claim the @payout_miner1 commitment, but the amount in
+  # # the new commitment is higher, so the miner claims that instead.
+  # #
+  # # Miner now knows the preimage and therefore can claim their coins as well
+
+  # First broadcast commitment
+  update_script_sig for_tx: @second_commitment_for_miner1, at_index: 0, with_script_sig: 'sig:multi(@hub,@miner1)'
+  broadcast @second_commitment_for_miner1
+  confirm transaction: @second_commitment_for_miner1
+
+  # Then spend the commitment output
+  @miner_claim_coins = transaction inputs: [
+                                     { tx: @second_commitment_for_miner1,
+                                       vout: 1,
+                                       script_sig: '@hub_preimage sig:@miner1' }
+                                   ],
+                                   outputs: [
+                                     { descriptor: 'wpkh(@miner1)', amount: 2.999.sats }
+                                   ]
+  broadcast @miner_claim_coins
+  confirm transaction: @miner_claim_coins
 end
 
 # The Belcher specification requires that as a block is found, the hub
@@ -151,19 +188,22 @@ end
 # To see how the DSL help with revoking commitments, see the scripts
 # under contracts/lightning directory.
 
-run_transitions :hub_setup,
-                :create_funding_txs,
-                :create_miner1_commitment_txs,
-                :confirm_miner1_channel,
-                :miner1_finds_block,
-                :make_coinbase_spendable,
-                :cooperative_spend_pool_coinbase
-
-# run_transitions :reset,
-#                 :hub_setup,
+# run_transitions :hub_setup,
 #                 :create_funding_txs,
-#                 :create_miner1_commitment_txs,
+#                 :create_miner1_commitment_tx,
 #                 :confirm_miner1_channel,
 #                 :miner1_finds_block,
 #                 :make_coinbase_spendable,
-#                 :hub_spends_revealing_preimage
+#                 :create_miner1_payout_commitment,
+#                 :cooperative_spend_pool_coinbase
+
+run_transitions :reset,
+                :hub_setup,
+                :create_funding_txs,
+                :create_miner1_commitment_tx,
+                :confirm_miner1_channel,
+                :miner1_finds_block,
+                :make_coinbase_spendable,
+                :create_miner1_payout_commitment,
+                :create_miner1_second_commitment_tx,
+                :hub_spends_revealing_preimage
