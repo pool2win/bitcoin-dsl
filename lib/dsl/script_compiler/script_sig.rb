@@ -40,7 +40,8 @@ module ScriptCompiler
     def parse_string_script_sig(transaction, input, index, script_sig, opts: {})
       get_components(script_sig).each do |component|
         if component[:type] == :opcode
-          stack << Bitcoin::Script.from_string(component[:expression]).to_payload
+          transaction.inputs[index].script_witness.stack <<
+            Bitcoin::Script.from_string(component[:expression]).to_payload
         else
           send("handle_#{component[:type]}", transaction, input, index, component[:expression], opts)
         end
