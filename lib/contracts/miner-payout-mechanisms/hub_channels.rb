@@ -188,14 +188,14 @@ end
 # To see how the DSL help with revoking commitments, see the scripts
 # under contracts/lightning directory.
 
-# run_transitions :hub_setup,
-#                 :create_funding_txs,
-#                 :create_miner1_commitment_tx,
-#                 :confirm_miner1_channel,
-#                 :miner1_finds_block,
-#                 :make_coinbase_spendable,
-#                 :create_miner1_payout_commitment,
-#                 :cooperative_spend_pool_coinbase
+run_transitions :hub_setup,
+                :create_funding_txs,
+                :create_miner1_commitment_tx,
+                :confirm_miner1_channel,
+                :miner1_finds_block,
+                :make_coinbase_spendable,
+                :create_miner1_payout_commitment,
+                :cooperative_spend_pool_coinbase
 
 run_transitions :reset,
                 :hub_setup,
