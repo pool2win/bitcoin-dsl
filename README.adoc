@@ -2,6 +2,11 @@
 
 image:https://github.com/pool2win/bitcoin-dsl/actions/workflows/contracts-ci.yml/badge.svg[![CI Badge]
 
+
+== Documentation
+
+See link:https://opdup.com/bitcoin-dsl/index.html[detailed documentation].
+
 == Bitcoin DSL - Mission
 
 Make is easy to experiment with bitcoin contracts.
@@ -23,6 +28,8 @@ and your life will be easier.
 just pull
 ----
 
+On ARM machines, you will need to build the image. See <<dockerize>>.
+
 .Run a script from terminal
 [source,bash]
 ----
@@ -39,7 +46,7 @@ just run ./lib/contracts/ark/single_payment.rb
 just lab
 ----
 
-=== Build Docker Image Locally
+=== Build Docker Image Locally [[dockerize]]
 
 If you want to buid a docker image locally you can use the just
 recipes provided. We build bitcoind from source, so it'll take some
