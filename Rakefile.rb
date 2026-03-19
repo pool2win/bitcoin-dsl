@@ -1,4 +1,4 @@
-# Copyright 2024 Kulpreet Singh
+# Copyright2024-2026 Kulpreet Singh
 #
 # This file is part of Bitcoin-DSL
 #
