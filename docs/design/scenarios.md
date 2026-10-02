@@ -125,8 +125,8 @@ Goal: find which sighash flags let Carol add a fee input to Alice's signed payme
   #:outputs ([to-bob (wpkh bob) (btc 49.99)]))
 
 (commits (sig-of pay 0))
-; => (version locktime (input 0 outpoint sequence)
-;     (prevout 0 amount spk) (outputs all))
+; => (version (own-input outpoint) (own-prevout script) (own-prevout amount)
+;     (own-input sequence) (outputs all) locktime)
 
 (free-fields pay)
 ; => ((inputs append) (inputs remove-others))
@@ -134,7 +134,7 @@ Goal: find which sighash flags let Carol add a fee input to Alice's signed payme
 (define bumped (add-input pay fee-coin #:sign carol))
 (try bumped)                         ; => (accepted ...)
 (mutate pay '(output to-bob amount) (btc 49.0))
-; => (breaks ((sig alice 0 #:field (outputs all))))
+; => (breaks ((sig alice 0 #:fields ((outputs all)))))
 
 (sighash-search pay
   #:goal  (can (add-input))
@@ -144,6 +144,8 @@ Goal: find which sighash flags let Carol add a fee input to Alice's signed payme
 ```
 
 The agent learns what each signature commits to and can search for the weakest commitment that still meets a goal. The selector differs per spend version (legacy, BIP143, BIP341), so `#:over` compares them directly.
+
+Field names are relative to the signing input (`own-input`, `own-prevout`, `own-output`) because the digest binds the input's outpoint, not its position: under ANYONECANPAY the input can move. `mutate` and `free-fields` do not reason about flags; they edit the tx and recompute each signature's commitment with the selector verification uses, so they cannot disagree with it. `free-fields` checks a fixed catalogue of edits: `(inputs append)`, `(inputs remove-others)`, `(outputs append)`, each output's amount and lock, each input's sequence, `version` and `locktime`.
 
 Forces: `#:sighash`, `sig-of`, `commits`, `free-fields`, `mutate`, `add-input`, `sighash-search`, per-version sighash selectors in the consensus value, taproot key and script spends.
 

@@ -222,27 +222,38 @@
         [else #f]))
 
 ;; Sighash selectors
+;;
+;; A selector maps (tx, input index, spent coins, sighash type) to the
+;; commitment: an alist from field name to value, in digest order. Field
+;; names are relative to the signing input (own-input, own-output) because
+;; that is what the digest binds, not the input's position.
 
-(define (unsupported-sighash version type)
-  (raise-arguments-error 'sighash "sighash type not supported yet for this spend version"
-                         "version" version "type" type))
-
-;; BIP143 with SIGHASH_ALL: what a segwit v0 signature commits to.
+;; BIP143: what a segwit v0 signature commits to. SINGLE with no output at
+;; the input's index commits to no outputs (unlike legacy's "sign 1").
 (define (bip143-fields t idx spent-coins type)
-  (unless (equal? type '(all)) (unsupported-sighash 'v0 type))
-  (define in (list-ref (tx-inputs t) idx))
+  (define base (car type))
+  (define acp? (memq 'anyonecanpay type))
+  (define ins (tx-inputs t))
+  (define outs (tx-outputs t))
+  (define in (list-ref ins idx))
   (define spent (list-ref spent-coins idx))
-  (list (cons 'version (tx-version t))
-        (cons 'prevouts (map txin-outpoint (tx-inputs t)))
-        (cons 'sequences (map txin-sequence (tx-inputs t)))
-        (cons 'outpoint (txin-outpoint in))
-        (cons 'script-code (lock-script-code (coin-lock spent)))
-        (cons 'amount (coin-amount spent))
-        (cons 'sequence (txin-sequence in))
-        (cons 'outputs (for/list ([o (in-list (tx-outputs t))])
-                         (list (txout-amount o) (lock->spk (txout-lock o)))))
-        (cons 'locktime (tx-locktime t))
-        (cons 'sighash-type type)))
+  (define (output-value o) (list (txout-amount o) (lock->spk (txout-lock o))))
+  (append
+   (list (cons 'version (tx-version t)))
+   (if acp? '() (list (cons '(inputs outpoints) (map txin-outpoint ins))))
+   (if (or acp? (not (eq? base 'all))) '() (list (cons '(inputs sequences) (map txin-sequence ins))))
+   (list (cons '(own-input outpoint) (txin-outpoint in))
+         (cons '(own-prevout script) (lock-script-code (coin-lock spent)))
+         (cons '(own-prevout amount) (coin-amount spent))
+         (cons '(own-input sequence) (txin-sequence in)))
+   (case base
+     [(all) (list (cons '(outputs all) (map output-value outs)))]
+     [(single) (if (< idx (length outs))
+                   (list (cons '(own-output) (output-value (list-ref outs idx))))
+                   '())]
+     [(none) '()])
+   (list (cons 'locktime (tx-locktime t))
+         (cons 'sighash-type type))))
 
 ;; Witness verification
 

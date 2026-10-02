@@ -45,14 +45,18 @@ A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) 
 - Step 1 (done): core values, consensus as a value with named rules and trace hooks. Scenario 1 runs (`tests/scenario-1.rkt`).
 - Step 2 (done): policy language compiled to P2WSH, `branches`, `#:path`, `#:reveal`, CSV/CLTV/BIP68/nLockTime rules, `explain`, `snapshot`/`restore`. Scenario 2 runs (`tests/scenario-2.rkt`).
 
+- Step 3 (BIP143 part done): all six BIP143 sighash flag combinations, `sig-of`, `commits`, `free-fields`, `mutate`, `edit`, `add-input`. Scenario 3 runs up to `sighash-search` (`tests/scenario-3.rkt`); `tests/sighash.rkt` checks that `free-fields` agrees with verification for every flag combination. Taproot (`tr-key`, `tr-script`, BIP341 selector) is not built yet.
+
 Choices made along the way:
 - `snapshot`/`restore` rewind chains and the scenario log; traces are kept so trace ids stay valid. After a restore the log is the history of the current branch.
 - A branch's witness template gets an empty item for any signature or preimage not supplied, so an incomplete spend is an explained rejection rather than a build error.
 - `thresh` supports only `pk` subs so far; time-based relative and absolute locks are marked unsupported.
+- A commitment is an alist from field name to value; names are relative to the signing input. `mutate`/`free-fields` re-run the selector on the edited tx rather than reasoning about flags.
+- `(inputs remove-others)` is free only if every signed input survives alone and the input set is not committed, so a one-input SIGHASH_ALL tx does not pass vacuously.
 
 ## Next step
 
-Build order step 3 from `scenarios.md`: per-version sighash selectors and the sighash queries. Done when Scenario 3 runs.
+Finish step 3: taproot key and script spends with a BIP341 selector, so the sighash queries cover `wpkh`, `tr-key` and `tr-script`. `sighash-search` itself is v1.
 
 ## Things to fill in
 

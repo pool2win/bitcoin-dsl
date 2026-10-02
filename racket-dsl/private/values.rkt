@@ -193,4 +193,4 @@
                #:path [path #f]
                #:reveal [reveal #f])
   (unless (coin? c) (raise-argument-error 'input "coin?" c))
-  (input-spec c (->list keys) type sequence path (->list reveal)))
+  (input-spec c (->list keys) (sighash-flags type) sequence path (->list reveal)))

@@ -9,7 +9,8 @@
          "private/values.rkt"
          "private/result.rkt"
          "private/consensus.rkt"
-         "private/session.rkt")
+         "private/session.rkt"
+         "private/inspect.rkt")
 
 (provide (all-from-out racket)
          ;; definition forms
@@ -38,6 +39,7 @@
          ;; session
          mine
          spend
+         add-input
          try
          broadcast
          confirm
@@ -50,6 +52,14 @@
          trace-events
          snapshot
          restore
+         ;; sighash queries
+         sig-of
+         commits
+         free-fields
+         mutate
+         edit
+         intact?
+         breaks-entries
          scenario-log
          reset-session!
          ;; results

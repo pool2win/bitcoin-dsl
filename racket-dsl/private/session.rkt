@@ -24,6 +24,8 @@
          reset-session!
          mine
          build-tx
+         add-input
+         chain-consensus
          spend
          try
          broadcast
@@ -60,6 +62,8 @@
 (define (get-chain name)
   (hash-ref (world-chains (current-world)) name
             (λ () (raise-arguments-error 'chain "no such chain" "name" name))))
+
+(define (chain-consensus name) (chain-state-consensus (get-chain name)))
 
 (define (put-chain! cs)
   (update-world! (λ (w) (struct-copy world w [chains (hash-set (world-chains w) (chain-state-name cs) cs)]))))
@@ -190,37 +194,67 @@
 (define (build-tx name inputs outputs #:version [version 2] #:locktime [locktime #f])
   ;;* All inputs spend coins on one chain, and the tx lives on that chain.
   (when (null? inputs) (raise-arguments-error 'build-tx "a transaction needs at least one input" "name" name))
-  (define spent (map input-spec-coin inputs))
-  (define chain (coin-chain (first spent)))
-  (unless (andmap (λ (c) (eq? (coin-chain c) chain)) spent)
-    (raise-arguments-error 'build-tx "inputs spend coins on different chains" "coins" spent))
-  (define c (chain-state-consensus (get-chain chain)))
+  (define chain (coin-chain (input-spec-coin (first inputs))))
+  (check-same-chain 'build-tx chain (map input-spec-coin inputs))
+  (define c (chain-consensus chain))
   ;;* Each input's branch sets its nSequence, and the largest absolute lock sets nLockTime, unless given explicitly.
-  (define paths (for/list ([spec (in-list inputs)])
-                  (lock-branch (coin-lock (input-spec-coin spec)) (input-spec-path spec))))
+  (define paths (map spec-branch inputs))
   (define unsigned
     (make-tx chain name version
              (or locktime (apply max 0 (filter values (map branch-locktime paths))))
              (for/list ([spec (in-list inputs)] [b (in-list paths)])
-               (txin (input-spec-coin spec)
-                     (or (input-spec-sequence spec)
-                         (branch-sequence b)
-                         (if (branch-locktime b) #xfffffffe #xffffffff))
-                     '()))
+               (txin (input-spec-coin spec) (spec-sequence spec b) '()))
              outputs))
-  ;;* Fill each branch's witness template: signatures from the signing keys, revealed preimages, and an empty item for anything not supplied.
+  ;;* Sign every input against the complete unsigned tx.
   (define signed
-    (for/list ([spec (in-list inputs)] [b (in-list paths)] [in (in-list (tx-inputs unsigned))] [idx (in-naturals)])
-      (define l (coin-lock (input-spec-coin spec)))
-      (define fields
-        (delay ((hash-ref (consensus-sighash c) (lock-spend-version l)) unsigned idx spent (input-spec-sighash spec))))
-      (define (fill item)
-        (match item
-          [(need-sig k) (if (member k (input-spec-keys spec)) (sig k (input-spec-sighash spec) (force fields)) #"")]
-          [(need-preimage s) (if (member s (input-spec-reveal spec)) s #"")]
-          [_ item]))
-      (struct-copy txin in [witness (append (map fill (branch-witness b)) (lock-witness-tail l))])))
+    (for/list ([spec (in-list inputs)] [b (in-list paths)] [idx (in-naturals)])
+      (sign-input c unsigned idx spec b)))
   (make-tx chain name version (tx-locktime unsigned) signed outputs))
+
+;; Appends an input to an existing tx and signs only that input; the other
+;; inputs keep their witnesses, which stay valid only if their sighash
+;; types leave the input list free (anyonecanpay).
+(define (add-input t c
+                   #:sign [keys #f]
+                   #:path [path #f]
+                   #:reveal [reveal #f]
+                   #:sighash [type '(all)]
+                   #:sequence [sequence #f])
+  (check-same-chain 'add-input (tx-chain t) (list c))
+  (define spec (input c #:sign keys #:path path #:reveal reveal #:sighash type #:sequence sequence))
+  (define b (spec-branch spec))
+  (define (with-inputs ins) (make-tx (tx-chain t) #f (tx-version t) (tx-locktime t) ins (tx-outputs t)))
+  (define unsigned (with-inputs (append (tx-inputs t) (list (txin c (spec-sequence spec b) '())))))
+  (define idx (length (tx-inputs t)))
+  (with-inputs (append (tx-inputs t) (list (sign-input (chain-consensus (tx-chain t)) unsigned idx spec b)))))
+
+(define (check-same-chain who chain coins)
+  (unless (andmap (λ (c) (eq? (coin-chain c) chain)) coins)
+    (raise-arguments-error who "coins are on different chains" "chain" chain "coins" coins)))
+
+(define (spec-branch spec) (lock-branch (coin-lock (input-spec-coin spec)) (input-spec-path spec)))
+
+(define (spec-sequence spec b)
+  (or (input-spec-sequence spec)
+      (branch-sequence b)
+      (if (branch-locktime b) #xfffffffe #xffffffff)))
+
+;; Fills the branch's witness template for input idx of t: signatures from
+;; the signing keys, revealed preimages, and an empty item for anything not
+;; supplied, so an incomplete spend is an explained rejection.
+(define (sign-input c t idx spec b)
+  (define l (coin-lock (input-spec-coin spec)))
+  (define type (input-spec-sighash spec))
+  (define fields
+    (delay ((hash-ref (consensus-sighash c) (lock-spend-version l))
+            t idx (map txin-coin (tx-inputs t)) type)))
+  (define (fill item)
+    (match item
+      [(need-sig k) (if (member k (input-spec-keys spec)) (sig k type (force fields)) #"")]
+      [(need-preimage s) (if (member s (input-spec-reveal spec)) s #"")]
+      [_ item]))
+  (struct-copy txin (list-ref (tx-inputs t) idx)
+               [witness (append (map fill (branch-witness b)) (lock-witness-tail l))]))
 
 ;; what is a coin or a list of inputs/coins.
 (define (spend what
