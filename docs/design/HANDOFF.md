@@ -52,6 +52,8 @@ A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) 
 - Step 5 (server built; first agent run done): an agent given only prose goals completed Scenarios 1-3 and a replay (21 confirmed, 0 disagree) in 51 tool calls, using only the MCP tools. Its friction led to: abbreviated long lists in eval replies, `height`, subsidy/halving/maturity and `older` counting in describe, a worked `example` topic and tips, docs for script-level rules (`eval-false` etc.) with explain naming them via `#:as`, an anonymous-miner key no user key can collide with, and `add-input` naming its tx `<name>+input`. A second agent run took 32 tool calls (16 describe) with one error and a clean replay (18 confirmed). Its friction led to: eval reporting which form of a batch failed, form usages in the describe overview, a `sighash` describe topic, `#:fields` on commitment-mismatch rejections, and doc fixes for spend, define-tx and edit. Step 5 is done.
 - Step 5 details: `racket -l bitcoin/mcp` is an MCP server over stdio holding one persistent `bitcoin/conform` session, with tools `describe`, `eval`, `snapshot`, `restore`, `explain`. `(describe)` is also a DSL function backed by a docs registry (`private/describe.rkt`). `tests/mcp.rkt` runs the Scenario 1-3 files through `eval`, plus snapshot/restore, explain, errors, replay and a stdio round trip. Register with `claude mcp add bitcoin-dsl -- racket -l bitcoin/mcp` to let an agent drive it.
 
+- Taproot lowering (done): BIP340 Schnorr (zero aux, deterministic), TapTweak, real tapleaf/tapbranch hashes, control blocks, and the BIP341 digest rebuilt from committed fields. `tests/replay-taproot.rkt` replays all of `tests/taproot.rkt` against Core with zero disagreements: key and script paths, every flag by edit, strict tapscript CHECKSIG, a forged control block, SINGLE without an output.
+
 Choices made along the way:
 - `snapshot`/`restore` rewind chains and the scenario log; traces are kept so trace ids stay valid. After a restore the log is the history of the current branch.
 - A branch's witness template gets an empty item for any signature or preimage not supplied, so an incomplete spend is an explained rejection rather than a build error.
@@ -63,11 +65,12 @@ Choices made along the way:
 - Replay nodes run with `-acceptnonstdtxn=1 -minrelaytxfee=0 -blockmintxfee=0 -dustrelayfee=0` and RPC `maxfeerate=0`: the harness checks consensus, not policy. A mined block is checked for height, coinbase reward and the set of included txs.
 - MCP `snapshot`/`restore` rewind chains and the log, not Racket definitions. `eval` captures stdout/stderr into the result, stops at the first error (keeping earlier output), and has a 300s limit. Lists of lists print one element per line so keyword pairs stay together.
 - After changing modules, run `raco setup --pkgs bitcoin-dsl`: the MCP server loads `bitcoin/conform` dynamically, so `raco make` on one file does not rebuild it.
+- Lowered tapscript uses 32-byte x-only keys; scriptPubKeys always lower with compressed keys. Real tapbranches sort children by bytes while the model sorts by printed form; the tree shape is identical, so control blocks agree.
 - A taproot key-path signature is by the internal key; the tweak is implied by the symbolic output key `(taptweak (internal root))`. Taptree is balanced over the leaves in order; tapbranch orders children by printed form. Leaf scripts compile exactly as for wsh (no CHECKSIGADD yet); OP_SUCCESSx, annex and sigops budget are not modelled.
 
 ## Next step
 
-Finish step 5: register the MCP server and have an agent, given only each scenario's goal in prose, complete Scenarios 1 to 3 through it. Fix whatever `describe` or error messages leave it stuck on. Then taproot lowering (BIP340 Schnorr, tagged hashes, BIP341 digest) so taproot steps replay instead of coming back unverified, and v1 (Scenario 4: `define-consensus`, `#:extends`, `diff-consensus`, `audit`, `template`).
+v1, Scenario 4: `define-consensus` with `#:extends`, opcode upgrades (CTV on NOP4), `diff-consensus`, `template`, `audit`, multiple chains with different rules in one session, and replay targets running other builds (Inquisition) or reporting `unverified` for rules no target has.
 
 ## Things to fill in
 

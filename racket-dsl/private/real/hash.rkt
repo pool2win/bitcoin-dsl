@@ -6,13 +6,19 @@
          sha256d
          ripemd160
          hash160-bytes
-         hmac-sha256)
+         hmac-sha256
+         tagged-hash)
 
 (define (sha256 b) (sha256-bytes b))
 
 (define (sha256d b) (sha256 (sha256 b)))
 
 (define (hash160-bytes b) (ripemd160 (sha256 b)))
+
+;; BIP340 tagged hash: SHA256(SHA256(tag) || SHA256(tag) || msg).
+(define (tagged-hash tag msg)
+  (define th (sha256 (string->bytes/utf-8 tag)))
+  (sha256 (bytes-append th th msg)))
 
 (define (hmac-sha256 key msg)
   (define k (let ([k (if (> (bytes-length key) 64) (sha256 key) key)])

@@ -25,13 +25,13 @@
 (if (find-executable-path "bitcoind")
     (let* ([r (replay (scenario-log) #:targets (hash 'mainnet (regtest)))]
            [status (for/hash ([s (run-steps r)]) (values (step-n s) s))])
-      (check-equal? (summary r) '((confirmed 4) (disagree 1) (unverified 3)))
+      (check-equal? (summary r) '((confirmed 5) (disagree 1) (unverified 2)))
       ;; The premature coinbase spend: the model accepts, Core does not.
       (check-equal? (step-status (hash-ref status 5)) 'disagree)
       (check-equal? (step-detail (hash-ref status 5))
                     '(#:model accepted #:node (rejected "bad-txns-premature-spend-of-coinbase")))
-      ;; Taproot outputs cannot be lowered yet.
-      (check-equal? (step-status (hash-ref status 7)) 'unverified)
+      ;; A spend to a taproot output is lowered and checked.
+      (check-equal? (step-status (hash-ref status 7)) 'confirmed)
       ;; The second chain has no target.
       (check-equal? (step-detail (hash-ref status 2)) '(#:reason no-target))
       (check-equal? (step-status (hash-ref status 8)) 'unverified))

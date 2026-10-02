@@ -3,9 +3,13 @@
 ;; signatures.
 ;;
 ;; Keys and secrets are derived from their names, so every run produces the
-;; same bytes. A model signature is lowered by signing the BIP143 digest of
-;; the fields it committed to, not of the tx it sits in, so a signature
-;; that is invalid in the model is invalid on a real node too.
+;; same bytes. A model signature is lowered by signing the BIP143 or BIP341
+;; digest of the fields it committed to, not of the tx it sits in, so a
+;; signature that is invalid in the model is invalid on a real node too.
+;;
+;; Taproot hashes are recomputed for real: tapleaf, tapbranch (children
+;; sorted by bytes, where the model sorts by printed form; the tree shape
+;; is the same), the TapTweak of the output key, and control blocks.
 
 (require racket/list
          racket/match
@@ -44,6 +48,10 @@
   (if (zero? d) 1 d))
 
 (define (pubkey-of k) (pubkey (privkey-of k)))
+
+;; Keys are 33-byte compressed in segwit v0 scripts and 32-byte x-only in
+;; tapscript; lowering a taproot input sets this to 'xonly.
+(define current-key-format (make-parameter 'compressed))
 
 (define (secret-bytes s)
   (sha256 (string->bytes/utf-8 (format "bitcoin-dsl/secret/~a" (secret-name s)))))
@@ -91,10 +99,15 @@
   (match v
     [(? bytes?) v]
     [(? exact-integer?) (scriptnum v)]
-    [(? key?) (pubkey-of v)]
+    [(? key?) (if (eq? (current-key-format) 'xonly) (xonly-pubkey (privkey-of v)) (pubkey-of v))]
     [(? secret?) (secret-bytes v)]
     [(hashed 'hash160 x) (hash160-bytes (lower-value x opcodes))]
     [(hashed 'sha256 x) (sha256 (lower-value x opcodes))]
+    [(hashed 'tapleaf script) (tapleaf-bytes script opcodes)]
+    [(hashed 'tapbranch (list a b)) (tapbranch-bytes (lower-value a opcodes) (lower-value b opcodes))]
+    [(hashed 'taptweak (list internal root))
+     (define-values (qx parity) (output-key internal (and root (lower-value root opcodes))))
+     qx]
     [(? list?) (lower-script v opcodes)]
     [_ (unsupported (format "value ~s" v))]))
 
@@ -108,10 +121,42 @@
               (define oc (hash-ref opcodes op (λ () (unsupported (format "opcode ~a" op)))))
               (bytes (opcode-byte oc))]))))
 
+;; scriptPubKeys always use compressed keys (a P2WPKH program hashes the
+;; compressed key), even while lowering a tapscript witness.
 (define (lower-spk spk opcodes)
-  (match spk
-    [(list 'v0 program) (bytes-append (bytes 0) (push-data (lower-value program opcodes)))]
-    [_ (unsupported "taproot output")]))
+  (parameterize ([current-key-format 'compressed])
+    (match spk
+      [(list 'v0 program) (bytes-append (bytes 0) (push-data (lower-value program opcodes)))]
+      [(list 'v1 output-key) (bytes-append (bytes #x51) (push-data (lower-value output-key opcodes)))])))
+
+;; Taproot
+
+(define (tapleaf-bytes script opcodes)
+  (define script-bytes (parameterize ([current-key-format 'xonly]) (lower-script script opcodes)))
+  (tagged-hash "TapLeaf" (bytes-append (bytes #xc0) (var-bytes script-bytes))))
+
+(define (tapbranch-bytes a b)
+  (tagged-hash "TapBranch" (if (bytes<? b a) (bytes-append b a) (bytes-append a b))))
+
+;; The TapTweak scalar for an internal key and merkle root (#f: key only).
+(define (taptweak-scalar internal root)
+  (bytes->int (tagged-hash "TapTweak" (bytes-append (xonly-pubkey (privkey-of internal)) (or root #"")))))
+
+;; The output key's x-only bytes and parity.
+(define (output-key internal root)
+  (tweak-pubkey (xonly-pubkey (privkey-of internal)) (taptweak-scalar internal root)))
+
+;; A control block for spending through script: leaf version with the
+;; output key's parity, the internal key, then the merkle path.
+(define (lower-control c script opcodes)
+  (define path (for/list ([h (in-list (control-path c))]) (lower-value h opcodes)))
+  (define root (for/fold ([h (tapleaf-bytes script opcodes)]) ([sibling (in-list path)])
+                 (tapbranch-bytes h sibling)))
+  (define-values (qx parity) (output-key (control-internal c) root))
+  (apply bytes-append
+         (bytes (+ #xc0 parity))
+         (xonly-pubkey (privkey-of (control-internal c)))
+         path))
 
 ;; Transactions
 
@@ -153,35 +198,66 @@
   (ltx (tx-version t)
        (tx-locktime t)
        (for/list ([in (in-list (tx-inputs t))])
-         (when (eq? (lock-spend-version (coin-lock (txin-coin in))) 'v1) (unsupported "taproot spend"))
          (define-values (txid vout) (real-outpoint (txin-outpoint in)))
-         (lin txid vout (txin-sequence in)
-              (for/list ([item (in-list (txin-witness in))])
-                (lower-witness-item item opcodes real-outpoint))))
+         (lin txid vout (txin-sequence in) (lower-witness (txin-witness in) opcodes real-outpoint)))
        (for/list ([o (in-list (tx-outputs t))])
          (list (amount-sats (txout-amount o)) (lower-spk (lock->spk (txout-lock o)) opcodes)))))
 
+;; A taproot script-path witness ends with the leaf script and control
+;; block; its keys are x-only.
+(define (lower-witness w opcodes real-outpoint)
+  (define (item x) (lower-witness-item x opcodes real-outpoint))
+  (cond
+    [(and (pair? w) (control? (last w)))
+     (parameterize ([current-key-format 'xonly])
+       (append (map item (drop-right w 1))
+               (list (lower-control (last w) (list-ref w (- (length w) 2)) opcodes))))]
+    [else (map item w)]))
+
 (define (lower-witness-item item opcodes real-outpoint)
-  (if (sig? item)
-      (bytes-append (ecdsa-sign (privkey-of (sig-key item))
-                                (bip143-digest (sig-fields item) opcodes real-outpoint))
-                    (bytes (sighash-byte (sig-type item))))
-      (lower-value item opcodes)))
+  (cond
+    [(not (sig? item)) (lower-value item opcodes)]
+    [(or (assq 'spend-type (sig-fields item)) (assq 'invalid (sig-fields item)))
+     (lower-schnorr-sig item opcodes real-outpoint)]
+    [else
+     (bytes-append (ecdsa-sign (privkey-of (sig-key item))
+                               (bip143-digest (sig-fields item) opcodes real-outpoint))
+                   (bytes (sighash-byte (sig-type item))))]))
+
+;; A key-path signature is made with the tweaked key of the spent output;
+;; a script-path one with the key itself. SIGHASH_DEFAULT adds no byte.
+(define (lower-schnorr-sig s opcodes real-outpoint)
+  (define fields (sig-fields s))
+  (define d
+    (if (equal? (assq 'spend-type fields) '(spend-type . key))
+        (match (spent-spk fields)
+          [(list 'v1 (hashed 'taptweak (list internal root)))
+           (tweak-seckey (privkey-of (sig-key s))
+                         (taptweak-scalar internal (and root (lower-value root opcodes))))])
+        (privkey-of (sig-key s))))
+  (define sig64 (schnorr-sign d (bip341-digest fields opcodes real-outpoint)))
+  (if (equal? (sig-type s) '(default))
+      sig64
+      (bytes-append sig64 (bytes (sighash-byte (sig-type s))))))
+
+;; The signing input's scriptPubKey, from whichever fields carry it.
+(define (spent-spk fields)
+  (cond [(assoc '(own-prevout spk) fields) => cdr]
+        [else (list-ref (cdr (assoc '(inputs spks) fields)) (cdr (assoc '(own-input index) fields)))]))
 
 ;; Signatures
 
 (define (sighash-byte type)
   (+ (case (car type)
+       [(default) 0]
        [(all) 1]
        [(none) 2]
-       [(single) 3]
-       [else (unsupported (format "sighash ~a outside taproot" type))])
+       [(single) 3])
      (if (memq 'anyonecanpay type) #x80 0)))
 
 ;; The BIP143 digest, rebuilt from a commitment. A missing hashPrevouts,
 ;; hashSequence or hashOutputs field means the digest uses 32 zero bytes.
 (define (bip143-digest fields opcodes real-outpoint)
-  (when (or (assq 'spend-type fields) (assq 'invalid fields)) (unsupported "taproot signature"))
   (define (field k) (cdr (or (assoc k fields) (unsupported (format "commitment without ~a" k)))))
   (define (has? k) (and (assoc k fields) #t))
   (define zero (make-bytes 32 0))
@@ -208,3 +284,45 @@
           [else zero])
     (le (field 'locktime) 4)
     (le (sighash-byte (field 'sighash-type)) 4))))
+
+;; The BIP341 digest, rebuilt from a commitment. A commitment marked
+;; invalid (SINGLE with no matching output) has no valid signature, so any
+;; digest will do: the node must reject whatever is signed.
+(define (bip341-digest fields opcodes real-outpoint)
+  (define (field k) (cdr (or (assoc k fields) (unsupported (format "commitment without ~a" k)))))
+  (define (has? k) (and (assoc k fields) #t))
+  (define (outpoint-bytes op)
+    (define-values (txid vout) (real-outpoint op))
+    (bytes-append (reverse-bytes (hex-string->bytes txid)) (le vout 4)))
+  (define (output-bytes o)
+    (bytes-append (le (amount-sats (first o)) 8) (var-bytes (lower-spk (second o) opcodes))))
+  (define (concat f xs) (apply bytes-append (map f xs)))
+  (cond
+    [(has? 'invalid) (make-bytes 32 0)]
+    [else
+     (define type (field 'sighash-type))
+     (define script-path? (eq? (field 'spend-type) 'script))
+     (tagged-hash
+      "TapSighash"
+      (bytes-append
+       (bytes 0 (sighash-byte type))
+       (le (field 'version) 4)
+       (le (field 'locktime) 4)
+       (if (has? '(inputs outpoints))
+           (bytes-append (sha256 (concat outpoint-bytes (field '(inputs outpoints))))
+                         (sha256 (concat (λ (a) (le (amount-sats a) 8)) (field '(inputs amounts))))
+                         (sha256 (concat (λ (spk) (var-bytes (lower-spk spk opcodes))) (field '(inputs spks))))
+                         (sha256 (concat (λ (n) (le n 4)) (field '(inputs sequences)))))
+           #"")
+       (if (has? '(outputs all)) (sha256 (concat output-bytes (field '(outputs all)))) #"")
+       (bytes (if script-path? 2 0))
+       (if (has? '(own-input index))
+           (le (field '(own-input index)) 4)
+           (bytes-append (outpoint-bytes (field '(own-input outpoint)))
+                         (le (amount-sats (field '(own-prevout amount))) 8)
+                         (var-bytes (lower-spk (field '(own-prevout spk)) opcodes))
+                         (le (field '(own-input sequence)) 4)))
+       (if (has? '(own-output)) (sha256 (output-bytes (field '(own-output)))) #"")
+       (if script-path?
+           (bytes-append (lower-value (field '(own-leaf)) opcodes) (bytes 0) (le #xffffffff 4))
+           #"")))]))

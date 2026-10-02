@@ -28,3 +28,14 @@
 (check-equal? (hex (ecdsa-sign (- curve-order 1) (sha256 #"Satoshi Nakamoto")))
               (string-append "3045022100fd567d121db66e382991534ada77a6bd3106f0a1098c231e47993447cd6af2d0"
                              "02206b39cd0eb1bc8603e159ef5c20a5c8ad685a45b06ce9bebed3f153d10d93bed5"))
+
+;; BIP340 test vectors 0 and 1.
+(check-equal? (hex (xonly-pubkey 3)) "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9")
+(check-equal? (hex (schnorr-sign 3 (make-bytes 32 0) (make-bytes 32 0)))
+              (string-append "e907831f80848d1069a5371b402410364bdf1c5f8307b0084c55f1ce2dca8215"
+                             "25f66a4a85ea8b71e482a74f382d2ce5ebeee8fdb2172f477df4900d310536c0"))
+(check-equal? (hex (schnorr-sign #xb7e151628aed2a6abf7158809cf4f3c762e7160f38b4da56a784d9045190cfef
+                                 (hex-string->bytes "243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e6c89")
+                                 (hex-string->bytes "0000000000000000000000000000000000000000000000000000000000000001")))
+              (string-append "6896bd60eeae296db48a229ff71dfe071bde413e6d43f917dc8dcf8c78de3341"
+                             "8906d11ac976abccb20b091292bff4ea897efcb639ea871cfa95f6de339e4b0a"))

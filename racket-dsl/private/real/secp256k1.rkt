@@ -1,13 +1,18 @@
 #lang racket/base
-;; secp256k1 ECDSA in plain Racket: compressed public keys, and
-;; deterministic (RFC6979) low-S signatures in DER. Not constant time;
-;; this is for regtest replay with throwaway keys, never real funds.
+;; secp256k1 in plain Racket: compressed and x-only public keys,
+;; deterministic (RFC6979) low-S ECDSA in DER, BIP340 Schnorr, and the
+;; BIP341 key tweak. Not constant time; this is for regtest replay with
+;; throwaway keys, never real funds.
 
 (require "hash.rkt")
 
 (provide curve-order
          pubkey
          ecdsa-sign
+         xonly-pubkey
+         schnorr-sign
+         tweak-pubkey
+         tweak-seckey
          int->bytes32
          bytes->int)
 
@@ -126,3 +131,47 @@
 (define (der r s)
   (define body (bytes-append (der-int r) (der-int s)))
   (bytes-append (bytes #x30 (bytes-length body)) body))
+
+;; BIP340 and BIP341
+
+(define (xonly-pubkey d)
+  (define-values (x y) (affine (scalar-mult d g)))
+  (int->bytes32 x))
+
+;; The point with x coordinate x and even y.
+(define (lift-x x)
+  (define c (modulo (+ (expt-mod x 3 p) 7) p))
+  (define y (expt-mod c (quotient (+ p 1) 4) p))
+  (unless (= (modulo (* y y) p) c) (error 'lift-x "x is not on the curve"))
+  (list x (if (even? y) y (- p y)) 1))
+
+;; d negated if needed so that d*G has even y, as BIP340 keys are x-only.
+(define (even-y-seckey d)
+  (define-values (x y) (affine (scalar-mult d g)))
+  (if (even? y) d (- curve-order d)))
+
+(define (bytes-xor a b)
+  (apply bytes (for/list ([x (in-bytes a)] [y (in-bytes b)]) (bitwise-xor x y))))
+
+;; A 64-byte BIP340 signature of a 32-byte message. aux defaults to zeros,
+;; keeping signatures deterministic.
+(define (schnorr-sign d msg [aux (make-bytes 32 0)])
+  (define d* (even-y-seckey d))
+  (define pb (xonly-pubkey d*))
+  (define t (bytes-xor (int->bytes32 d*) (tagged-hash "BIP0340/aux" aux)))
+  (define k0 (modulo (bytes->int (tagged-hash "BIP0340/nonce" (bytes-append t pb msg))) curve-order))
+  (when (zero? k0) (error 'schnorr-sign "nonce is zero"))
+  (define-values (rx ry) (affine (scalar-mult k0 g)))
+  (define k (if (even? ry) k0 (- curve-order k0)))
+  (define rb (int->bytes32 rx))
+  (define e (modulo (bytes->int (tagged-hash "BIP0340/challenge" (bytes-append rb pb msg))) curve-order))
+  (bytes-append rb (int->bytes32 (modulo (+ k (* e d*)) curve-order))))
+
+;; Q = lift_x(internal) + t*G. Returns Q's x-only key and y parity (0 even).
+(define (tweak-pubkey internal-xonly t)
+  (define-values (qx qy) (affine (jadd (lift-x (bytes->int internal-xonly)) (scalar-mult t g))))
+  (values (int->bytes32 qx) (if (even? qy) 0 1)))
+
+;; The private key for Q, for a key-path signature.
+(define (tweak-seckey d t)
+  (modulo (+ (even-y-seckey d) t) curve-order))

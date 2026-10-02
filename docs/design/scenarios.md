@@ -292,7 +292,7 @@ The agent learns which model results are backed by a real node. Steps using rule
 
 Forces: a scenario log format shared by both layers, `lower` (symbolic to real signatures with BIP143/BIP341 digests), `replay`, per-step status, `sighash-matrix`, node targets by build. The same harness doubles as a differential fuzzer.
 
-As built for v0: `(replay (scenario-log) #:targets (hash 'mainnet (regtest)))` starts a fresh regtest node per chain in a temporary datadir and stops it afterwards. A model signature is lowered by signing the BIP143 digest of the fields it committed to, so a signature that is invalid in the model stays invalid on the node. The node runs with standardness and fee floors relaxed, and RPC calls pass `maxfeerate=0`, so disagreements are about consensus. Taproot steps come back `unverified` until lowering supports BIP340/BIP341.
+As built for v0: `(replay (scenario-log) #:targets (hash 'mainnet (regtest)))` starts a fresh regtest node per chain in a temporary datadir and stops it afterwards. A model signature is lowered by signing the BIP143 digest of the fields it committed to, so a signature that is invalid in the model stays invalid on the node. The node runs with standardness and fee floors relaxed, and RPC calls pass `maxfeerate=0`, so disagreements are about consensus. Taproot is lowered too (BIP340 Schnorr, TapTweak, control blocks, BIP341 digest).
 
 ## Derived v0 definition
 
