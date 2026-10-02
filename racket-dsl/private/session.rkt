@@ -40,7 +40,8 @@
          explain
          snapshot
          restore
-         scenario-log)
+         scenario-log
+         session-summary)
 
 ;; blocks is newest first; each is (list height time txids).
 ;; utxos maps outpoint -> utxo. mempool is in arrival order.
@@ -108,6 +109,19 @@
                                      [log (snapshot-value-log snap)]))))
 
 (define (scenario-log) (reverse (world-log (current-world))))
+
+;; Each chain's state at a glance, plus log and trace counts.
+(define (session-summary)
+  (define w (current-world))
+  (append
+   (for/list ([cs (in-list (sort (hash-values (world-chains w)) symbol<? #:key chain-state-name))])
+          (list 'chain (chain-state-name cs)
+                '#:rules (consensus-name (chain-state-consensus cs))
+                '#:height (chain-state-height cs)
+                '#:mempool (length (chain-state-mempool cs))
+                '#:utxos (hash-count (chain-state-utxos cs))))
+   (list (list 'log-steps (length (world-log w)))
+         (list 'traces (hash-count (world-traces w))))))
 
 ;; Chains
 

@@ -10,7 +10,8 @@
          "private/result.rkt"
          "private/consensus.rkt"
          "private/session.rkt"
-         "private/inspect.rkt")
+         "private/inspect.rkt"
+         "private/describe.rkt")
 
 (provide (all-from-out racket)
          ;; definition forms
@@ -62,6 +63,7 @@
          intact?
          breaks-entries
          scenario-log
+         describe
          reset-session!
          ;; results
          accepted?
