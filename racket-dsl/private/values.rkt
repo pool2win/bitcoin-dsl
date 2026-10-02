@@ -1,24 +1,23 @@
 #lang racket/base
-;; Core model values: keys, symbolic hashes and signatures, locks, coins
-;; and transactions.
-;;
-;; Crypto is symbolic. A key is a name, (hash160 k) is a structured value,
-;; and a signature carries the exact list of fields it commits to, so
-;; verification recomputes that list and compares.
+;; Core model values: locks, coins and transactions.
 
 (require racket/list
          file/sha1
-         "amount.rkt")
+         "amount.rkt"
+         "crypto.rkt"
+         "policy.rkt")
 
-(provide (struct-out key)
-         (struct-out hashed)
-         hash160
-         (struct-out sig)
-         (struct-out lock)
+(provide (struct-out lock)
          wpkh
+         wsh
          lock->spk
          lock-spend-version
+         lock-script-code
+         lock-branches
+         lock-branch
+         lock-witness-tail
          lock-spendable-by?
+         p2wpkh-script
          (struct-out outpoint)
          (struct-out coin)
          (struct-out txin)
@@ -34,30 +33,6 @@
          (struct-out input-spec)
          input)
 
-;; Keys and symbolic crypto
-
-(struct key (name)
-  #:transparent
-  #:methods gen:custom-write
-  [(define (write-proc k port mode) (write (key-name k) port))])
-
-(struct hashed (fn value)
-  #:transparent
-  #:methods gen:custom-write
-  [(define (write-proc h port mode)
-     (fprintf port "(~a ~s)" (hashed-fn h) (hashed-value h)))])
-
-(define (hash160 v) (hashed 'hash160 v))
-
-;; type is the sighash flag list, e.g. '(all); fields is the commitment,
-;; an association list of (field-name . value) chosen by the consensus
-;; value's sighash selector for this spend version.
-(struct sig (key type fields)
-  #:transparent
-  #:methods gen:custom-write
-  [(define (write-proc s port mode)
-     (fprintf port "(sig ~s ~s)" (sig-key s) (sig-type s)))])
-
 ;; Locks (output templates)
 
 ;; A lock is how the DSL describes an output: its kind and the arguments
@@ -66,27 +41,65 @@
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc l port mode)
-     (fprintf port "(~a~a)" (lock-kind l)
-              (apply string-append
-                     (for/list ([p (in-list (lock-params l))]) (format " ~s" p)))))])
+     (case (lock-kind l)
+       [(wsh) (write (first (lock-params l)) port)]
+       [else
+        (fprintf port "(~a~a)" (lock-kind l)
+                 (apply string-append
+                        (for/list ([p (in-list (lock-params l))]) (format " ~s" p))))]))])
 
 (define (wpkh k)
   (unless (key? k) (raise-argument-error 'wpkh "key?" k))
   (lock 'wpkh (list k)))
 
+(define (wsh instance)
+  (unless (contract-instance? instance) (raise-argument-error 'wsh "contract-instance?" instance))
+  (lock 'wsh (list instance)))
+
+(define (p2wpkh-script h) `(dup hash160 (push ,h) equalverify checksig))
+
 (define (lock->spk l)
   (case (lock-kind l)
     [(wpkh) (list 'v0 (hash160 (first (lock-params l))))]
-    [else (raise-arguments-error 'lock->spk "unknown lock kind" "lock" l)]))
+    [(wsh) (list 'v0 (sha256-of (contract-instance-script (first (lock-params l)))))]))
 
-(define (lock-spend-version l)
+(define (lock-spend-version l) 'v0)
+
+;; The script a BIP143 signature commits to.
+(define (lock-script-code l)
   (case (lock-kind l)
-    [(wpkh) 'v0]
-    [else (raise-arguments-error 'lock-spend-version "unknown lock kind" "lock" l)]))
+    [(wpkh) (p2wpkh-script (second (lock->spk l)))]
+    [(wsh) (contract-instance-script (first (lock-params l)))]))
 
+(define (lock-branches l)
+  (case (lock-kind l)
+    [(wpkh)
+     (define k (first (lock-params l)))
+     (list (branch 'default `((sig ,k)) (list (need-sig k) k) #f #f))]
+    [(wsh) (contract-instance-branches (first (lock-params l)))]))
+
+;; path #f picks the only branch, and is an error when there are several.
+(define (lock-branch l path)
+  (define bs (lock-branches l))
+  (cond
+    [path (or (findf (λ (b) (eq? (branch-name b) path)) bs)
+              (raise-arguments-error 'spend "no such spend path" "path" path "paths" (map branch-name bs)))]
+    [(= (length bs) 1) (first bs)]
+    [else (raise-arguments-error 'spend "this coin has several spend paths; pass #:path"
+                                 "paths" (map branch-name bs))]))
+
+;; Witness items after the filled-in branch template: the witness script
+;; for wsh, nothing for wpkh.
+(define (lock-witness-tail l)
+  (case (lock-kind l)
+    [(wpkh) '()]
+    [(wsh) (list (contract-instance-script (first (lock-params l))))]))
+
+;; True when some branch needs signatures from k and no other key.
 (define (lock-spendable-by? l k)
-  (and (eq? (lock-kind l) 'wpkh)
-       (equal? (first (lock-params l)) k)))
+  (for/or ([b (in-list (lock-branches l))])
+    (define sig-keys (for/list ([n (in-list (branch-needs b))] #:when (eq? (first n) 'sig)) (second n)))
+    (and (pair? sig-keys) (andmap (λ (x) (equal? x k)) sig-keys))))
 
 ;; Coins and transactions
 
@@ -106,6 +119,7 @@
               (if (coin-label c) (format " ~a" (coin-label c)) "")
               (coin-outpoint c) (coin-lock c) (coin-amount c)))])
 
+;; witness is the list of witness items, bottom of the stack first.
 (struct txin (coin sequence witness) #:transparent)
 
 (define (txin-outpoint in) (coin-outpoint (txin-coin in)))
@@ -166,9 +180,17 @@
   (unless i (raise-arguments-error 'out "no output with this label" "tx" t "label" label))
   (output-of t i))
 
-;; What the author asked for on one input, before the tx is built and signed.
-(struct input-spec (coin key sighash sequence) #:transparent)
+;; What the author asked for on one input, before the tx is built and
+;; signed. keys and reveal are lists; sequence #f means "set by the path".
+(struct input-spec (coin keys sighash sequence path reveal) #:transparent)
 
-(define (input c #:sign [k #f] #:sighash [type '(all)] #:sequence [sequence #xffffffff])
+(define (->list x) (cond [(not x) '()] [(list? x) x] [else (list x)]))
+
+(define (input c
+               #:sign [keys #f]
+               #:sighash [type '(all)]
+               #:sequence [sequence #f]
+               #:path [path #f]
+               #:reveal [reveal #f])
   (unless (coin? c) (raise-argument-error 'input "coin?" c))
-  (input-spec c k type sequence))
+  (input-spec c (->list keys) type sequence path (->list reveal)))

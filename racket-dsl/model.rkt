@@ -4,6 +4,8 @@
 (require (for-syntax racket/base syntax/parse)
          racket
          "private/amount.rkt"
+         "private/crypto.rkt"
+         "private/policy.rkt"
          "private/values.rkt"
          "private/result.rkt"
          "private/consensus.rkt"
@@ -14,6 +16,7 @@
          chain
          keys
          define-tx
+         contract
          ;; values
          btc
          sats
@@ -23,6 +26,9 @@
          tx?
          wpkh
          hash160
+         secret
+         branch-name
+         branch-needs
          input
          output
          output-of
@@ -38,7 +44,12 @@
          confirmed?
          utxos
          fee
+         branches
          last-trace
+         explain
+         trace-events
+         snapshot
+         restore
          scenario-log
          reset-session!
          ;; results
@@ -79,3 +90,40 @@
                        (list (output 'label lock amt) ...)
                        tx-opt ...))
            (define label (output-of name idx)) ...))]))
+
+;; (contract htlc (sender receiver secret timeout)
+;;   (or [claim  (and (pk receiver) (sha256 secret))]
+;;       [refund (and (pk sender) (older timeout))]))
+;; defines htlc as a function from its parameters to a P2WSH lock. An or
+;; arm may be labelled; the label names the spend path in branches and
+;; #:path. Unlabelled arms are named by position.
+(define-syntax (contract stx)
+  (syntax-parse stx
+    [(_ name:id (param:id ...) body)
+     #'(define (name param ...)
+         (wsh (make-contract-instance 'name (list param ...) (policy body))))]))
+
+(begin-for-syntax
+  (define policy-ops '(pk sha256 older after and or thresh)))
+
+(define-syntax (policy stx)
+  (syntax-parse stx
+    #:datum-literals (pk sha256 older after and or thresh)
+    [(_ (pk e:expr)) #'(policy-pk e)]
+    [(_ (sha256 e:expr)) #'(policy-sha256 e)]
+    [(_ (older e:expr)) #'(policy-older e)]
+    [(_ (after e:expr)) #'(policy-after e)]
+    [(_ (and p ...+)) #'(policy-and (list (policy p) ...))]
+    [(_ (or arm ...+)) #'(policy-or (list (policy-arm arm) ...))]
+    [(_ (thresh k:expr p ...+)) #'(policy-thresh k (list (policy p) ...))]
+    [(_ other)
+     (raise-syntax-error 'contract
+                         "not a policy form; expected pk, sha256, older, after, and, or or thresh"
+                         #'other)]))
+
+(define-syntax (policy-arm stx)
+  (syntax-parse stx
+    [(_ (label:id p))
+     #:when (not (memq (syntax-e #'label) policy-ops))
+     #'(cons 'label (policy p))]
+    [(_ p) #'(cons #f (policy p))]))

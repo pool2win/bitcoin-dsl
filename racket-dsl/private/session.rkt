@@ -3,11 +3,19 @@
 ;; log.
 ;;
 ;; The whole session is one immutable world value in a box, so a snapshot
-;; is just the current value and restoring is putting it back.
+;; is just the current chains and log, and restoring puts them back. Traces
+;; are kept across restores so trace ids in earlier results stay valid.
+;; After a restore the log is the history of the current branch, which is
+;; what a conformance replay needs.
 
 (require racket/list
+         racket/match
+         racket/promise
          "amount.rkt"
+         "crypto.rkt"
          "values.rkt"
+         "policy.rkt"
+         "script.rkt"
          "consensus.rkt"
          "result.rkt")
 
@@ -23,7 +31,12 @@
          confirmed?
          utxos
          fee
+         branches
+         (struct-out trace)
          last-trace
+         explain
+         snapshot
+         restore
          scenario-log)
 
 ;; blocks is newest first; each is (list height time txids).
@@ -31,8 +44,8 @@
 ;; confirmed maps txid -> height.
 (struct chain-state (name consensus height time blocks utxos mempool confirmed) #:transparent)
 
-;; chains maps name -> chain-state, traces maps id -> list of events, and
-;; log is the scenario log, newest first.
+;; chains maps name -> chain-state, traces maps id -> trace, and log is
+;; the scenario log, newest first.
 (struct world (chains traces log) #:transparent)
 
 (define empty-world (world (hash) (hash) '()))
@@ -56,14 +69,38 @@
   (update-world! (λ (w) (struct-copy world w [log (cons event (world-log w))])))
   (length (world-log (current-world))))
 
-(define (record-trace! events)
+;; A validation's events, with the consensus value that produced them so
+;; explain can show rule docs.
+(struct trace (id chain consensus events)
+  #:methods gen:custom-write
+  [(define (write-proc t port mode) (fprintf port "#<trace ~a>" (trace-id t)))])
+
+(define (record-trace! chain c events)
   (define id (add1 (hash-count (world-traces (current-world)))))
-  (update-world! (λ (w) (struct-copy world w [traces (hash-set (world-traces w) id events)])))
+  (update-world! (λ (w) (struct-copy world w [traces (hash-set (world-traces w) id (trace id chain c events))])))
   id)
+
+(define (get-trace t)
+  (cond [(trace? t) t]
+        [else (hash-ref (world-traces (current-world)) t
+                        (λ () (raise-arguments-error 'explain "no such trace" "id" t)))]))
 
 (define (last-trace)
   (define traces (world-traces (current-world)))
   (hash-ref traces (hash-count traces) #f))
+
+(struct snapshot-value (id chains log)
+  #:methods gen:custom-write
+  [(define (write-proc s port mode) (fprintf port "#<snapshot ~a>" (snapshot-value-id s)))])
+
+(define (snapshot)
+  (define w (current-world))
+  (snapshot-value (length (world-log w)) (world-chains w) (world-log w)))
+
+(define (restore snap)
+  (update-world! (λ (w) (struct-copy world w
+                                     [chains (snapshot-value-chains snap)]
+                                     [log (snapshot-value-log snap)]))))
 
 (define (scenario-log) (reverse (world-log (current-world))))
 
@@ -150,7 +187,7 @@
 
 ;; Building transactions
 
-(define (build-tx name inputs outputs #:version [version 2] #:locktime [locktime 0])
+(define (build-tx name inputs outputs #:version [version 2] #:locktime [locktime #f])
   ;;* All inputs spend coins on one chain, and the tx lives on that chain.
   (when (null? inputs) (raise-arguments-error 'build-tx "a transaction needs at least one input" "name" name))
   (define spent (map input-spec-coin inputs))
@@ -158,32 +195,46 @@
   (unless (andmap (λ (c) (eq? (coin-chain c) chain)) spent)
     (raise-arguments-error 'build-tx "inputs spend coins on different chains" "coins" spent))
   (define c (chain-state-consensus (get-chain chain)))
+  ;;* Each input's branch sets its nSequence, and the largest absolute lock sets nLockTime, unless given explicitly.
+  (define paths (for/list ([spec (in-list inputs)])
+                  (lock-branch (coin-lock (input-spec-coin spec)) (input-spec-path spec))))
   (define unsigned
-    (make-tx chain name version locktime
-             (for/list ([spec (in-list inputs)])
-               (txin (input-spec-coin spec) (input-spec-sequence spec) '()))
+    (make-tx chain name version
+             (or locktime (apply max 0 (filter values (map branch-locktime paths))))
+             (for/list ([spec (in-list inputs)] [b (in-list paths)])
+               (txin (input-spec-coin spec)
+                     (or (input-spec-sequence spec)
+                         (branch-sequence b)
+                         (if (branch-locktime b) #xfffffffe #xffffffff))
+                     '()))
              outputs))
-  ;;* Sign each input that names a key, committing to the fields its spend version's selector picks.
+  ;;* Fill each branch's witness template: signatures from the signing keys, revealed preimages, and an empty item for anything not supplied.
   (define signed
-    (for/list ([spec (in-list inputs)] [in (in-list (tx-inputs unsigned))] [idx (in-naturals)])
-      (define k (input-spec-key spec))
-      (cond
-        [k
-         (define select (hash-ref (consensus-sighash c) (lock-spend-version (coin-lock (input-spec-coin spec)))))
-         (define fields (select unsigned idx spent (input-spec-sighash spec)))
-         (struct-copy txin in [witness (list (sig k (input-spec-sighash spec) fields) k)])]
-        [else in])))
-  (make-tx chain name version locktime signed outputs))
+    (for/list ([spec (in-list inputs)] [b (in-list paths)] [in (in-list (tx-inputs unsigned))] [idx (in-naturals)])
+      (define l (coin-lock (input-spec-coin spec)))
+      (define fields
+        (delay ((hash-ref (consensus-sighash c) (lock-spend-version l)) unsigned idx spent (input-spec-sighash spec))))
+      (define (fill item)
+        (match item
+          [(need-sig k) (if (member k (input-spec-keys spec)) (sig k (input-spec-sighash spec) (force fields)) #"")]
+          [(need-preimage s) (if (member s (input-spec-reveal spec)) s #"")]
+          [_ item]))
+      (struct-copy txin in [witness (append (map fill (branch-witness b)) (lock-witness-tail l))])))
+  (make-tx chain name version (tx-locktime unsigned) signed outputs))
 
 ;; what is a coin or a list of inputs/coins.
 (define (spend what
-               #:sign [k #f]
+               #:sign [keys #f]
+               #:path [path #f]
+               #:reveal [reveal #f]
                #:sighash [type '(all)]
-               #:sequence [sequence #xffffffff]
-               #:locktime [locktime 0]
+               #:sequence [sequence #f]
+               #:locktime [locktime #f]
                #:outputs outputs)
   (define (->spec x)
-    (if (input-spec? x) x (input x #:sign k #:sighash type #:sequence sequence)))
+    (if (input-spec? x)
+        x
+        (input x #:sign keys #:path path #:reveal reveal #:sighash type #:sequence sequence)))
   (build-tx #f (map ->spec (if (list? what) what (list what))) outputs #:locktime locktime))
 
 ;; Validation
@@ -196,12 +247,12 @@
   (define verdict
     (validate-tx (chain-state-consensus cs) t (mempool-view cs) (add1 (chain-state-height cs))
                  (λ (e) (set! events (cons e events)))))
-  (define trace (record-trace! (reverse events)))
+  (define tid (record-trace! (tx-chain t) (chain-state-consensus cs) (reverse events)))
   (define step (log! (list verb (tx-chain t) (or (tx-name t) (tx-txid t))
                            (if verdict 'rejected 'accepted))))
   (if verdict
-      (rejected (tx-chain t) (first verdict) (second verdict) (third verdict) step trace)
-      (accepted (tx-chain t) t step trace)))
+      (rejected (tx-chain t) (first verdict) (second verdict) (third verdict) step tid)
+      (accepted (tx-chain t) t step tid)))
 
 (define (try t) (evaluate t 'try))
 
@@ -244,3 +295,29 @@
   (when (tx-coinbase? t) (raise-arguments-error 'fee "a coinbase has no fee" "tx" t))
   (sats (- (amount-sats (amount-sum (map (λ (in) (coin-amount (txin-coin in))) (tx-inputs t))))
            (amount-sats (amount-sum (map txout-amount (tx-outputs t)))))))
+
+;; The spend paths of a coin, with what each needs.
+(define (branches c) (lock-branches (coin-lock c)))
+
+;; Explaining traces
+
+;; A trace as readable data: one entry per rule run and per opcode run,
+;; in order. Stacks are shown top first. A failing rule carries its doc.
+(define (explain t)
+  (define tr (get-trace t))
+  (define (keywords details)
+    (append* (for/list ([p (in-list details)])
+               (list (string->keyword (symbol->string (car p))) (cdr p)))))
+  (for/list ([e (in-list (trace-events tr))])
+    (match e
+      [(list 'rule name idx outcome details)
+       `(rule ,name
+              ,@(if idx `(#:input ,idx) '())
+              ,outcome
+              ,@(keywords details)
+              ,@(if (eq? outcome 'fail) `(#:doc ,(rule-doc (consensus-rule (trace-consensus tr) name))) '()))]
+      [(list 'op op before after)
+       `(op ,op #:stack ,before
+            ,@(if (script-failure? after)
+                  `(#:fail ,(script-failure-rule after) ,@(keywords (script-failure-details after)))
+                  `(#:=> ,after)))])))

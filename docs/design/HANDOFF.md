@@ -38,9 +38,21 @@ A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) 
 - Naming a chain `btc` shadows the `(btc 49.99)` amount constructor. Chains are named `mainnet`, `signet`, etc.
 - Quoting a whole output list (`'([to-bob (wpkh bob) (btc 49.99)])`) also quotes `(wpkh bob)` and `(btc 49.99)`, so they are never evaluated. Use the `output` constructor; avoid quasiquote in agent-facing APIs.
 
+## Where the code is
+
+`racket-dsl/` (branch `racket-dsl`), a Racket package providing collection `bitcoin`. Link it once with `raco pkg install --link --name bitcoin-dsl racket-dsl`, then run tests with `raco test racket-dsl/tests`.
+
+- Step 1 (done): core values, consensus as a value with named rules and trace hooks. Scenario 1 runs (`tests/scenario-1.rkt`).
+- Step 2 (done): policy language compiled to P2WSH, `branches`, `#:path`, `#:reveal`, CSV/CLTV/BIP68/nLockTime rules, `explain`, `snapshot`/`restore`. Scenario 2 runs (`tests/scenario-2.rkt`).
+
+Choices made along the way:
+- `snapshot`/`restore` rewind chains and the scenario log; traces are kept so trace ids stay valid. After a restore the log is the history of the current branch.
+- A branch's witness template gets an empty item for any signature or preimage not supplied, so an incomplete spend is an explained rejection rather than a build error.
+- `thresh` supports only `pk` subs so far; time-based relative and absolute locks are marked unsupported.
+
 ## Next step
 
-Build order step 1 from `scenarios.md`: core values plus the rule-set representation (named rules with trace hooks). Done when Scenario 1 runs end to end in the model.
+Build order step 3 from `scenarios.md`: per-version sighash selectors and the sighash queries. Done when Scenario 3 runs.
 
 ## Things to fill in
 

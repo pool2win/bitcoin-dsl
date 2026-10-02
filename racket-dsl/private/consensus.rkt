@@ -10,6 +10,7 @@
 
 (require racket/list
          "amount.rkt"
+         "crypto.rkt"
          "values.rkt"
          "script.rkt")
 
@@ -36,7 +37,9 @@
   (failure #f (let loop ([kvs kvs])
                 (if (null? kvs) '() (cons (cons (car kvs) (cadr kvs)) (loop (cddr kvs)))))))
 
-(struct consensus (name parent rules opcodes sighash params))
+(struct consensus (name parent rules opcodes sighash params)
+  #:methods gen:custom-write
+  [(define (write-proc c port mode) (fprintf port "#<consensus ~a>" (consensus-name c)))])
 
 (define (consensus-param c name) (hash-ref (consensus-params c) name))
 
@@ -80,45 +83,143 @@
       0
       (arithmetic-shift (amount-sats (consensus-param c 'initial-subsidy)) (- halvings))))
 
+;; Timelock encodings (BIP65, BIP68, BIP112)
+
+(define locktime-threshold 500000000)
+(define sequence-final #xffffffff)
+(define (sequence-disabled? n) (bitwise-bit-set? n 31))
+(define (sequence-time-based? n) (bitwise-bit-set? n 22))
+(define (sequence-value n) (bitwise-and n #xffff))
+
 ;; Opcodes
 
 (define (underflow name) (script-failure 'stack-underflow (list (cons 'opcode name))))
 
-(define (op-dup s ctx)
-  (if (null? s) (underflow 'dup) (cons (car s) s)))
+(define (script-number v)
+  (cond [(exact-integer? v) v]
+        [(equal? v #"") 0]
+        [else #f]))
 
-(define (op-hash160 s ctx)
-  (if (null? s) (underflow 'hash160) (cons (hash160 (car s)) (cdr s))))
+(define ((unary name f) s ctx)
+  (if (null? s) (underflow name) (f (car s) (cdr s))))
 
-(define (op-equal s ctx)
-  (if (< (length s) 2) (underflow 'equal) (cons (equal? (car s) (cadr s)) (cddr s))))
+(define ((binary name f) s ctx)
+  (if (< (length s) 2) (underflow name) (f (car s) (cadr s) (cddr s))))
 
-(define (op-verify s ctx)
-  (cond [(null? s) (underflow 'verify)]
-        [(stack-true? (car s)) (cdr s)]
-        [else (script-failure 'verify '())]))
+(define op-dup (unary 'dup (λ (a rest) (list* a a rest))))
+(define op-drop (unary 'drop (λ (a rest) rest)))
+(define op-swap (binary 'swap (λ (a b rest) (list* b a rest))))
+(define op-hash160 (unary 'hash160 (λ (a rest) (cons (hash160 a) rest))))
+(define op-sha256 (unary 'sha256 (λ (a rest) (cons (sha256-of a) rest))))
+(define op-equal (binary 'equal (λ (a b rest) (cons (script-bool (equal? a b)) rest))))
 
-(define (op-equalverify s ctx)
-  (cond [(< (length s) 2) (underflow 'equalverify)]
-        [(equal? (car s) (cadr s)) (cddr s)]
-        [else (script-failure 'equalverify (list (cons 'top (car s)) (cons 'second (cadr s))))]))
+(define op-verify
+  (unary 'verify (λ (a rest) (if (stack-true? a) rest (script-failure 'verify '())))))
 
-;; Consensus pushes false for a bad signature rather than failing; the
-;; reason is kept by check-sig for the final eval-false rejection.
+(define op-equalverify
+  (binary 'equalverify
+          (λ (a b rest)
+            (if (equal? a b)
+                rest
+                (script-failure 'equalverify (list (cons 'top a) (cons 'second b)))))))
+
+;; Symbolic values have the sizes their real encodings would have.
+(define (value-size v)
+  (cond [(bytes? v) (bytes-length v)]
+        [(secret? v) 32]
+        [(key? v) 33]
+        [else #f]))
+
+(define op-size
+  (unary 'size (λ (a rest)
+                 (define n (value-size a))
+                 (if n (list* n a rest) (script-failure 'size (list (cons 'unsupported a)))))))
+
+(define op-add
+  (binary 'add (λ (a b rest)
+                 (define x (script-number a))
+                 (define y (script-number b))
+                 (if (and x y)
+                     (cons (+ x y) rest)
+                     (script-failure 'add (list (cons 'not-a-number (if x b a))))))))
+
+;; A bad signature pushes false rather than failing; check-sig records why.
 (define (op-checksig s ctx)
   (if (< (length s) 2)
       (underflow 'checksig)
-      (cons ((script-ctx-check-sig ctx) (cadr s) (car s)) (cddr s))))
+      (cons (script-bool ((script-ctx-check-sig ctx) (cadr s) (car s))) (cddr s))))
+
+(define (op-checksigverify s ctx)
+  (cond [(< (length s) 2) (underflow 'checksigverify)]
+        [((script-ctx-check-sig ctx) (cadr s) (car s)) (cddr s)]
+        [else (script-failure 'checksigverify '())]))
+
+;; CSV and CLTV leave their argument on the stack, as the NOPs they replaced.
+(define ((timelock-op name hook) s ctx)
+  (cond [(null? s) (underflow name)]
+        [(not (exact-integer? (car s))) (script-failure name (list (cons 'not-a-number (car s))))]
+        [else (or ((hook ctx) (car s)) s)]))
+
+(define op-csv (timelock-op 'csv script-ctx-check-sequence))
+(define op-cltv (timelock-op 'cltv script-ctx-check-locktime))
 
 (define bitcoin-opcodes
   (for/hash ([oc (in-list
-                  (list (opcode 'dup #x76 "Duplicate the top item." op-dup)
-                        (opcode 'hash160 #xa9 "Replace the top item with its HASH160." op-hash160)
-                        (opcode 'equal #x87 "Push whether the top two items are equal." op-equal)
+                  (list (opcode 'if #x63 "Run the next branch if the top item is true." #f)
+                        (opcode 'notif #x64 "Run the next branch if the top item is false." #f)
+                        (opcode 'else #x67 "Switch to the other branch." #f)
+                        (opcode 'endif #x68 "End a conditional." #f)
                         (opcode 'verify #x69 "Fail unless the top item is true." op-verify)
+                        (opcode 'drop #x75 "Remove the top item." op-drop)
+                        (opcode 'dup #x76 "Duplicate the top item." op-dup)
+                        (opcode 'swap #x7c "Swap the top two items." op-swap)
+                        (opcode 'size #x82 "Push the size of the top item, keeping it." op-size)
+                        (opcode 'equal #x87 "Push whether the top two items are equal." op-equal)
                         (opcode 'equalverify #x88 "Fail unless the top two items are equal." op-equalverify)
-                        (opcode 'checksig #xac "Check a signature against a pubkey and the sighash." op-checksig)))])
+                        (opcode 'add #x93 "Replace the top two numbers with their sum." op-add)
+                        (opcode 'sha256 #xa8 "Replace the top item with its SHA256." op-sha256)
+                        (opcode 'hash160 #xa9 "Replace the top item with its HASH160." op-hash160)
+                        (opcode 'checksig #xac "Check a signature against a pubkey and the sighash." op-checksig)
+                        (opcode 'checksigverify #xad "CHECKSIG, then fail unless it succeeded." op-checksigverify)
+                        (opcode 'cltv #xb1 "BIP65: fail unless nLockTime has reached the top item." op-cltv)
+                        (opcode 'csv #xb2 "BIP112: fail unless this input's nSequence encodes at least the top item."
+                                op-csv)))])
     (values (opcode-name oc) oc)))
+
+;; Script hooks
+
+(define ((make-check-sig x version cause) s pk)
+  (define fields-of (hash-ref (consensus-sighash (vctx-consensus x)) version))
+  (define why
+    (cond [(equal? s #"") 'empty-signature]
+          [(not (sig? s)) 'not-a-signature]
+          [(not (equal? (sig-key s) pk)) 'wrong-key]
+          [(not (equal? (sig-fields s)
+                        (fields-of (vctx-tx x) (vctx-index x) (vctx-spent-coins x) (sig-type s))))
+           'commitment-mismatch]
+          [else #f]))
+  (when why (set-box! cause why))
+  (not why))
+
+(define ((make-check-sequence x) n)
+  (define seq (txin-sequence (vctx-input x)))
+  (define (no why) (script-failure 'csv (list (cons 'need n) (cons 'sequence seq) (cons 'reason why))))
+  (cond [(negative? n) (no 'negative)]
+        [(sequence-disabled? n) #f]
+        [(< (tx-version (vctx-tx x)) 2) (no 'tx-version-below-2)]
+        [(sequence-disabled? seq) (no 'sequence-disabled)]
+        [(not (eq? (sequence-time-based? n) (sequence-time-based? seq))) (no 'lock-type-mismatch)]
+        [(> (sequence-value n) (sequence-value seq)) (no 'sequence-too-low)]
+        [else #f]))
+
+(define ((make-check-locktime x) n)
+  (define lt (tx-locktime (vctx-tx x)))
+  (define (no why) (script-failure 'cltv (list (cons 'need n) (cons 'locktime lt) (cons 'reason why))))
+  (cond [(negative? n) (no 'negative)]
+        [(not (eq? (< n locktime-threshold) (< lt locktime-threshold))) (no 'lock-type-mismatch)]
+        [(> n lt) (no 'locktime-too-low)]
+        [(= (txin-sequence (vctx-input x)) sequence-final) (no 'input-final)]
+        [else #f]))
 
 ;; Sighash selectors
 
@@ -131,12 +232,11 @@
   (unless (equal? type '(all)) (unsupported-sighash 'v0 type))
   (define in (list-ref (tx-inputs t) idx))
   (define spent (list-ref spent-coins idx))
-  (define h (second (lock->spk (coin-lock spent))))
   (list (cons 'version (tx-version t))
         (cons 'prevouts (map txin-outpoint (tx-inputs t)))
         (cons 'sequences (map txin-sequence (tx-inputs t)))
         (cons 'outpoint (txin-outpoint in))
-        (cons 'script-code (p2wpkh-script h))
+        (cons 'script-code (lock-script-code (coin-lock spent)))
         (cons 'amount (coin-amount spent))
         (cons 'sequence (txin-sequence in))
         (cons 'outputs (for/list ([o (in-list (tx-outputs t))])
@@ -144,49 +244,48 @@
         (cons 'locktime (tx-locktime t))
         (cons 'sighash-type type)))
 
-(define (p2wpkh-script h) `(dup hash160 (push ,h) equalverify checksig))
-
 ;; Witness verification
 
 (define (verify-witness x)
-  ;;* Derive the script and starting stack from the spent output's witness program.
-  (define spent (utxo-coin (vctx-spent-utxo x)))
-  (define spk (lock->spk (coin-lock spent)))
+  ;;* Read the witness program: a 20-byte HASH160 program is P2WPKH, a 32-byte SHA256 one is P2WSH.
+  (define spk (lock->spk (coin-lock (utxo-coin (vctx-spent-utxo x)))))
+  (define program (second spk))
   (define witness (txin-witness (vctx-input x)))
+  (define (mismatch why) (failure 'witness-program-mismatch (list (cons 'reason why))))
   (cond
     [(not (eq? (first spk) 'v0))
      (failure 'unsupported-spend (list (cons 'spk spk)))]
-    [(not (= (length witness) 2))
-     (failure 'witness-program-mismatch (list (cons 'items (length witness))))]
-    [else
-     ;;* Run the P2WPKH script, with a signature checker bound to this input.
-     (define cause (box #f))
-     (define ctx (script-ctx (make-check-sig x 'v0 cause) (vctx-emit x)))
-     (define result (run-script (consensus-opcodes (vctx-consensus x))
-                                (p2wpkh-script (second spk))
-                                (reverse witness)
-                                ctx))
-     ;;* Map an interpreter failure or an unclean final stack to a named rule.
-     (cond
-       [(script-failure? result)
-        (failure (script-failure-rule result) (script-failure-details result))]
-       [(not (= (length result) 1))
-        (failure 'cleanstack (list (cons 'depth (length result))))]
-       [(not (stack-true? (car result)))
-        (failure 'eval-false (if (unbox cause) (list (cons 'cause (unbox cause))) '()))]
-       [else #f])]))
+    [(eq? (hashed-fn program) 'hash160)
+     (if (= (length witness) 2)
+         (run-witness-script x (p2wpkh-script program) (reverse witness))
+         (mismatch 'p2wpkh-needs-two-items))]
+    ;;* For P2WSH the last witness item is the script, and it must hash to the program.
+    [(null? witness) (mismatch 'empty-witness)]
+    [(not (equal? (sha256-of (last witness)) program)) (mismatch 'script-hash)]
+    [else (run-witness-script x (last witness) (reverse (drop-right witness 1)))]))
 
-(define ((make-check-sig x version cause) s pk)
-  (define fields-of (hash-ref (consensus-sighash (vctx-consensus x)) version))
-  (define why
-    (cond [(not (sig? s)) 'not-a-signature]
-          [(not (equal? (sig-key s) pk)) 'wrong-key]
-          [(not (equal? (sig-fields s)
-                        (fields-of (vctx-tx x) (vctx-index x) (vctx-spent-coins x) (sig-type s))))
-           'commitment-mismatch]
-          [else #f]))
-  (when why (set-box! cause why))
-  (not why))
+(define (run-witness-script x script stack)
+  ;;* Run the script with signature and timelock checks bound to this input.
+  (define cause (box #f))
+  (define ctx (script-ctx (make-check-sig x 'v0 cause)
+                          (make-check-sequence x)
+                          (make-check-locktime x)
+                          (vctx-emit x)))
+  (define result (run-script (consensus-opcodes (vctx-consensus x)) script stack ctx))
+  (define (with-cause details)
+    (if (unbox cause) (append details (list (cons 'cause (unbox cause)))) details))
+  ;;* Map an interpreter failure or an unclean final stack to a named rule, adding why a signature failed.
+  (cond
+    [(script-failure? result)
+     (failure (script-failure-rule result)
+              (if (eq? (script-failure-rule result) 'checksigverify)
+                  (with-cause (script-failure-details result))
+                  (script-failure-details result)))]
+    [(not (= (length result) 1))
+     (failure 'cleanstack (list (cons 'depth (length result))))]
+    [(not (stack-true? (car result)))
+     (failure 'eval-false (with-cause '()))]
+    [else #f]))
 
 ;; The bitcoin rule set
 
@@ -213,6 +312,16 @@
          (λ (x)
            (define dup (check-duplicates (map txin-outpoint (tx-inputs (vctx-tx x)))))
            (and dup (fail 'outpoint dup))))
+   (rule 'locktime-final 'tx
+         "A transaction with nLockTime set waits until a block above that height, unless every input's nSequence is final."
+         (λ (x)
+           (define t (vctx-tx x))
+           (define lt (tx-locktime t))
+           (cond [(zero? lt) #f]
+                 [(andmap (λ (in) (= (txin-sequence in) sequence-final)) (tx-inputs t)) #f]
+                 [(>= lt locktime-threshold) (failure 'unsupported (list (cons 'feature 'time-based-locktime)))]
+                 [(< lt (vctx-height x)) #f]
+                 [else (fail 'need (add1 lt) 'have (vctx-height x))])))
    (rule 'input-exists 'input "Each input spends an unspent coin on this chain."
          (λ (x)
            (define op (txin-outpoint (vctx-input x)))
@@ -228,6 +337,17 @@
            (define in (for/sum ([c (in-list (vctx-spent-coins x))]) (amount-sats (coin-amount c))))
            (define out-total (apply + (output-sats x)))
            (and (< in out-total) (fail 'in (sats in) 'out (sats out-total)))))
+   (rule 'sequence-lock 'input
+         "BIP68: an input whose nSequence encodes a relative lock waits that many blocks after its coin confirmed."
+         (λ (x)
+           (define seq (txin-sequence (vctx-input x)))
+           (cond [(< (tx-version (vctx-tx x)) 2) #f]
+                 [(sequence-disabled? seq) #f]
+                 [(sequence-time-based? seq) (failure 'unsupported (list (cons 'feature 'time-based-sequence-lock)))]
+                 [else
+                  (define need (sequence-value seq))
+                  (define have (- (vctx-height x) (utxo-height (vctx-spent-utxo x))))
+                  (and (< have need) (fail 'need need 'have have))])))
    (rule 'witness-script 'input "Each input's witness satisfies the script of the coin it spends."
          verify-witness)))
 

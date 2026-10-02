@@ -67,8 +67,8 @@ Goal: define a contract, enumerate its spend paths, try one too early, read why 
 
 ```racket
 (contract htlc (sender receiver secret timeout)
-  (or (and (pk receiver) (sha256 secret))
-      (and (pk sender) (older timeout))))
+  (or [claim  (and (pk receiver) (sha256 secret))]
+      [refund (and (pk sender) (older timeout))]))
 
 (define s (secret 's1))
 (define cb (first (mine 1 #:on mainnet #:to alice)))
@@ -80,15 +80,15 @@ Goal: define a contract, enumerate its spend paths, try one too early, read why 
 (confirm fund)
 
 (branches locked)
-; => ((claim  #:needs ((sig bob) (preimage s)))
+; => ((claim  #:needs ((sig bob) (preimage s1)))
 ;     (refund #:needs ((sig alice) (age>= 144))))
 
 (define refund
   (spend locked #:path 'refund #:sign alice
     #:outputs (list (output 'back (wpkh alice) (btc 49.98)))))
 (try refund)
-; => (rejected #:rule csv #:input 0 #:need 144 #:have 1 ...)
-(explain (last-trace))   ; opcode-level steps + stacks
+; => (rejected #:rule sequence-lock #:input 0 #:need 144 #:have 1 ...)
+(explain (last-trace))   ; rule and opcode steps, with stacks
 
 (define t0 (snapshot))
 (mine 143 #:on mainnet)
@@ -99,9 +99,11 @@ Goal: define a contract, enumerate its spend paths, try one too early, read why 
 ; => (accepted ...)
 ```
 
-The agent learns to reason in branches, not single paths. `#:path` sets nSequence and picks the witness automatically, as `csv:` did in the Ruby DSL.
+The agent learns to reason in branches, not single paths. An `or` arm may carry a label (`[claim ...]`), which names the spend path; unlabelled arms are named by position (`0`, `1`, ...), nested labels join with `/`, and `thresh` paths are named by their keys (`alice+bob`). `#:path` sets nSequence (and nLockTime for `after`) and fills the witness automatically, as `csv:` did in the Ruby DSL.
 
-Forces: `contract` with a small policy language (`pk`, `sha256`, `older`, `after`, `and`, `or`, `thresh`), `secret`, `branches`, `try`, `explain`, `snapshot`, `restore`, relative timelocks, structured rejections.
+The early refund fails BIP68's `sequence-lock` rule, not the `csv` opcode: `#:path 'refund` sets nSequence to 144, so OP_CSV passes and the input's relative lock is what is not yet met. This matches what a real node reports (`non-BIP68-final`). The `csv` opcode rejects when nSequence itself is wrong, e.g. relative locks disabled.
+
+Forces: `contract` with a small policy language (`pk`, `sha256`, `older`, `after`, `and`, `or`, `thresh`), `secret`, `branches`, `try`, `explain`, `snapshot`, `restore`, relative and absolute timelocks (BIP65, BIP68, BIP112), P2WSH, structured rejections.
 
 ## Scenario 3: Sighash exploration and fee bumping
 

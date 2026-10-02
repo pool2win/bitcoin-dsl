@@ -21,7 +21,7 @@
 (test-case "accepted spend records rule and opcode steps in the trace"
   (define cb (funded 'c1))
   (check-pred accepted? (try (pay-from cb alice (btc 49.99))))
-  (define trace (last-trace))
+  (define trace (trace-events (last-trace)))
   (check-not-false (member '(rule coinbase-maturity 0 pass ()) trace))
   (check-equal? (map second (filter (λ (e) (eq? (first e) 'op)) trace))
                 `(dup hash160 (push ,(hash160 alice)) equalverify checksig)))
@@ -48,10 +48,11 @@
   (define r (broadcast (pay-from cb alice (btc 49.98))))
   (check-equal? (rejected-rule r) 'input-exists))
 
-(test-case "wrong signer"
+(test-case "signed by a key the coin does not need"
   (define cb (funded 'c5))
   (define r (try (pay-from cb mallory (btc 49.99))))
-  (check-equal? (rejected-rule r) 'equalverify))
+  (check-equal? (rejected-rule r) 'eval-false)
+  (check-equal? (result-detail r 'cause) 'empty-signature))
 
 (test-case "output changed after signing"
   (define cb (funded 'c6))
@@ -67,7 +68,8 @@
 (test-case "unsigned input"
   (define cb (funded 'c7))
   (define r (try (spend cb #:outputs (list (output 'x (wpkh bob) (btc 49.99))))))
-  (check-equal? (rejected-rule r) 'witness-program-mismatch))
+  (check-equal? (rejected-rule r) 'eval-false)
+  (check-equal? (result-detail r 'cause) 'empty-signature))
 
 (test-case "utxos are ordered by confirmation height"
   (define ch (make-chain! 'c8 bitcoin))
