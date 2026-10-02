@@ -46,6 +46,7 @@
          broadcast
          confirm
          confirmed?
+         height
          utxos
          fee
          branches

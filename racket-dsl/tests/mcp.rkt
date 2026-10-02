@@ -107,3 +107,24 @@
                 '("describe" "eval" "snapshot" "restore" "explain"))
   (check-equal? (hash-ref (first (hash-ref (hash-ref (third responses) 'result) 'content)) 'text)
                 "(btc 1.5)\n"))
+
+(test-case "fixes from the first agent run"
+  (define s (make-session))
+  ;; Long lists are abbreviated in replies.
+  (check-true (string-contains? (eval-ok s "(chain mainnet #:rules bitcoin) (keys alice bob miner) (mine 101 #:on mainnet)")
+                                ";; ... 89 more elements (101 in all)"))
+  (check-equal? (eval-ok s "(height)") "101\n")
+  ;; A user key named miner does not own anonymous coinbases.
+  (check-equal? (eval-ok s "(utxos #:spendable-by miner)") "'()\n")
+  ;; The failing explain step names the specific rule, which describe documents.
+  (eval-ok s "(define cb (first (utxos)))
+              (try (spend cb #:sign alice #:outputs (list (output 'b (wpkh bob) (btc 49)))))")
+  (define-values (steps _e) (call s "explain" (hasheq)))
+  (check-true (string-contains? steps "(rule witness-script #:input 0 fail #:as eval-false #:cause empty-signature"))
+  (define-values (doc _e2) (call s "describe" (hasheq 'topic "eval-false")))
+  (check-true (string-contains? doc "finished with false on top"))
+  ;; add-input names its tx after the original.
+  (eval-ok s "(define c2 (second (utxos)))
+              (define-tx p #:inputs ([cb #:sign miner #:sighash '(all anyonecanpay)])
+                           #:outputs ([o (wpkh bob) (btc 49)]))")
+  (check-true (string-contains? (eval-ok s "(add-input p c2)") "#<tx p+input")))

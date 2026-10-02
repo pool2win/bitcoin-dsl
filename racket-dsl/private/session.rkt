@@ -32,6 +32,7 @@
          broadcast
          confirm
          confirmed?
+         height
          utxos
          fee
          branches
@@ -163,7 +164,9 @@
 
 ;; Mining
 
-(define anonymous-miner (key 'miner))
+;; Coinbases mined without #:to pay this key. Its name cannot be written
+;; with keys, so no user key collides with it.
+(define anonymous-miner (key '|anonymous miner|))
 
 ;; Returns the coinbase coins of the new blocks, always as a list.
 (define (mine n #:on ch #:to [payee #f])
@@ -239,7 +242,8 @@
   (check-same-chain 'add-input (tx-chain t) (list c))
   (define spec (input c #:sign keys #:path path #:reveal reveal #:sighash type #:sequence sequence))
   (define b (spec-branch spec))
-  (define (with-inputs ins) (make-tx (tx-chain t) #f (tx-version t) (tx-locktime t) ins (tx-outputs t)))
+  (define name (and (tx-name t) (string->symbol (format "~a+input" (tx-name t)))))
+  (define (with-inputs ins) (make-tx (tx-chain t) name (tx-version t) (tx-locktime t) ins (tx-outputs t)))
   (define unsigned (with-inputs (append (tx-inputs t) (list (txin c (spec-sequence spec b) '())))))
   (define idx (length (tx-inputs t)))
   (with-inputs (append (tx-inputs t) (list (sign-input (chain-consensus (tx-chain t)) unsigned idx spec b)))))
@@ -320,6 +324,10 @@
 
 ;; Queries
 
+;; The chain's tip height. #:on may be left out with one chain.
+(define (height #:on [ch #f])
+  (chain-state-height (get-chain (resolve-chain ch 'height))))
+
 (define (confirmed? t)
   (hash-has-key? (chain-state-confirmed (get-chain (tx-chain t))) (tx-txid t)))
 
@@ -359,12 +367,15 @@
                (list (string->keyword (symbol->string (car p))) (cdr p)))))
   (for/list ([e (in-list (trace-events tr))])
     (match e
-      [(list 'rule name idx outcome details)
+      [(list 'rule name idx outcome details failed-as)
        `(rule ,name
               ,@(if idx `(#:input ,idx) '())
               ,outcome
+              ,@(if failed-as `(#:as ,failed-as) '())
               ,@(keywords details)
-              ,@(if (eq? outcome 'fail) `(#:doc ,(rule-doc (consensus-rule (trace-consensus tr) name))) '()))]
+              ,@(if (eq? outcome 'fail)
+                    `(#:doc ,(failure-doc (trace-consensus tr) (or failed-as name)))
+                    '()))]
       [(list 'op op before after)
        `(op ,op #:stack ,before
             ,@(if (script-failure? after)

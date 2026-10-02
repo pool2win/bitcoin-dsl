@@ -22,7 +22,7 @@
   (define cb (funded 'c1))
   (check-pred accepted? (try (pay-from cb alice (btc 49.99))))
   (define trace (trace-events (last-trace)))
-  (check-not-false (member '(rule coinbase-maturity 0 pass ()) trace))
+  (check-not-false (member '(rule coinbase-maturity 0 pass () #f) trace))
   (check-equal? (map second (filter (λ (e) (eq? (first e) 'op)) trace))
                 `(dup hash160 (push ,(hash160 alice)) equalverify checksig)))
 

@@ -38,7 +38,7 @@
 ;; Returns (values text error?): printed results and output, or the error.
 (define (session-eval s code)
   (define out (open-output-string))
-  (define (render v) (write-string (show v) out))
+  (define (render v) (write-string (show v #:limit max-items) out))
   (define result
     (call-with-time-limit
      eval-timeout
@@ -78,8 +78,19 @@
 
 ;; A list of lists (explain steps, branches, utxos) prints one element per
 ;; line, so keyword/value pairs stay together; anything else is printed
-;; as the REPL would.
-(define (show v)
+;; as the REPL would. With a limit (eval results), longer lists show their
+;; first elements and a count, so (mine 100 ...) does not flood the reply;
+;; explain and describe are always shown in full.
+(define max-items 12)
+
+(define (show v #:limit [limit #f])
+  (cond
+    [(and limit (list? v) (> (length v) limit))
+     (string-append (show* (take v limit))
+                    (format ";; ... ~a more elements (~a in all)\n" (- (length v) limit) (length v)))]
+    [else (show* v)]))
+
+(define (show* v)
   (with-output-to-string
     (λ ()
       (cond

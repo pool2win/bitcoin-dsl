@@ -22,6 +22,8 @@
          consensus-rule
          (struct-out utxo)
          validate-tx
+         failure-doc
+         script-failure-docs
          block-subsidy
          bitcoin)
 
@@ -71,11 +73,35 @@
                #:when verdict)
     verdict))
 
+;; The trace event is (rule name input outcome details failed-as), where
+;; failed-as is the more specific rule a failure names (e.g. eval-false
+;; inside witness-script), or #f.
 (define (run-rule r x)
   (define f ((rule-check r) x))
   ((vctx-emit x) (list 'rule (rule-name r) (vctx-index x) (if f 'fail 'pass)
-                       (if f (failure-details f) '())))
+                       (if f (failure-details f) '())
+                       (and f (failure-rule f))))
   (and f (list (or (failure-rule f) (rule-name r)) (vctx-index x) (failure-details f))))
+
+;; Rules a failure can name from inside witness-script, besides opcodes.
+(define script-failure-docs
+  (hash 'eval-false "The script finished with false on top, e.g. a CHECKSIG whose signature did not verify; #:cause says why."
+        'cleanstack "A segwit script must finish with exactly one item on the stack."
+        'witness-program-mismatch "The witness does not fit the output's witness program: wrong item count, or the script does not hash to the program."
+        'taproot-commitment "The control block and leaf script do not commit to the taproot output key."
+        'key-path-sig "A taproot key-path spend needs a valid signature by the internal key; #:cause says why."
+        'stack-underflow "An opcode needed more stack items than there were."
+        'bad-opcode "The script uses an opcode this consensus does not define."
+        'unbalanced-conditional "IF/ELSE/ENDIF do not match up."
+        'unsupported "The model does not implement this feature yet (e.g. time-based locks)."
+        'unsupported-spend "The model does not implement this kind of output yet."))
+
+;; The doc for a rule name: a consensus rule, a script failure or an opcode.
+(define (failure-doc c name)
+  (cond [(consensus-rule c name) => rule-doc]
+        [(hash-ref script-failure-docs name #f)]
+        [(hash-ref (consensus-opcodes c) name #f) => opcode-doc]
+        [else #f]))
 
 (define (block-subsidy c height)
   (define halvings (quotient height (consensus-param c 'halving-interval)))
