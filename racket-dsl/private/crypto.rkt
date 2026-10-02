@@ -42,12 +42,17 @@
      (fprintf port "(sig ~s ~s)" (sig-key s) (sig-type s)))])
 
 ;; Normalises a sighash type to (base) or (base anyonecanpay), where base
-;; is all, none or single. Accepts a single symbol or a list in any order.
+;; is all, none or single, or to (default) for taproot's SIGHASH_DEFAULT.
+;; Accepts a single symbol or a list in any order. Whether a spend version
+;; accepts the type is up to its selector.
 (define (sighash-flags type)
   (define flags (if (list? type) type (list type)))
-  (define bases (filter (λ (f) (memq f '(all none single))) flags))
+  (define bases (filter (λ (f) (memq f '(default all none single))) flags))
   (unless (and (= (length bases) 1)
-               (andmap (λ (f) (memq f '(all none single anyonecanpay))) flags)
-               (<= (length (filter (λ (f) (eq? f 'anyonecanpay)) flags)) 1))
-    (raise-argument-error 'sighash "one of all, none or single, optionally with anyonecanpay" type))
+               (andmap (λ (f) (memq f '(default all none single anyonecanpay))) flags)
+               (<= (length (filter (λ (f) (eq? f 'anyonecanpay)) flags)) 1)
+               (not (and (memq 'default flags) (memq 'anyonecanpay flags))))
+    (raise-argument-error 'sighash
+                          "one of all, none or single, optionally with anyonecanpay; or default"
+                          type))
   (if (memq 'anyonecanpay flags) (list (car bases) 'anyonecanpay) bases))

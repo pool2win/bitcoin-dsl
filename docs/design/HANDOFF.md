@@ -45,7 +45,7 @@ A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) 
 - Step 1 (done): core values, consensus as a value with named rules and trace hooks. Scenario 1 runs (`tests/scenario-1.rkt`).
 - Step 2 (done): policy language compiled to P2WSH, `branches`, `#:path`, `#:reveal`, CSV/CLTV/BIP68/nLockTime rules, `explain`, `snapshot`/`restore`. Scenario 2 runs (`tests/scenario-2.rkt`).
 
-- Step 3 (BIP143 part done): all six BIP143 sighash flag combinations, `sig-of`, `commits`, `free-fields`, `mutate`, `edit`, `add-input`. Scenario 3 runs up to `sighash-search` (`tests/scenario-3.rkt`); `tests/sighash.rkt` checks that `free-fields` agrees with verification for every flag combination. Taproot (`tr-key`, `tr-script`, BIP341 selector) is not built yet.
+- Step 3 (done): all six BIP143 sighash flag combinations, `sig-of`, `commits`, `free-fields`, `mutate`, `edit`, `add-input`. Taproot `(tr key #:leaves ...)` with key and script path spends, a BIP341 selector (SIGHASH_DEFAULT, SINGLE without an output is invalid) and BIP342's strict CHECKSIG for non-empty bad signatures. Scenario 3 runs up to `sighash-search`, which is v1 (`tests/scenario-3.rkt`). `tests/sighash.rkt` and `tests/taproot.rkt` check that `free-fields` agrees with verification for every flag combination on `wpkh`, `tr-key` and `tr-script`.
 
 Choices made along the way:
 - `snapshot`/`restore` rewind chains and the scenario log; traces are kept so trace ids stay valid. After a restore the log is the history of the current branch.
@@ -53,10 +53,12 @@ Choices made along the way:
 - `thresh` supports only `pk` subs so far; time-based relative and absolute locks are marked unsupported.
 - A commitment is an alist from field name to value; names are relative to the signing input. `mutate`/`free-fields` re-run the selector on the edited tx rather than reasoning about flags.
 - `(inputs remove-others)` is free only if every signed input survives alone and the input set is not committed, so a one-input SIGHASH_ALL tx does not pass vacuously.
+- Selectors take the spend context: `(tx index spent-coins type leaf)`, leaf being the tapleaf hash for a script path. Branch witness templates are complete (wsh script, tapleaf script and control block included).
+- A taproot key-path signature is by the internal key; the tweak is implied by the symbolic output key `(taptweak (internal root))`. Taptree is balanced over the leaves in order; tapbranch orders children by printed form. Leaf scripts compile exactly as for wsh (no CHECKSIGADD yet); OP_SUCCESSx, annex and sigops budget are not modelled.
 
 ## Next step
 
-Finish step 3: taproot key and script spends with a BIP341 selector, so the sighash queries cover `wpkh`, `tr-key` and `tr-script`. `sighash-search` itself is v1.
+Build order step 4 from `scenarios.md`: scenario log, `lower` and `replay` for P2WPKH against regtest Core. Done when Scenario 1 replays with zero disagreements. Decide the scenario log format first (open question).
 
 ## Things to fill in
 

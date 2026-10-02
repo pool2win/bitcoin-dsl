@@ -218,7 +218,7 @@
                    #:sign [keys #f]
                    #:path [path #f]
                    #:reveal [reveal #f]
-                   #:sighash [type '(all)]
+                   #:sighash [type #f]
                    #:sequence [sequence #f])
   (check-same-chain 'add-input (tx-chain t) (list c))
   (define spec (input c #:sign keys #:path path #:reveal reveal #:sighash type #:sequence sequence))
@@ -243,25 +243,25 @@
 ;; the signing keys, revealed preimages, and an empty item for anything not
 ;; supplied, so an incomplete spend is an explained rejection.
 (define (sign-input c t idx spec b)
-  (define l (coin-lock (input-spec-coin spec)))
-  (define type (input-spec-sighash spec))
+  (define version (lock-spend-version (coin-lock (input-spec-coin spec))))
+  (define type (or (input-spec-sighash spec) (if (eq? version 'v1) '(default) '(all))))
   (define fields
-    (delay ((hash-ref (consensus-sighash c) (lock-spend-version l))
-            t idx (map txin-coin (tx-inputs t)) type)))
+    (delay ((hash-ref (consensus-sighash c) version)
+            t idx (map txin-coin (tx-inputs t)) type (branch-leaf b))))
   (define (fill item)
     (match item
       [(need-sig k) (if (member k (input-spec-keys spec)) (sig k type (force fields)) #"")]
       [(need-preimage s) (if (member s (input-spec-reveal spec)) s #"")]
       [_ item]))
   (struct-copy txin (list-ref (tx-inputs t) idx)
-               [witness (append (map fill (branch-witness b)) (lock-witness-tail l))]))
+               [witness (map fill (branch-witness b))]))
 
 ;; what is a coin or a list of inputs/coins.
 (define (spend what
                #:sign [keys #f]
                #:path [path #f]
                #:reveal [reveal #f]
-               #:sighash [type '(all)]
+               #:sighash [type #f]
                #:sequence [sequence #f]
                #:locktime [locktime #f]
                #:outputs outputs)

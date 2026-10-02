@@ -143,16 +143,22 @@
                      (cons (+ x y) rest)
                      (script-failure 'add (list (cons 'not-a-number (if x b a))))))))
 
-;; A bad signature pushes false rather than failing; check-sig records why.
+;; A bad signature pushes false rather than failing, except a non-empty
+;; one in tapscript, for which check-sig returns a failure. check-sig
+;; records why a signature was bad.
 (define (op-checksig s ctx)
-  (if (< (length s) 2)
-      (underflow 'checksig)
-      (cons (script-bool ((script-ctx-check-sig ctx) (cadr s) (car s))) (cddr s))))
+  (cond [(< (length s) 2) (underflow 'checksig)]
+        [else
+         (define ok ((script-ctx-check-sig ctx) (cadr s) (car s)))
+         (if (script-failure? ok) ok (cons (script-bool ok) (cddr s)))]))
 
 (define (op-checksigverify s ctx)
   (cond [(< (length s) 2) (underflow 'checksigverify)]
-        [((script-ctx-check-sig ctx) (cadr s) (car s)) (cddr s)]
-        [else (script-failure 'checksigverify '())]))
+        [else
+         (define ok ((script-ctx-check-sig ctx) (cadr s) (car s)))
+         (cond [(script-failure? ok) ok]
+               [ok (cddr s)]
+               [else (script-failure 'checksigverify '())])]))
 
 ;; CSV and CLTV leave their argument on the stack, as the NOPs they replaced.
 (define ((timelock-op name hook) s ctx)
@@ -188,18 +194,27 @@
 
 ;; Script hooks
 
-(define ((make-check-sig x version cause) s pk)
-  (define fields-of (hash-ref (consensus-sighash (vctx-consensus x)) version))
-  (define why
-    (cond [(equal? s #"") 'empty-signature]
-          [(not (sig? s)) 'not-a-signature]
-          [(not (equal? (sig-key s) pk)) 'wrong-key]
-          [(not (equal? (sig-fields s)
-                        (fields-of (vctx-tx x) (vctx-index x) (vctx-spent-coins x) (sig-type s))))
-           'commitment-mismatch]
-          [else #f]))
+;; leaf is the tapleaf hash for a tapscript spend, else #f. strict? makes a
+;; non-empty bad signature fail the script (BIP342).
+(define ((make-check-sig x version leaf cause strict?) s pk)
+  (define why (sig-problem x version leaf s pk))
   (when why (set-box! cause why))
-  (not why))
+  (cond [(not why) #t]
+        [(and strict? (not (eq? why 'empty-signature)))
+         (script-failure 'checksig (list (cons 'cause why)))]
+        [else #f]))
+
+;; Why s is not a valid signature by pk for input x, or #f if it is.
+(define (sig-problem x version leaf s pk)
+  (define fields-of (hash-ref (consensus-sighash (vctx-consensus x)) version))
+  (cond [(equal? s #"") 'empty-signature]
+        [(not (sig? s)) 'not-a-signature]
+        [(not (equal? (sig-key s) pk)) 'wrong-key]
+        [else
+         (define now (fields-of (vctx-tx x) (vctx-index x) (vctx-spent-coins x) (sig-type s) leaf))
+         (cond [(assq 'invalid now) => cdr]
+               [(not (equal? (sig-fields s) now)) 'commitment-mismatch]
+               [else #f])]))
 
 (define ((make-check-sequence x) n)
   (define seq (txin-sequence (vctx-input x)))
@@ -223,14 +238,17 @@
 
 ;; Sighash selectors
 ;;
-;; A selector maps (tx, input index, spent coins, sighash type) to the
-;; commitment: an alist from field name to value, in digest order. Field
-;; names are relative to the signing input (own-input, own-output) because
-;; that is what the digest binds, not the input's position.
+;; A selector maps (tx, input index, spent coins, sighash type, leaf) to
+;; the commitment: an alist from field name to value. leaf is the tapleaf
+;; hash for a tapscript spend, else #f. Field names are relative to the
+;; signing input (own-input, own-output) because that is what the digest
+;; binds. A commitment containing (invalid . reason) can never verify.
 
 ;; BIP143: what a segwit v0 signature commits to. SINGLE with no output at
 ;; the input's index commits to no outputs (unlike legacy's "sign 1").
-(define (bip143-fields t idx spent-coins type)
+(define (bip143-fields t idx spent-coins type leaf)
+  (when (equal? type '(default))
+    (raise-arguments-error 'sighash "default is a taproot sighash type" "type" type))
   (define base (car type))
   (define acp? (memq 'anyonecanpay type))
   (define ins (tx-inputs t))
@@ -255,36 +273,98 @@
    (list (cons 'locktime (tx-locktime t))
          (cons 'sighash-type type))))
 
+;; BIP341: what a taproot signature commits to. Unlike BIP143 it commits to
+;; every input's amount and scriptPubKey, to all sequences whenever not
+;; ANYONECANPAY, and to the input's index rather than its outpoint.
+(define (bip341-fields t idx spent-coins type leaf)
+  (define base (car type))
+  (define acp? (memq 'anyonecanpay type))
+  (define ins (tx-inputs t))
+  (define outs (tx-outputs t))
+  (define in (list-ref ins idx))
+  (define spent (list-ref spent-coins idx))
+  (define (output-value o) (list (txout-amount o) (lock->spk (txout-lock o))))
+  (if (and (eq? base 'single) (>= idx (length outs)))
+      (list (cons 'invalid 'single-without-output) (cons 'sighash-type type))
+      (append
+       (list (cons 'version (tx-version t))
+             (cons 'locktime (tx-locktime t)))
+       (if acp?
+           '()
+           (list (cons '(inputs outpoints) (map txin-outpoint ins))
+                 (cons '(inputs amounts) (map coin-amount spent-coins))
+                 (cons '(inputs spks) (map (λ (c) (lock->spk (coin-lock c))) spent-coins))
+                 (cons '(inputs sequences) (map txin-sequence ins))))
+       (if (memq base '(default all)) (list (cons '(outputs all) (map output-value outs))) '())
+       (list (cons 'spend-type (if leaf 'script 'key)))
+       (if acp?
+           (list (cons '(own-input outpoint) (txin-outpoint in))
+                 (cons '(own-prevout amount) (coin-amount spent))
+                 (cons '(own-prevout spk) (lock->spk (coin-lock spent)))
+                 (cons '(own-input sequence) (txin-sequence in)))
+           (list (cons '(own-input index) idx)))
+       (if (eq? base 'single) (list (cons '(own-output) (output-value (list-ref outs idx)))) '())
+       (if leaf (list (cons '(own-leaf) leaf) (cons 'codesep-position #xffffffff)) '())
+       (list (cons 'sighash-type type)))))
+
 ;; Witness verification
 
 (define (verify-witness x)
-  ;;* Read the witness program: a 20-byte HASH160 program is P2WPKH, a 32-byte SHA256 one is P2WSH.
+  ;;* Read the witness program: v0 with a HASH160 program is P2WPKH, v0 with a SHA256 one is P2WSH, v1 is taproot.
   (define spk (lock->spk (coin-lock (utxo-coin (vctx-spent-utxo x)))))
   (define program (second spk))
   (define witness (txin-witness (vctx-input x)))
   (define (mismatch why) (failure 'witness-program-mismatch (list (cons 'reason why))))
-  (cond
-    [(not (eq? (first spk) 'v0))
-     (failure 'unsupported-spend (list (cons 'spk spk)))]
-    [(eq? (hashed-fn program) 'hash160)
-     (if (= (length witness) 2)
-         (run-witness-script x (p2wpkh-script program) (reverse witness))
-         (mismatch 'p2wpkh-needs-two-items))]
-    ;;* For P2WSH the last witness item is the script, and it must hash to the program.
-    [(null? witness) (mismatch 'empty-witness)]
-    [(not (equal? (sha256-of (last witness)) program)) (mismatch 'script-hash)]
-    [else (run-witness-script x (last witness) (reverse (drop-right witness 1)))]))
+  (case (first spk)
+    [(v0)
+     (cond
+       [(eq? (hashed-fn program) 'hash160)
+        (if (= (length witness) 2)
+            (run-witness-script x 'v0 #f (p2wpkh-script program) (reverse witness))
+            (mismatch 'p2wpkh-needs-two-items))]
+       ;;* For P2WSH the last witness item is the script, and it must hash to the program.
+       [(null? witness) (mismatch 'empty-witness)]
+       [(not (equal? (sha256-of (last witness)) program)) (mismatch 'script-hash)]
+       [else (run-witness-script x 'v0 #f (last witness) (reverse (drop-right witness 1)))])]
+    [(v1) (verify-taproot x program witness mismatch)]
+    [else (failure 'unsupported-spend (list (cons 'spk spk)))]))
 
-(define (run-witness-script x script stack)
+(define (verify-taproot x output-key witness mismatch)
+  (define internal (first (hashed-value output-key)))
+  (cond
+    [(null? witness) (mismatch 'empty-witness)]
+    ;;* Key path: the single item is a signature by the internal key, with the output key's tweak implied.
+    [(null? (cdr witness))
+     (define cause (box #f))
+     (define ok ((make-check-sig x 'v1 #f cause #t) (car witness) internal))
+     (if (eq? ok #t)
+         #f
+         (failure 'key-path-sig (list (cons 'cause (unbox cause)))))]
+    ;;* Script path: the leaf script and control block must commit to the output key.
+    [else
+     (define c (last witness))
+     (define script (list-ref witness (- (length witness) 2)))
+     (cond
+       [(not (control? c)) (mismatch 'not-a-control-block)]
+       [(not (equal? (taptweak (control-internal c) (merkle-root (tapleaf script) (control-path c)))
+                     output-key))
+        (failure 'taproot-commitment '())]
+       [else (run-witness-script x 'v1 (tapleaf script) script (reverse (drop-right witness 2)))])]))
+
+;; version is the sighash version; leaf is set for tapscript, which also
+;; makes bad non-empty signatures fail the script.
+(define (run-witness-script x version leaf script stack)
   ;;* Run the script with signature and timelock checks bound to this input.
   (define cause (box #f))
-  (define ctx (script-ctx (make-check-sig x 'v0 cause)
+  (define ctx (script-ctx (make-check-sig x version leaf cause (and leaf #t))
                           (make-check-sequence x)
                           (make-check-locktime x)
                           (vctx-emit x)))
   (define result (run-script (consensus-opcodes (vctx-consensus x)) script stack ctx))
   (define (with-cause details)
-    (if (unbox cause) (append details (list (cons 'cause (unbox cause)))) details))
+    (if (and (unbox cause) (not (assq 'cause details)))
+        (append details (list (cons 'cause (unbox cause))))
+        details))
   ;;* Map an interpreter failure or an unclean final stack to a named rule, adding why a signature failed.
   (cond
     [(script-failure? result)
@@ -368,7 +448,7 @@
              #f
              bitcoin-rules
              bitcoin-opcodes
-             (hash 'v0 bip143-fields)
+             (hash 'v0 bip143-fields 'v1 bip341-fields)
              (hash 'coinbase-maturity 100
                    'halving-interval 150
                    'initial-subsidy (btc 50)

@@ -26,6 +26,7 @@
          coin?
          tx?
          wpkh
+         tr
          hash160
          secret
          branch-name

@@ -147,6 +147,8 @@ The agent learns what each signature commits to and can search for the weakest c
 
 Field names are relative to the signing input (`own-input`, `own-prevout`, `own-output`) because the digest binds the input's outpoint, not its position: under ANYONECANPAY the input can move. `mutate` and `free-fields` do not reason about flags; they edit the tx and recompute each signature's commitment with the selector verification uses, so they cannot disagree with it. `free-fields` checks a fixed catalogue of edits: `(inputs append)`, `(inputs remove-others)`, `(outputs append)`, each output's amount and lock, each input's sequence, `version` and `locktime`.
 
+Taproot outputs are `(tr key)` for key-path only, or `(tr key #:leaves (list (htlc ...) ...))` with leaves built by `contract`. Branches are named `key` for the key path and after each leaf's contract (`htlc/claim`, or `single-key-1` when two leaves share a contract). A taproot signature's `commits` differs from BIP143: it commits to every input's amount and scriptPubKey, to all sequences whenever not ANYONECANPAY, to the input's index rather than its outpoint, to the spend type, and for a script path to the leaf.
+
 Forces: `#:sighash`, `sig-of`, `commits`, `free-fields`, `mutate`, `add-input`, `sighash-search`, per-version sighash selectors in the consensus value, taproot key and script spends.
 
 ## Scenario 4: CTV vault on two chains with different rules

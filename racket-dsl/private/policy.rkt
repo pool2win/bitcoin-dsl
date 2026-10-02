@@ -171,8 +171,9 @@
 ;; Branches
 
 ;; A named spend path. needs is what the spender must supply, e.g.
-;; ((sig bob) (preimage s1) (age>= 144)).
-(struct branch (name needs witness sequence locktime)
+;; ((sig bob) (preimage s1) (age>= 144)). leaf is the tapleaf hash for a
+;; taproot script path, else #f.
+(struct branch (name needs witness sequence locktime leaf)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc b port mode)
@@ -183,7 +184,7 @@
     (if (null? (sat-labels s))
         'default
         (string->symbol (string-join (map (λ (l) (format "~a" l)) (sat-labels s)) "/"))))
-  (branch name (sat-needs s) (sat-witness s) (sat-sequence s) (sat-locktime s)))
+  (branch name (sat-needs s) (sat-witness s) (sat-sequence s) (sat-locktime s) #f))
 
 ;; Contract instances
 

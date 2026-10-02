@@ -100,7 +100,8 @@
                                          (λ (x) (equal? (txin-outpoint x) (txin-outpoint in)))))]
                #:when j
                [select (in-value (hash-ref selectors (lock-spend-version (coin-lock (txin-coin in)))))]
-               [diff (in-value (field-diff (sig-fields s) (select edited j spent (sig-type s))))]
+               [leaf (in-value (witness-leaf (txin-witness (list-ref (tx-inputs edited) j))))]
+               [diff (in-value (field-diff (sig-fields s) (select edited j spent (sig-type s) leaf)))]
                #:unless (null? diff))
      (list 'sig (sig-key s) i '#:fields diff))))
 

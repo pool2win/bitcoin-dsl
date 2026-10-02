@@ -10,14 +10,20 @@
 (provide (struct-out lock)
          wpkh
          wsh
+         tr
          lock->spk
          lock-spend-version
          lock-script-code
          lock-branches
          lock-branch
-         lock-witness-tail
          lock-spendable-by?
          p2wpkh-script
+         (struct-out control)
+         tapleaf
+         tapbranch
+         taptweak
+         merkle-root
+         witness-leaf
          (struct-out outpoint)
          (struct-out coin)
          (struct-out txin)
@@ -37,12 +43,19 @@
 
 ;; A lock is how the DSL describes an output: its kind and the arguments
 ;; it was built from. lock->spk derives what consensus actually sees.
+;;   wpkh  params: (key)
+;;   wsh   params: (contract-instance)
+;;   tr    params: (internal-key leaves), leaves a list of contract instances
 (struct lock (kind params)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc l port mode)
      (case (lock-kind l)
        [(wsh) (write (first (lock-params l)) port)]
+       [(tr)
+        (define leaves (second (lock-params l)))
+        (fprintf port "(tr ~s~a)" (first (lock-params l))
+                 (if (null? leaves) "" (format " #:leaves ~s" leaves)))]
        [else
         (fprintf port "(~a~a)" (lock-kind l)
                  (apply string-append
@@ -56,27 +69,51 @@
   (unless (contract-instance? instance) (raise-argument-error 'wsh "contract-instance?" instance))
   (lock 'wsh (list instance)))
 
+;; Leaves may be contract locks (what a contract function returns) or
+;; contract instances; either way the leaf script is the contract's script.
+(define (tr k #:leaves [leaves '()])
+  (unless (key? k) (raise-argument-error 'tr "key?" k))
+  (define instances
+    (for/list ([l (in-list leaves)])
+      (cond [(contract-instance? l) l]
+            [(and (lock? l) (eq? (lock-kind l) 'wsh)) (first (lock-params l))]
+            [else (raise-argument-error 'tr "a contract" l)])))
+  (lock 'tr (list k instances)))
+
 (define (p2wpkh-script h) `(dup hash160 (push ,h) equalverify checksig))
 
 (define (lock->spk l)
   (case (lock-kind l)
     [(wpkh) (list 'v0 (hash160 (first (lock-params l))))]
-    [(wsh) (list 'v0 (sha256-of (contract-instance-script (first (lock-params l)))))]))
+    [(wsh) (list 'v0 (sha256-of (contract-instance-script (first (lock-params l)))))]
+    [(tr) (let-values ([(root paths) (tr-tree l)])
+            (list 'v1 (taptweak (first (lock-params l)) root)))]))
 
-(define (lock-spend-version l) 'v0)
+(define (lock-spend-version l)
+  (case (lock-kind l)
+    [(wpkh wsh) 'v0]
+    [(tr) 'v1]))
 
 ;; The script a BIP143 signature commits to.
 (define (lock-script-code l)
   (case (lock-kind l)
     [(wpkh) (p2wpkh-script (second (lock->spk l)))]
-    [(wsh) (contract-instance-script (first (lock-params l)))]))
+    [(wsh) (contract-instance-script (first (lock-params l)))]
+    [(tr) #f]))
 
+;; Each branch's witness template is complete: for wsh it ends with the
+;; witness script, for a taproot script path with the leaf script and
+;; control block.
 (define (lock-branches l)
   (case (lock-kind l)
     [(wpkh)
      (define k (first (lock-params l)))
-     (list (branch 'default `((sig ,k)) (list (need-sig k) k) #f #f))]
-    [(wsh) (contract-instance-branches (first (lock-params l)))]))
+     (list (branch 'default `((sig ,k)) (list (need-sig k) k) #f #f #f))]
+    [(wsh)
+     (define c (first (lock-params l)))
+     (for/list ([b (in-list (contract-instance-branches c))])
+       (struct-copy branch b [witness (append (branch-witness b) (list (contract-instance-script c)))]))]
+    [(tr) (tr-branches l)]))
 
 ;; path #f picks the only branch, and is an error when there are several.
 (define (lock-branch l path)
@@ -88,18 +125,80 @@
     [else (raise-arguments-error 'spend "this coin has several spend paths; pass #:path"
                                  "paths" (map branch-name bs))]))
 
-;; Witness items after the filled-in branch template: the witness script
-;; for wsh, nothing for wpkh.
-(define (lock-witness-tail l)
-  (case (lock-kind l)
-    [(wpkh) '()]
-    [(wsh) (list (contract-instance-script (first (lock-params l))))]))
-
 ;; True when some branch needs signatures from k and no other key.
 (define (lock-spendable-by? l k)
   (for/or ([b (in-list (lock-branches l))])
     (define sig-keys (for/list ([n (in-list (branch-needs b))] #:when (eq? (first n) 'sig)) (second n)))
     (and (pair? sig-keys) (andmap (λ (x) (equal? x k)) sig-keys))))
+
+;; Taproot
+
+;; A script-path control block: the internal key and the leaf's merkle
+;; path (sibling hashes, leaf end first). Leaf version is always 0xc0.
+(struct control (internal path)
+  #:transparent
+  #:methods gen:custom-write
+  [(define (write-proc c port mode) (fprintf port "#<control ~s>" (control-internal c)))])
+
+(define (tapleaf script) (hashed 'tapleaf script))
+
+;; BIP341 hashes a branch's children in sorted order; symbolic hashes are
+;; ordered by their printed form.
+(define (tapbranch a b)
+  (hashed 'tapbranch (sort (list a b) string<? #:key (λ (h) (format "~s" h)))))
+
+;; root is #f for a key-only output.
+(define (taptweak internal root) (hashed 'taptweak (list internal root)))
+
+(define (merkle-root leaf path)
+  (for/fold ([h leaf]) ([sibling (in-list path)]) (tapbranch h sibling)))
+
+;; The tapleaf hash a witness spends through, or #f for a key-path spend.
+(define (witness-leaf w)
+  (and (>= (length w) 2)
+       (control? (last w))
+       (tapleaf (list-ref w (- (length w) 2)))))
+
+;; Returns the merkle root (#f with no leaves) and each leaf's path, for a
+;; balanced tree over the leaves in order.
+(define (tr-tree l)
+  (let build ([hashes (map (λ (c) (tapleaf (contract-instance-script c))) (second (lock-params l)))])
+    (cond
+      [(null? hashes) (values #f '())]
+      [(null? (cdr hashes)) (values (car hashes) (list '()))]
+      [else
+       (define-values (left right) (split-at hashes (quotient (length hashes) 2)))
+       (define-values (left-root left-paths) (build left))
+       (define-values (right-root right-paths) (build right))
+       (values (tapbranch left-root right-root)
+               (append (map (λ (p) (append p (list right-root))) left-paths)
+                       (map (λ (p) (append p (list left-root))) right-paths)))])))
+
+;; The key path is named key. A leaf is named after its contract (with an
+;; index when two leaves share one), and its branches as leaf/branch.
+(define (tr-branches l)
+  (define internal (first (lock-params l)))
+  (define leaves (second (lock-params l)))
+  (define-values (root paths) (tr-tree l))
+  (define names (map contract-instance-name leaves))
+  (define (leaf-name c i)
+    (if (> (length (filter (λ (n) (eq? n (contract-instance-name c))) names)) 1)
+        (format "~a-~a" (contract-instance-name c) i)
+        (format "~a" (contract-instance-name c))))
+  (cons
+   (branch 'key `((sig ,internal)) (list (need-sig internal)) #f #f #f)
+   (for*/list ([(c i) (in-parallel leaves (in-naturals))]
+               [path (in-value (list-ref paths i))]
+               [b (in-list (contract-instance-branches c))])
+     (define script (contract-instance-script c))
+     (branch (if (eq? (branch-name b) 'default)
+                 (string->symbol (leaf-name c i))
+                 (string->symbol (format "~a/~a" (leaf-name c i) (branch-name b))))
+             (branch-needs b)
+             (append (branch-witness b) (list script (control internal path)))
+             (branch-sequence b)
+             (branch-locktime b)
+             (tapleaf script)))))
 
 ;; Coins and transactions
 
@@ -181,16 +280,17 @@
   (output-of t i))
 
 ;; What the author asked for on one input, before the tx is built and
-;; signed. keys and reveal are lists; sequence #f means "set by the path".
+;; signed. keys and reveal are lists; sequence #f means "set by the path"
+;; and sighash #f the spend version's default (all, or taproot's default).
 (struct input-spec (coin keys sighash sequence path reveal) #:transparent)
 
 (define (->list x) (cond [(not x) '()] [(list? x) x] [else (list x)]))
 
 (define (input c
                #:sign [keys #f]
-               #:sighash [type '(all)]
+               #:sighash [type #f]
                #:sequence [sequence #f]
                #:path [path #f]
                #:reveal [reveal #f])
   (unless (coin? c) (raise-argument-error 'input "coin?" c))
-  (input-spec c (->list keys) (sighash-flags type) sequence path (->list reveal)))
+  (input-spec c (->list keys) (and type (sighash-flags type)) sequence path (->list reveal)))
