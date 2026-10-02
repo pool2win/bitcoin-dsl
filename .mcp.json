@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "bitcoin-dsl": {
+      "type": "stdio",
+      "command": "racket",
+      "args": [
+        "-l",
+        "bitcoin/mcp"
+      ],
+      "env": {}
+    }
+  }
+}
