@@ -65,7 +65,7 @@
   (define s (make-session))
   (define-values (text error?) (call s "eval" (hasheq 'code "(display \"partial\") (car 1)")))
   (check-true error?)
-  (check-true (string-prefix? text "partial\nerror: car:"))
+  (check-true (string-prefix? text "partial\nerror: in form 2 of 2 (the forms before it ran; the rest did not): car:"))
   (check-equal? (eval-ok s "(+ 1 2)") "3\n"))
 
 (test-case "describe"
@@ -128,3 +128,16 @@
               (define-tx p #:inputs ([cb #:sign miner #:sighash '(all anyonecanpay)])
                            #:outputs ([o (wpkh bob) (btc 49)]))")
   (check-true (string-contains? (eval-ok s "(add-input p c2)") "#<tx p+input")))
+
+(test-case "fixes from the second agent run"
+  (define s (make-session))
+  (eval-ok s "(chain mainnet #:rules bitcoin) (keys alice bob)
+              (define cb (first (mine 1 #:on mainnet #:to alice))) (void (mine 100 #:on mainnet))
+              (define-tx pay #:inputs ([cb #:sign alice]) #:outputs ([o (wpkh bob) (btc 49)]))")
+  ;; A commitment mismatch says which fields changed.
+  (check-true (string-contains? (eval-ok s "(try (edit pay '(output o amount) (btc 48)))")
+                                "#:cause commitment-mismatch #:fields ((outputs all))"))
+  (define-values (overview _e) (call s "describe" (hasheq)))
+  (check-true (string-contains? overview "(height #:on chain)"))
+  (define-values (sighash _e2) (call s "describe" (hasheq 'topic "sighash")))
+  (check-true (string-contains? sighash "BIP341")))

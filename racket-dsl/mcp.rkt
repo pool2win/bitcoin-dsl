@@ -39,11 +39,16 @@
 (define (session-eval s code)
   (define out (open-output-string))
   (define (render v) (write-string (show v #:limit max-items) out))
+  ;; Which form is running, and how many there are, for error messages.
+  (define position 0)
+  (define total 0)
+  (define (where)
+    (if (> total 1) (format "in form ~a of ~a (the forms before it ran; the rest did not): " position total) ""))
   (define result
     (call-with-time-limit
      eval-timeout
      (λ ()
-       (with-handlers ([exn:fail? (λ (e) (list 'error (exn-message e)))]
+       (with-handlers ([exn:fail? (λ (e) (list 'error (string-append (where) (exn-message e))))]
                        [exn:break? (λ (e) (list 'error "interrupted"))])
          (parameterize ([current-namespace (session-ns s)]
                         [current-output-port out]
@@ -51,7 +56,9 @@
                         [read-accept-reader #f]
                         [read-accept-lang #f])
            (define forms (with-input-from-string code (λ () (for/list ([f (in-port read)]) f))))
-           (for ([f (in-list forms)])
+           (set! total (length forms))
+           (for ([f (in-list forms)] [i (in-naturals 1)])
+             (set! position i)
              (call-with-values (λ () (eval f))
                                (λ vs (for ([v (in-list vs)] #:unless (void? v)) (render v)))))
            'ok)))))
@@ -108,12 +115,12 @@
 (define tools
   (list
    (hasheq 'name "describe"
-           'description "Describe the Bitcoin DSL. With no topic: purpose, conventions and all forms. Topics: a form name (e.g. define-tx), rules, opcodes, state. Start here."
+           'description "Describe the Bitcoin DSL. With no topic: purpose, conventions, tips, an example and every form with its usage. Topics (plain names): a form (e.g. define-tx), a rule (e.g. eval-false), rules, opcodes, sighash, state. Start here."
            'inputSchema (hasheq 'type "object"
                                 'properties (hasheq 'topic (hasheq 'type "string"
                                                                    'description "Optional topic"))))
    (hasheq 'name "eval"
-           'description "Evaluate DSL forms (Racket s-expressions, #lang bitcoin/conform) in the persistent session. Definitions and chain state persist across calls. Returns each non-void result."
+           'description "Evaluate DSL forms (Racket s-expressions, #lang bitcoin/conform) in the persistent session. Forms run in order; definitions and chain state persist across calls. Returns each non-void result; long lists are abbreviated. An error stops the batch: the reply says which form failed, and earlier forms have already run."
            'inputSchema (hasheq 'type "object"
                                 'properties (hasheq 'code (hasheq 'type "string"
                                                                   'description "One or more forms"))

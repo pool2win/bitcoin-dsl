@@ -222,24 +222,32 @@
 
 ;; leaf is the tapleaf hash for a tapscript spend, else #f. strict? makes a
 ;; non-empty bad signature fail the script (BIP342).
+;; cause is a box that receives the details of the last bad signature,
+;; e.g. ((cause . commitment-mismatch) (fields (outputs all))).
 (define ((make-check-sig x version leaf cause strict?) s pk)
-  (define why (sig-problem x version leaf s pk))
-  (when why (set-box! cause why))
-  (cond [(not why) #t]
-        [(and strict? (not (eq? why 'empty-signature)))
-         (script-failure 'checksig (list (cons 'cause why)))]
+  (define problem (sig-problem x version leaf s pk))
+  (when problem (set-box! cause problem))
+  (cond [(not problem) #t]
+        [(and strict? (not (eq? (cdar problem) 'empty-signature)))
+         (script-failure 'checksig problem)]
         [else #f]))
 
-;; Why s is not a valid signature by pk for input x, or #f if it is.
+;; Why s is not a valid signature by pk for input x, as rejection details,
+;; or #f if it is valid. A commitment mismatch lists the fields that differ.
 (define (sig-problem x version leaf s pk)
   (define fields-of (hash-ref (consensus-sighash (vctx-consensus x)) version))
-  (cond [(equal? s #"") 'empty-signature]
-        [(not (sig? s)) 'not-a-signature]
-        [(not (equal? (sig-key s) pk)) 'wrong-key]
+  (define (because why) (list (cons 'cause why)))
+  (cond [(equal? s #"") (because 'empty-signature)]
+        [(not (sig? s)) (because 'not-a-signature)]
+        [(not (equal? (sig-key s) pk)) (because 'wrong-key)]
         [else
          (define now (fields-of (vctx-tx x) (vctx-index x) (vctx-spent-coins x) (sig-type s) leaf))
-         (cond [(assq 'invalid now) => cdr]
-               [(not (equal? (sig-fields s) now)) 'commitment-mismatch]
+         (cond [(assq 'invalid now) => (λ (p) (because (cdr p)))]
+               [(not (equal? (sig-fields s) now))
+                (list (cons 'cause 'commitment-mismatch)
+                      (cons 'fields (for/list ([f (in-list (sig-fields s))]
+                                               #:unless (equal? f (assoc (car f) now)))
+                                      (car f))))]
                [else #f])]))
 
 (define ((make-check-sequence x) n)
@@ -365,7 +373,7 @@
      (define ok ((make-check-sig x 'v1 #f cause #t) (car witness) internal))
      (if (eq? ok #t)
          #f
-         (failure 'key-path-sig (list (cons 'cause (unbox cause)))))]
+         (failure 'key-path-sig (unbox cause)))]
     ;;* Script path: the leaf script and control block must commit to the output key.
     [else
      (define c (last witness))
@@ -389,7 +397,7 @@
   (define result (run-script (consensus-opcodes (vctx-consensus x)) script stack ctx))
   (define (with-cause details)
     (if (and (unbox cause) (not (assq 'cause details)))
-        (append details (list (cons 'cause (unbox cause))))
+        (append details (unbox cause))
         details))
   ;;* Map an interpreter failure or an unclean final stack to a named rule, adding why a signature failed.
   (cond

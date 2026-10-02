@@ -22,7 +22,7 @@
     (contract definition "(contract name (param ...) policy)"
               "Define name as a function from params to a P2WSH lock. Policy forms: (pk k) (sha256 s) (older blocks) (after height) (and p ...) (or arm ...) (thresh k (pk a) ...). An or arm may be labelled [label policy]; labels name spend paths. (older n) counts the coin's own block: right after the funding block is mined, a try sees age 1, so mine n-1 more blocks.")
     (define-tx definition "(define-tx name #:inputs ([coin input-option ...] ...) #:outputs ([label lock amount] ...))"
-               "Build and sign a tx, bind it to name and bind each output label to that output's coin. Input options as for input.")
+               "Build and sign a tx, bind it to name and bind each output label to that output's coin as a top-level definition (a later define-tx with the same label rebinds it). Input options as for input, e.g. [cb #:sign alice #:sighash '(all anyonecanpay)].")
     (btc value "(btc 49.99)" "An amount in BTC, kept as exact satoshis.")
     (sats value "(sats 1000)" "An amount in satoshis.")
     (wpkh value "(wpkh key)" "A P2WPKH lock.")
@@ -35,8 +35,8 @@
     (out query "(out tx 'label)" "The coin with that label.")
     (mine session "(mine n #:on chain #:to key)"
           "Mine n blocks, including the mempool in the first. Returns the list of coinbase coins (wrap in void to discard). Without #:to, coinbases pay an anonymous miner no user key can spend. Coinbases mature after 100 blocks; the subsidy halves every 150 blocks.")
-    (spend value "(spend coin-or-inputs #:sign key #:path 'branch #:reveal s #:sighash flags #:sequence n #:locktime n #:outputs (list (output ...) ...))"
-           "Build and sign a tx as an expression, for try and the REPL.")
+    (spend value "(spend coin-or-inputs #:sign key-or-list #:path 'branch #:reveal s #:sighash flags #:sequence n #:locktime n #:outputs (list (output 'label lock amount) ...))"
+           "Build and sign a tx as an expression, for try and the REPL; labels are only reachable with out. #:path sets nSequence and nLockTime for that branch, so #:sequence and #:locktime are rarely needed. Give a list of (input ...) specs to spend several coins.")
     (add-input value "(add-input tx coin #:sign key ...)  ; returns a tx named <name>+input"
                "Append an input and sign only it. Other signatures survive only if their sighash leaves inputs free.")
     (try session "(try tx)" "Validate against the chain and mempool without changing state. Returns accepted or rejected.")
@@ -54,12 +54,12 @@
     (snapshot session "(snapshot)" "Capture chains and the scenario log. Racket definitions are not captured.")
     (restore session "(restore snapshot)" "Return chains and the log to a snapshot.")
     (sig-of query "(sig-of tx input #:key key)" "The signature on an input.")
-    (commits query "(commits sig)" "The fields a signature commits to.")
-    (free-fields query "(free-fields tx)" "The catalogued edits that leave every signature valid.")
+    (commits query "(commits sig)" "The fields a signature commits to; the list depends on the spend version and flags. See (describe 'sighash) for the field names.")
+    (free-fields query "(free-fields tx)" "The catalogued edits that leave every signature valid: (inputs append), (inputs remove-others), (outputs append), (output ref amount), (output ref lock), (input i sequence), version, locktime.")
     (mutate query "(mutate tx path value)"
             "Apply an edit and report the signatures it breaks, with the fields that changed. Paths as for edit.")
     (edit value "(edit tx path value)"
-          "tx with one field changed and witnesses kept. Paths: version, locktime, (input i sequence), (output ref amount), (output ref lock), (inputs append), (inputs remove i), (outputs append), (outputs remove ref).")
+          "tx with one field changed and witnesses kept. Paths: version, locktime, (input i sequence), (output ref amount), (output ref lock), (inputs append) with a coin, (inputs remove i), (outputs append) with an (output ...), (outputs remove ref). ref is an output label or index; i is an input index.")
     (scenario-log query "(scenario-log)" "The log of chain, mine, try and broadcast events, oldest first.")
     (replay conformance "(replay (scenario-log) #:targets (hash 'mainnet (regtest)))"
             "Replay the log against a fresh regtest Core node. Each step is confirmed, disagree or unverified. Needs bitcoind on PATH.")
@@ -85,6 +85,14 @@
     "Mature coinbases with (void (mine 100 #:on chain)): no #:to pays an anonymous miner and keeps your keys' coins clean."
     "Mine all the coins you need early: the subsidy halves every 150 blocks."))
 
+;; What each sighash flag commits to, and the field names commits uses.
+(define sighash-doc
+  '((flags "#:sighash 'all (default for segwit v0), 'none, 'single, each optionally with anyonecanpay as a list: '(all anyonecanpay). 'default is taproot's default and commits like all.")
+    (segwit-v0 "BIP143. Always: version, own-input outpoint and sequence, own-prevout script and amount, locktime. Without anyonecanpay: (inputs outpoints), and with all also (inputs sequences). all: (outputs all); single: (own-output), or no outputs if there is none at the input's index; none: no outputs.")
+    (taproot "BIP341. Always: version, locktime, spend-type. Without anyonecanpay: (inputs outpoints) (inputs amounts) (inputs spks) (inputs sequences) and (own-input index); with anyonecanpay: own-input outpoint and sequence, own-prevout amount and spk. all/default: (outputs all); single: (own-output), invalid if there is none; none: no outputs. Script path adds (own-leaf) and codesep-position.")
+    (fields "own-* names are relative to the signing input; (inputs ...) and (outputs all) cover every input or output, so adding or removing one changes them.")
+    (queries "commits lists a signature's fields; free-fields lists edits no signature commits to; mutate applies an edit and reports which signatures break on which fields; a commitment-mismatch rejection carries the same #:fields.")))
+
 (define example
   '((chain mainnet #:rules bitcoin)
     (keys alice bob)
@@ -107,8 +115,9 @@
            (cons 'tips tips)
            (cons 'example example)
            (cons 'forms (for/list ([g '(definition value session query conformance)])
-                          (cons g (for/list ([f (in-list forms)] #:when (eq? (second f) g)) (first f)))))
-           (list 'topics "(describe 'form-name) (describe 'rule-name) (describe 'rules) (describe 'opcodes) (describe 'state)"))]
+                          (cons g (for/list ([f (in-list forms)] #:when (eq? (second f) g)) (third f)))))
+           (list 'topics "describe a form or rule name for its doc; also rules, opcodes, sighash, state, example"))]
+    [(eq? topic 'sighash) sighash-doc]
     [(eq? topic 'example) example]
     [(eq? topic 'forms) (map (λ (f) (list (first f) (third f))) forms)]
     [(eq? topic 'rules)
