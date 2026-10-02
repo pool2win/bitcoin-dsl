@@ -292,6 +292,8 @@ The agent learns which model results are backed by a real node. Steps using rule
 
 Forces: a scenario log format shared by both layers, `lower` (symbolic to real signatures with BIP143/BIP341 digests), `replay`, per-step status, `sighash-matrix`, node targets by build. The same harness doubles as a differential fuzzer.
 
+As built for v0: `(replay (scenario-log) #:targets (hash 'mainnet (regtest)))` starts a fresh regtest node per chain in a temporary datadir and stops it afterwards. A model signature is lowered by signing the BIP143 digest of the fields it committed to, so a signature that is invalid in the model stays invalid on the node. The node runs with standardness and fee floors relaxed, and RPC calls pass `maxfeerate=0`, so disagreements are about consensus. Taproot steps come back `unverified` until lowering supports BIP340/BIP341.
+
 ## Derived v0 definition
 
 v0 is the forms needed by Scenarios 1 to 3, plus the scenario log and enough conformance to replay Scenario 1. Everything else waits until a scenario forces it.
@@ -327,7 +329,7 @@ Build order, each step ending with a scenario that runs end to end:
 
 Open questions:
 
-- [ ] Scenario log format: plain s-expressions, or a typed schema that agents and the replayer both validate?
+- [x] Scenario log format: typed. The log is a list of event values (`chain`, `mine` with per-block coinbase and included txs, `try`/`broadcast` with the exact tx and the model's verdict) holding the model values themselves. Serialising it to s-expressions is deferred until the MCP step needs it.
 - [ ] How much of the policy language to borrow from miniscript, and whether to compile through rust-miniscript for conformance.
 - [ ] Real p2poolv2 parameter values for Scenario 5, and whether conformance for the share chain runs against local p2poolv2 nodes.
 - [ ] Does `explore` enumerate interleavings exhaustively for small cases, or only sample by seed?

@@ -17,6 +17,7 @@
          "policy.rkt"
          "script.rkt"
          "consensus.rkt"
+         "log.rkt"
          "result.rkt")
 
 (provide (struct-out chain-ref)
@@ -117,7 +118,7 @@
 
 (define (make-chain! name c)
   (put-chain! (chain-state name c 0 (consensus-param c 'genesis-time) '() (hash) '() (hash)))
-  (log! (list 'chain name (consensus-name c)))
+  (log! (ev-chain name c))
   (chain-ref name))
 
 ;; With one chain in the session, queries may leave out #:on.
@@ -153,12 +154,13 @@
 ;; Returns the coinbase coins of the new blocks, always as a list.
 (define (mine n #:on ch #:to [payee #f])
   (define name (resolve-chain ch 'mine))
-  (define coins (for/list ([_ (in-range n)]) (mine-block! name payee)))
-  (log! `(mine ,name ,n ,@(if payee (list '#:to (key-name payee)) '())))
-  coins)
+  (define lock (wpkh (or payee anonymous-miner)))
+  (define blocks (for/list ([_ (in-range n)]) (mine-block! name lock)))
+  (log! (ev-mine name lock blocks))
+  (for/list ([b (in-list blocks)]) (output-of (block-info-coinbase b) 0)))
 
-;; Returns the coinbase coin of the new block.
-(define (mine-block! name payee)
+;; Returns the new block's block-info.
+(define (mine-block! name lock)
   (define cs (get-chain name))
   (define c (chain-state-consensus cs))
   (define height (add1 (chain-state-height cs)))
@@ -176,7 +178,7 @@
                           (amount-sats (amount-sum (map fee included))))))
   (define cb (make-tx name #f 1 0
                       (list (coinbase-in height))
-                      (list (txout #f (wpkh (or payee anonymous-miner)) reward))))
+                      (list (txout #f lock reward))))
   ;;* Connect the block: UTXO set, tip, clock, confirmation index; the mempool is emptied.
   (define txs (cons cb included))
   (put-chain! (struct-copy chain-state cs
@@ -187,7 +189,7 @@
                            [mempool '()]
                            [confirmed (for/fold ([h (chain-state-confirmed cs)]) ([t (in-list txs)])
                                         (hash-set h (tx-txid t) height))]))
-  (output-of cb 0))
+  (block-info height cb included))
 
 ;; Building transactions
 
@@ -282,8 +284,7 @@
     (validate-tx (chain-state-consensus cs) t (mempool-view cs) (add1 (chain-state-height cs))
                  (λ (e) (set! events (cons e events)))))
   (define tid (record-trace! (tx-chain t) (chain-state-consensus cs) (reverse events)))
-  (define step (log! (list verb (tx-chain t) (or (tx-name t) (tx-txid t))
-                           (if verdict 'rejected 'accepted))))
+  (define step (log! (ev-tx verb (tx-chain t) t verdict)))
   (if verdict
       (rejected (tx-chain t) (first verdict) (second verdict) (third verdict) step tid)
       (accepted (tx-chain t) t step tid)))

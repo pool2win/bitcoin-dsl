@@ -47,6 +47,8 @@ A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) 
 
 - Step 3 (done): all six BIP143 sighash flag combinations, `sig-of`, `commits`, `free-fields`, `mutate`, `edit`, `add-input`. Taproot `(tr key #:leaves ...)` with key and script path spends, a BIP341 selector (SIGHASH_DEFAULT, SINGLE without an output is invalid) and BIP342's strict CHECKSIG for non-empty bad signatures. Scenario 3 runs up to `sighash-search`, which is v1 (`tests/scenario-3.rkt`). `tests/sighash.rkt` and `tests/taproot.rkt` check that `free-fields` agrees with verification for every flag combination on `wpkh`, `tr-key` and `tr-script`.
 
+- Step 4 (done): typed scenario log, `lower` and `replay` against a throwaway regtest Core node (`#lang bitcoin/conform`). Real crypto is pure Racket (`private/real/`: secp256k1 ECDSA with RFC6979, RIPEMD160, HMAC). Scenarios 1, 2 and 3 replay with zero disagreements (`tests/replay-*.rkt`), as does the BIP143 flag-by-edit matrix (`tests/replay-sighash.rkt`). `tests/replay-checks.rkt` shows a deliberately wrong model producing a `disagree`, and taproot and target-less chains producing `unverified`. Replay tests skip when `bitcoind` is not on PATH.
+
 Choices made along the way:
 - `snapshot`/`restore` rewind chains and the scenario log; traces are kept so trace ids stay valid. After a restore the log is the history of the current branch.
 - A branch's witness template gets an empty item for any signature or preimage not supplied, so an incomplete spend is an explained rejection rather than a build error.
@@ -54,11 +56,13 @@ Choices made along the way:
 - A commitment is an alist from field name to value; names are relative to the signing input. `mutate`/`free-fields` re-run the selector on the edited tx rather than reasoning about flags.
 - `(inputs remove-others)` is free only if every signed input survives alone and the input set is not committed, so a one-input SIGHASH_ALL tx does not pass vacuously.
 - Selectors take the spend context: `(tx index spent-coins type leaf)`, leaf being the tapleaf hash for a script path. Branch witness templates are complete (wsh script, tapleaf script and control block included).
+- Lowering derives keys and preimages from names (`sha256("bitcoin-dsl/key/<name>")`), so real txids are deterministic; model txids map to real ones during replay. A lowered signature signs the BIP143 digest rebuilt from its committed fields, not the current tx.
+- Replay nodes run with `-acceptnonstdtxn=1 -minrelaytxfee=0 -blockmintxfee=0 -dustrelayfee=0` and RPC `maxfeerate=0`: the harness checks consensus, not policy. A mined block is checked for height, coinbase reward and the set of included txs.
 - A taproot key-path signature is by the internal key; the tweak is implied by the symbolic output key `(taptweak (internal root))`. Taptree is balanced over the leaves in order; tapbranch orders children by printed form. Leaf scripts compile exactly as for wsh (no CHECKSIGADD yet); OP_SUCCESSx, annex and sigops budget are not modelled.
 
 ## Next step
 
-Build order step 4 from `scenarios.md`: scenario log, `lower` and `replay` for P2WPKH against regtest Core. Done when Scenario 1 replays with zero disagreements. Decide the scenario log format first (open question).
+Build order step 5 from `scenarios.md`: MCP server wrapping a persistent session (`eval`, `snapshot`, `restore`, `explain`, `describe`). Done when an agent completes Scenarios 1 to 3 without human help. Taproot lowering (BIP340 Schnorr, tagged hashes, BIP341 digest) can follow so taproot steps replay instead of coming back unverified.
 
 ## Things to fill in
 
