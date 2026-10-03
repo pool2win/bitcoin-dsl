@@ -54,6 +54,8 @@ A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) 
 
 - Taproot lowering (done): BIP340 Schnorr (zero aux, deterministic), TapTweak, real tapleaf/tapbranch hashes, control blocks, and the BIP341 digest rebuilt from committed fields. `tests/replay-taproot.rkt` replays all of `tests/taproot.rkt` against Core with zero disagreements: key and script paths, every flag by edit, strict tapscript CHECKSIG, a forged control block, SINGLE without an output.
 
+- v1 (done): opcodes identified by byte (`private/script.rkt` registry; consensus tables keyed by byte; NOP1, NOP4-NOP10 upgradable); `define-consensus`/`diff-consensus`/`audit` (`private/compose.rkt`); CTV as a proposal opcode with `template` and a `(ctv t)` policy fragment (`private/proposals.rkt`), real BIP119 hash checked against Inquisition's vectors (`tests/ctv-vectors.rkt`); replay gated on the target/chain consensus diff, block-validity verdicts when a mempool refuses a tx, an Inquisition target; `sighash-search` (`private/inspect.rkt`) and `sighash-matrix` (`private/conform.rkt`). Scenario 4 runs and replays with zero disagreements (`tests/scenario-4.rkt`, `tests/replay-4.rkt`); Scenario 3 runs in full; the matrix covers 260 cells (`tests/replay-matrix.rkt`). Bitcoin Inquisition is built at `~/projects/bitcoin-inquisition` (CTV is always active on its regtest).
+
 Choices made along the way:
 - `snapshot`/`restore` rewind chains and the scenario log; traces are kept so trace ids stay valid. After a restore the log is the history of the current branch.
 - A branch's witness template gets an empty item for any signature or preimage not supplied, so an incomplete spend is an explained rejection rather than a build error.
@@ -66,11 +68,13 @@ Choices made along the way:
 - MCP `snapshot`/`restore` rewind chains and the log, not Racket definitions. `eval` captures stdout/stderr into the result, stops at the first error (keeping earlier output), and has a 300s limit. Lists of lists print one element per line so keyword pairs stay together.
 - After changing modules, run `raco setup --pkgs bitcoin-dsl`: the MCP server loads `bitcoin/conform` dynamically, so `raco make` on one file does not rebuild it.
 - Lowered tapscript uses 32-byte x-only keys; scriptPubKeys always lower with compressed keys. Real tapbranches sort children by bytes while the model sorts by printed form; the tree shape is identical, so control blocks agree.
+- A proposal opcode registers itself (`register-opcode!`) and is named in `define-consensus` without being evaluated. `(replace n r)` requires `r` to have the name `n`. The world box is a parameter (`current-world-box`) so `sighash-matrix` runs in a scratch session.
+- Replay gates on opcodes and rules, not parameters, so a model whose parameters are wrong still shows up as a `disagree`. Txids in replay are keyed by chain, since two chains produce identical model txids.
 - A taproot key-path signature is by the internal key; the tweak is implied by the symbolic output key `(taptweak (internal root))`. Taptree is balanced over the leaves in order; tapbranch orders children by printed form. Leaf scripts compile exactly as for wsh (no CHECKSIGADD yet); OP_SUCCESSx, annex and sigops budget are not modelled.
 
 ## Next step
 
-v1, Scenario 4: `define-consensus` with `#:extends`, opcode upgrades (CTV on NOP4), `diff-consensus`, `template`, `audit`, multiple chains with different rules in one session, and replay targets running other builds (Inquisition) or reporting `unverified` for rules no target has.
+v2, Scenario 5: share chains (`#:kind share-chain`, `#:parent`), `miners` with seeded hashrate, `network` latency, simulated time, `run`, `repeat` with statistics. Fill in real p2poolv2 parameters first. Optional before that: an MCP agent run on Scenario 4 from prose goals (reconnect `/mcp` first).
 
 ## Things to fill in
 

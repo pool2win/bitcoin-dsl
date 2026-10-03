@@ -182,12 +182,14 @@ Goal: run the same covenant on a chain with CTV and one without, and catch that 
 ;     (rejected #:chain signet #:rule ctv-template-mismatch ...))
 
 (audit (vault) #:on mainnet)
-; => (warning #:rule-unenforced ctv #:chain mainnet)
+; => ((warning #:rule-unenforced ctv #:chain mainnet #:runs-as nop4))
 ```
 
 The agent learns that a contract's safety is relative to a rule set, and gets a warning before trusting it. This is the pattern for any soft-fork proposal: CAT, CSFS, TXHASH, or a new sighash mode.
 
 Forces: `define-consensus`, `#:extends`, opcode upgrades, `diff-consensus`, multiple chains in one session, `template`, `audit`, rejections tagged with chain.
+
+As built (v1): opcodes are identified by byte, so the script's `ctv` runs as NOP4 on mainnet (`explain` shows `#:as nop4`). `define-consensus` also takes `#:rules (add r) (remove n) (replace n r)`, `#:params (set k v)` and `#:sighash (add version selector)`. A template mismatch names the fields that differ (`#:fields ((outputs all))`), and `audit` returns a list of warnings, `'()` when clean. The test also checks an honest template-matching spend on both chains, so a broken lowering cannot hide behind the thief's rejection. Replayed with mainnet on Core and signet on Bitcoin Inquisition, all 14 steps are confirmed; with signet on Core, the two CTV-executing spends come back `(unverified #:reason (model-only-rule ctv))`.
 
 ## Scenario 5: p2poolv2 share chain alongside bitcoin
 
@@ -280,12 +282,14 @@ Goal: take a scenario the agent is happy with in the model, lower it to real key
 
 (sighash-matrix
   #:spend-types '(legacy wpkh tr-key tr-script)
-  #:flags       all-flag-combinations
+  #:flags       'all
   #:target      (regtest #:build 'core))
-; for each cell: mutate every field the model calls free
-; (node must accept) and every committed field (node must reject)
-; => ((disagree #:type legacy #:flags (single)
-;               #:field (output out-of-range) ...))
+; for each cell: try the tx unedited and under every edit,
+; and check the model's verdict against the node
+; => ((confirmed #:type wpkh #:flags (all) #:edit (inputs append)
+;                #:model (rejected eval-false))
+;     ...
+;     (unsupported #:type legacy))
 ```
 
 The agent learns which model results are backed by a real node. Steps using rules no build implements come back `unverified`, never silently confirmed. A disagreement is a model bug or an idea that depends on rules that don't exist.
@@ -293,6 +297,8 @@ The agent learns which model results are backed by a real node. Steps using rule
 Forces: a scenario log format shared by both layers, `lower` (symbolic to real signatures with BIP143/BIP341 digests), `replay`, per-step status, `sighash-matrix`, node targets by build. The same harness doubles as a differential fuzzer.
 
 As built for v0: `(replay (scenario-log) #:targets (hash 'mainnet (regtest)))` starts a fresh regtest node per chain in a temporary datadir and stops it afterwards. A model signature is lowered by signing the BIP143 digest of the fields it committed to, so a signature that is invalid in the model stays invalid on the node. The node runs with standardness and fee floors relaxed, and RPC calls pass `maxfeerate=0`, so disagreements are about consensus. Taproot is lowered too (BIP340 Schnorr, TapTweak, control blocks, BIP341 digest).
+
+As built for v1: each target declares the consensus it runs (`core` runs `bitcoin`; `inquisition` runs bitcoin with CTV, found via `BITCOIN_INQUISITION` or `~/projects/bitcoin-inquisition/build/bin/bitcoind`). Replay compares that with the chain's consensus and marks a step `unverified` when it exercised an opcode or rule that differs, rather than reading the node's answer as a verdict on the model's rule. When a mempool refuses a tx (e.g. NOP4 use is non-standard), the verdict comes from a block validity check (`generateblock` without submitting), and the mempool's reason is kept as `#:mempool-only`. `sighash-matrix` runs in a scratch session; all 260 `wpkh`/`tr-key`/`tr-script` cells agree with Core. Legacy spends are not modelled and come back `unsupported`.
 
 ## Derived v0 definition
 
@@ -309,8 +315,8 @@ v0 is the forms needed by Scenarios 1 to 3, plus the scenario log and enough con
 | Session / MCP | `eval`, `snapshot`, `restore`, `explain`, `describe` | 2 | Yes |
 | Scenario log | s-expression event log written by every run | 7 | Yes |
 | Conformance | `lower`, `replay` for P2WPKH only | 7 | Yes |
-| Sighash search | `sighash-search`, `sighash-matrix` | 3, 7 | v1 |
-| Rule composition | `define-consensus`, `#:extends`, `diff-consensus`, `audit`, `template` | 4 | v1 |
+| Sighash search | `sighash-search`, `sighash-matrix` | 3, 7 | v1 (done) |
+| Rule composition | `define-consensus`, `#:extends`, `diff-consensus`, `audit`, `template` | 4 | v1 (done) |
 | Other chain kinds | share chains, `#:parent`, `miners`, `network`, `run`, `repeat` | 5 | v2 |
 | Actors | `actor` with `#:fund`, `on`, `send`, scheduler, `explore`, faults, invariants | 6 | v3 |
 

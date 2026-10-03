@@ -30,7 +30,7 @@
   (define src (file->string (build-path here (format "scenario-~a.rkt" n))))
   (string-join (rest (string-split src "\n")) "\n"))
 
-(for ([n '(1 2 3)])
+(for ([n '(1 2 3 4)])
   (test-case (format "scenario ~a through eval" n)
     (define s (make-session))
     (define text (eval-ok s (scenario-body n)))
@@ -141,3 +141,9 @@
   (check-true (string-contains? overview "(height #:on chain)"))
   (define-values (sighash _e2) (call s "describe" (hasheq 'topic "sighash")))
   (check-true (string-contains? sighash "BIP341")))
+
+(test-case "describe a consensus value by name"
+  (define s (make-session))
+  (eval-ok s "(define-consensus ctv-rules #:extends bitcoin #:opcodes (upgrade nop4 #:to ctv))")
+  (define-values (text _e) (call s "describe" (hasheq 'topic "ctv-rules")))
+  (check-true (string-contains? text "#:changes ((opcode #xb3 nop4 -> ctv))")))

@@ -17,6 +17,7 @@
          (struct-out opcode-change)
          register-opcode!
          known-opcode
+         known-opcode?
          register-consensus!
          registered-consensus
          registered-consensus-names
@@ -26,6 +27,8 @@
 (define known-opcodes (make-hasheq))
 
 (define (register-opcode! oc) (hash-set! known-opcodes (opcode-name oc) oc))
+
+(define (known-opcode? name) (hash-has-key? known-opcodes name))
 
 (define (known-opcode name)
   (hash-ref known-opcodes name

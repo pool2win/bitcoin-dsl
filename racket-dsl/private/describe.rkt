@@ -7,6 +7,7 @@
 (require racket/list
          "consensus.rkt"
          "script.rkt"
+         "compose.rkt"
          "session.rkt")
 
 (provide describe)
@@ -20,7 +21,7 @@
     (secret value "(secret 'name)"
             "A hash preimage, used with (sha256 s) in contracts and revealed with #:reveal.")
     (contract definition "(contract name (param ...) policy)"
-              "Define name as a function from params to a P2WSH lock. Policy forms: (pk k) (sha256 s) (older blocks) (after height) (and p ...) (or arm ...) (thresh k (pk a) ...). An or arm may be labelled [label policy]; labels name spend paths. (older n) counts the coin's own block: right after the funding block is mined, a try sees age 1, so mine n-1 more blocks.")
+              "Define name as a function from params to a P2WSH lock. Policy forms: (pk k) (sha256 s) (older blocks) (after height) (ctv template) (and p ...) (or arm ...) (thresh k (pk a) ...). An or arm may be labelled [label policy]; labels name spend paths. (older n) counts the coin's own block: right after the funding block is mined, a try sees age 1, so mine n-1 more blocks.")
     (define-tx definition "(define-tx name #:inputs ([coin input-option ...] ...) #:outputs ([label lock amount] ...))"
                "Build and sign a tx, bind it to name and bind each output label to that output's coin as a top-level definition (a later define-tx with the same label rebinds it). Input options as for input, e.g. [cb #:sign alice #:sighash '(all anyonecanpay)].")
     (btc value "(btc 49.99)" "An amount in BTC, kept as exact satoshis.")
@@ -65,6 +66,18 @@
             "Replay the log against a fresh regtest Core node. Each step is confirmed, disagree or unverified. Needs bitcoind on PATH.")
     (summary conformance "(summary run)" "Counts of confirmed, disagree and unverified steps.")
     (disagreements conformance "(disagreements run)" "The steps where the node and the model differ.")
+    (define-consensus consensus "(define-consensus name #:extends parent #:opcodes (upgrade nop4 #:to ctv) #:rules (add r) (remove n) (replace n r) #:params (set k v) #:sighash (add version selector))"
+                      "Define a consensus value as changes to a parent: e.g. a soft fork upgrading an upgradable NOP to a proposal opcode (known: ctv). Give it to chain with #:rules. Opcode names are not evaluated.")
+    (diff-consensus consensus "(diff-consensus a b)"
+                    "What changes from a to b: (opcode #xb3 nop4 -> ctv), (rule + name), (rule - name), (rule ~ name), (param k old -> new), (sighash + version).")
+    (template consensus "(template #:outputs (list (output ...)) #:version 2 #:locktime 0 #:inputs 1 #:sequences (...) #:index 0)"
+              "A CTV (BIP119) template: what a coin locked with (ctv template) must be spent by. Defaults match spend and define-tx.")
+    (audit consensus "(audit lock #:on chain)"
+           "Where lock's scripts would not be enforced as written on a chain, e.g. (warning #:rule-unenforced ctv #:chain mainnet #:runs-as nop4). '() when clean.")
+    (sighash-search query "(sighash-search tx #:goal (can (add-input) ...) #:keep (fixed (outputs all) ...) #:over '(wpkh tr-key tr-script))"
+                    "The (spend-type flags) under which tx's signers could sign so the goal edits are free and the kept fields are not. Goal words: add-input remove-inputs add-output change-outputs change-version change-locktime. Keep: (outputs all) (inputs all) (output ref) version locktime.")
+    (sighash-matrix conformance "(sighash-matrix #:spend-types '(wpkh tr-key tr-script) #:flags 'all #:target (regtest))"
+                    "For every spend type, flag set and edit, the model's verdict checked against a real node, in a scratch session. Rows (status #:type #:flags #:edit #:model ...).")
     (describe query "(describe) (describe 'topic)" "This help. Topics: example, a form name, a rule name, rules, opcodes, state, forms.")
     (reset-session! session "(reset-session!)" "Drop all chains, traces and the log.")))
 
@@ -106,7 +119,8 @@
     (utxos #:spendable-by bob)
     (fee pay)))
 
-(define (describe [topic #f])
+;; c is the consensus value rules and opcodes describe (bitcoin by default).
+(define (describe [topic #f] [c bitcoin])
   (cond
     [(not topic)
      (list (list 'purpose "Model Bitcoin chains, transactions and scripts, then replay them against real nodes.")
@@ -114,24 +128,38 @@
            (cons 'results results-doc)
            (cons 'tips tips)
            (cons 'example example)
-           (cons 'forms (for/list ([g '(definition value session query conformance)])
+           (cons 'forms (for/list ([g '(definition value consensus session query conformance)])
                           (cons g (for/list ([f (in-list forms)] #:when (eq? (second f) g)) (third f)))))
-           (list 'topics "describe a form or rule name for its doc; also rules, opcodes, sighash, state, example"))]
+           (list 'topics "describe a form, rule or opcode name, or a consensus name (e.g. bitcoin); also rules, opcodes, sighash, state, example")
+           (list 'consensus-values (registered-consensus-names)))]
     [(eq? topic 'sighash) sighash-doc]
     [(eq? topic 'example) example]
     [(eq? topic 'forms) (map (λ (f) (list (first f) (third f))) forms)]
     [(eq? topic 'rules)
      (append
-      (for/list ([r (in-list (consensus-rules bitcoin))])
+      (for/list ([r (in-list (consensus-rules c))])
         (list (rule-name r) '#:scope (rule-scope r) (rule-doc r)))
       (list (list 'within-witness-script
                   "witness-script failures name a more specific rule: one of these, or the opcode that failed (see opcodes)."))
       (for/list ([name (in-list (sort (hash-keys script-failure-docs) symbol<?))])
         (list name (hash-ref script-failure-docs name))))]
     [(eq? topic 'opcodes)
-     (for/list ([oc (in-list (sort (hash-values (consensus-opcodes bitcoin)) < #:key opcode-byte))])
+     (for/list ([oc (in-list (sort (hash-values (consensus-opcodes c)) < #:key opcode-byte))])
        (list (opcode-name oc) '#:byte (opcode-byte oc) (opcode-doc oc)))]
     [(eq? topic 'state) (session-summary)]
     [(assq topic forms) => (λ (f) (list (first f) '#:usage (third f) '#:doc (fourth f)))]
-    [(failure-doc bitcoin topic) => (λ (doc) (list topic doc))]
+    [(registered-consensus topic)
+     => (λ (rc) (list topic
+                      '#:parent (and (consensus-parent rc) (consensus-name (consensus-parent rc)))
+                      '#:changes (if (consensus-parent rc) (diff-consensus (consensus-parent rc) rc) '())
+                      "describe rules or opcodes with this consensus value as the second argument for details."))]
+    [(known-opcode? topic)
+     => (λ (_) (let ([oc (known-opcode topic)])
+                 (list topic '#:byte (opcode-byte oc) '#:proposal (opcode-doc oc)
+                       '#:failures (hash->list (opcode-failures oc)))))]
+    [(for/or ([name (in-list (registered-consensus-names))]) (failure-doc (registered-consensus name) topic))
+     => (λ (doc) (list topic doc))]
+    [(for/or ([name (in-list (list 'ctv))] #:when (known-opcode? name))
+       (hash-ref (opcode-failures (known-opcode name)) topic #f))
+     => (λ (doc) (list topic doc))]
     [else (list 'unknown-topic topic "Try (describe) for the list of forms and topics.")]))

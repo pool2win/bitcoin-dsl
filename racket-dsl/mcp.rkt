@@ -107,6 +107,9 @@
            (unless (zero? i) (printf "\n "))
            (write x))
          (printf ")\n")]
+        ;; Keyword/value lists stay on one line so pairs are not split.
+        [(and (list? v) (ormap keyword? v))
+         (printf "'~s\n" v)]
         [else
          (parameterize ([pretty-print-columns 120]) (pretty-print v))]))))
 
