@@ -35,6 +35,20 @@
 (check-equal? (breaks-entries (mutate pay '(output to-bob amount) (btc 49.0)))
               `((sig ,alice 0 #:fields ((outputs all)))))
 
+;; Which flags let anyone add an input while Alice's outputs stay fixed?
+(check-equal? (sighash-search pay
+                #:goal  (can (add-input))
+                #:keep  (fixed (outputs all))
+                #:over  '(wpkh tr-key tr-script))
+              '((wpkh (all anyonecanpay))
+                (tr-key (all anyonecanpay))
+                (tr-script (all anyonecanpay))))
+
+;; Adding outputs too needs SINGLE or NONE; with SINGLE her own output stays fixed.
+(check-equal? (sighash-search pay #:goal (can (add-input) (add-output)) #:keep (fixed (output to-bob))
+                              #:over '(wpkh))
+              '((wpkh (single anyonecanpay))))
+
 ;; With plain SIGHASH_ALL the same bump breaks alice's signature.
 (define-tx pay-all
   #:inputs  ([cb #:sign alice])

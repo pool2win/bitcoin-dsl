@@ -18,7 +18,12 @@
          racket/math
          file/sha1
          "amount.rkt"
+         "crypto.rkt"
          "values.rkt"
+         "policy.rkt"
+         "session.rkt"
+         "inspect.rkt"
+         "result.rkt"
          "script.rkt"
          "consensus.rkt"
          "compose.rkt"
@@ -33,7 +38,8 @@
          (struct-out run)
          (struct-out step)
          summary
-         disagreements)
+         disagreements
+         sighash-matrix)
 
 ;; A node to replay a chain against: which build, its binary, the consensus
 ;; it runs (as a model consensus value), and deployments that must be
@@ -268,3 +274,79 @@
 (define (block-reason message)
   (define m (regexp-match #rx"TestBlockValidity failed: ([^,]*)" message))
   (if m (cadr m) message))
+
+;; Sighash matrix
+
+;; For each spend type and flag set: two inputs signed with those flags,
+;; tried unedited and under each edit, in a scratch session (the caller's
+;; session is untouched); then the scratch log is replayed against target.
+;; Rows are (status #:type t #:flags f #:edit e #:model verdict ...),
+;; status as in replay, or (unsupported #:type t) for spend types the
+;; model does not have.
+(define (sighash-matrix #:spend-types [types '(wpkh tr-key tr-script)]
+                        #:flags [flags 'all]
+                        #:target [target (regtest)])
+  (define supported (filter (λ (t) (memq t '(wpkh tr-key tr-script))) types))
+  (define unsupported (for/list ([t (in-list types)] #:unless (memq t supported)) (list 'unsupported '#:type t)))
+  (parameterize ([current-world-box (box empty-world)])
+    ;;* Fund each signer with one coin per spend type, plus a spare coin for appended inputs.
+    (define ch (make-chain! 'matrix bitcoin))
+    (define-values (alice bob carol dave) (values (key 'alice) (key 'bob) (key 'carol) (key 'dave)))
+    (define spare (first (mine 1 #:on ch #:to dave)))
+    (define funding (for/list ([k (list alice bob)]) (cons k (first (mine 1 #:on ch #:to k)))))
+    (void (mine 100 #:on ch))
+    (define internal (key '|matrix internal key|))
+    (define (lock-for type k)
+      (case type
+        [(wpkh) (wpkh k)]
+        [(tr-key) (tr k)]
+        [(tr-script) (tr internal #:leaves (list (make-contract-instance 'single-key (list k) (policy-pk k))))]))
+    (define coins
+      (for/hash ([f (in-list funding)])
+        (define k (car f))
+        (define t (spend (cdr f) #:sign k
+                         #:outputs (for/list ([type (in-list supported)]) (output type (lock-for type k) (btc 16)))))
+        (confirm t)
+        (values k (for/hash ([type (in-list supported)]) (values type (out t type))))))
+    ;;* Try every cell: the base tx, then each edit, remembering which log step each try was.
+    (define cells
+      (append*
+       (for*/list ([type (in-list supported)]
+                   [fl (in-list (if (eq? flags 'all) (flag-sets (if (eq? type 'wpkh) 'v0 'v1)) flags))]
+                   #:unless (and (eq? type 'wpkh) (equal? fl '(default))))
+         (define path (and (eq? type 'tr-script) 'single-key))
+         (define base
+           (spend (for/list ([k (list alice bob)])
+                    (input (hash-ref (hash-ref coins k) type) #:sign k #:sighash fl #:path path))
+                  #:outputs (list (output 'a (wpkh carol) (btc 5)) (output 'b (wpkh carol) (btc 5)))))
+         (for/list ([e (in-list (matrix-edits base spare dave))])
+           (define r (try ((cdr e) base)))
+           (list (if (accepted? r) (accepted-step r) (rejected-step r)) type fl (car e)
+                 (if (accepted? r) 'accepted (list 'rejected (rejected-rule r))))))))
+    ;;* Replay the scratch log and read each cell's status from its step.
+    (define r (replay (scenario-log) #:targets (hash 'matrix target)))
+    (define by-step (for/hash ([s (in-list (run-steps r))]) (values (step-n s) s)))
+    (append
+     (for/list ([c (in-list cells)])
+       (define s (hash-ref by-step (first c)))
+       (append (list (step-status s) '#:type (second c) '#:flags (third c) '#:edit (fourth c)
+                     '#:model (fifth c))
+               (step-detail s)))
+     unsupported)))
+
+;; (name . tx -> edited tx) for every edit the matrix tries.
+(define (matrix-edits base spare spare-key)
+  (define other (wpkh (key '|matrix other|)))
+  (append
+   (list (cons 'none values)
+         (cons '(inputs append) (λ (t) (add-input t spare #:sign spare-key)))
+         (cons '(inputs remove 1) (λ (t) (edit t '(inputs remove 1))))
+         (cons '(outputs append) (λ (t) (edit t '(outputs append) (output 'c other (btc 1)))))
+         (cons '(outputs remove 1) (λ (t) (edit t '(outputs remove 1)))))
+   (for*/list ([j '(0 1)] [field '(amount lock)])
+     (cons `(output ,j ,field)
+           (λ (t) (edit t `(output ,j ,field) (if (eq? field 'amount) (btc 4.9) other)))))
+   (for/list ([i '(0 1)])
+     (cons `(input ,i sequence) (λ (t) (edit t `(input ,i sequence) #xfffffffe))))
+   (list (cons 'version (λ (t) (edit t 'version 1)))
+         (cons 'locktime (λ (t) (edit t 'locktime 1))))))

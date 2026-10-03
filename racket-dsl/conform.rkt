@@ -11,6 +11,7 @@
          replay
          summary
          disagreements
+         sighash-matrix
          run-steps
          step-n
          step-event

@@ -11,6 +11,7 @@
          "amount.rkt"
          "crypto.rkt"
          "values.rkt"
+         "policy.rkt"
          "consensus.rkt"
          "compose.rkt"
          "session.rkt")
@@ -22,7 +23,11 @@
          (struct-out breaks)
          intact?
          free-fields
-         audit)
+         audit
+         can
+         fixed
+         sighash-search
+         flag-sets)
 
 ;; Signatures
 
@@ -111,7 +116,8 @@
 
 ;; Free fields
 
-(define nobody (key 'nobody))
+;; Its name cannot be written with keys, so it never collides with a user key.
+(define nobody (key '|probe key|))
 
 ;; A coin no real chain has, used to probe whether inputs can be added.
 (define (probe-coin t)
@@ -159,3 +165,75 @@
 (define (audit l #:on [ch #f])
   (define name (resolve-chain ch 'audit))
   (audit-lock l (chain-consensus name) name))
+
+;; Sighash search
+
+;; (can (add-input) ...) and (fixed (outputs all) ...) quote their forms;
+;; sighash-search reads them.
+(define-syntax-rule (can form ...) (list 'can 'form ...))
+(define-syntax-rule (fixed form ...) (list 'fixed 'form ...))
+
+;; The flag sets each spend version accepts.
+(define (flag-sets version)
+  (append (if (eq? version 'v1) '((default)) '())
+          '((all) (all anyonecanpay) (none) (none anyonecanpay) (single) (single anyonecanpay))))
+
+;; The free-fields entries a goal word stands for in t.
+(define (goal-edits t word)
+  (define refs (for/list ([o (in-list (tx-outputs t))] [j (in-naturals)]) (or (txout-label o) j)))
+  (define output-edits (append* (for/list ([r (in-list refs)]) (list `(output ,r amount) `(output ,r lock)))))
+  (case (if (pair? word) (car word) word)
+    [(add-input) '((inputs append))]
+    [(remove-inputs) '((inputs remove-others))]
+    [(add-output) '((outputs append))]
+    [(change-outputs) output-edits]
+    [(change-version version) '(version)]
+    [(change-locktime locktime) '(locktime)]
+    [(outputs) (cons '(outputs append) output-edits)]
+    [(inputs) '((inputs append) (inputs remove-others))]
+    [(output) (list `(output ,(second word) amount) `(output ,(second word) lock))]
+    [else (raise-arguments-error 'sighash-search "unknown goal word" "word" word)]))
+
+;; The spend types and flag sets under which t's signers could sign so that
+;; every #:goal edit is free and no #:keep field is. Each signed input is
+;; re-signed on a hypothetical coin of the spend type (same outpoint and
+;; amount), then judged with free-fields; nothing touches the chain.
+;; Returns rows (spend-type flags).
+(define (sighash-search t
+                        #:goal [goal (can)]
+                        #:keep [keep (fixed)]
+                        #:over [types '(wpkh tr-key tr-script)])
+  (define signers
+    (for/list ([in (in-list (tx-inputs t))])
+      (for/first ([x (in-list (txin-witness in))] #:when (sig? x)) (sig-key x))))
+  (unless (ormap values signers) (raise-arguments-error 'sighash-search "the tx has no signatures" "tx" t))
+  (for*/list ([type (in-list types)]
+              [flags (in-list (flag-sets (if (eq? type 'wpkh) 'v0 'v1)))]
+              #:when (let* ([variant (resign t signers type flags)]
+                            [free (free-fields variant)])
+                       (and (andmap (λ (e) (member e free)) (append-map (λ (w) (goal-edits t w)) (cdr goal)))
+                            (not (ormap (λ (e) (member e free)) (append-map (λ (w) (goal-edits t w)) (cdr keep)))))))
+    (list type flags)))
+
+(define search-internal (key '|search internal key|))
+
+;; t with every signed input moved to a coin of the spend type and signed
+;; again with flags.
+(define (resign t signers type flags)
+  (define specs
+    (for/list ([in (in-list (tx-inputs t))] [k (in-list signers)])
+      (define c (txin-coin in))
+      (cond
+        [(not k) (input c #:sequence (txin-sequence in))]
+        [else
+         (define-values (l path)
+           (case type
+             [(wpkh) (values (wpkh k) #f)]
+             [(tr-key) (values (tr k) #f)]
+             [(tr-script) (values (tr search-internal
+                                      #:leaves (list (make-contract-instance 'single-key (list k) (policy-pk k))))
+                                  'single-key)]
+             [else (raise-arguments-error 'sighash-search "unknown spend type; known: wpkh tr-key tr-script"
+                                          "type" type)]))
+         (input (struct-copy coin c [lock l]) #:sign k #:sighash flags #:path path #:sequence (txin-sequence in))])))
+  (build-tx (tx-name t) specs (tx-outputs t) #:version (tx-version t) #:locktime (tx-locktime t)))

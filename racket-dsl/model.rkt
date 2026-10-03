@@ -69,6 +69,9 @@
          intact?
          breaks-entries
          audit
+         can
+         fixed
+         sighash-search
          scenario-log
          describe
          reset-session!
