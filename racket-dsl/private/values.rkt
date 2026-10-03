@@ -17,6 +17,7 @@
          lock-branches
          lock-branch
          lock-spendable-by?
+         lock-scripts
          p2wpkh-script
          (struct-out control)
          tapleaf
@@ -124,6 +125,13 @@
     [(= (length bs) 1) (first bs)]
     [else (raise-arguments-error 'spend "this coin has several spend paths; pass #:path"
                                  "paths" (map branch-name bs))]))
+
+;; Every script a lock can run, each paired with whether it is tapscript.
+(define (lock-scripts l)
+  (case (lock-kind l)
+    [(wpkh) (list (cons (p2wpkh-script (second (lock->spk l))) #f))]
+    [(wsh) (list (cons (contract-instance-script (first (lock-params l))) #f))]
+    [(tr) (for/list ([c (in-list (second (lock-params l)))]) (cons (contract-instance-script c) #t))]))
 
 ;; True when some branch needs signatures from k and no other key.
 (define (lock-spendable-by? l k)

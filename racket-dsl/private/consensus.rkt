@@ -24,6 +24,7 @@
          consensus-opcode-named
          (struct-out utxo)
          validate-tx
+         field-diff
          failure-doc
          script-failure-docs
          block-subsidy
@@ -55,6 +56,13 @@
 (define (consensus-opcode-named c name)
   (define b (opcode-byte-of name))
   (and b (hash-ref (consensus-opcodes c) b #f)))
+
+;; Field names whose values differ between two commitments (alists),
+;; including fields present in only one.
+(define (field-diff a b)
+  (for/list ([k (in-list (remove-duplicates (append (map car a) (map car b))))]
+             #:unless (equal? (assoc k a) (assoc k b)))
+    k))
 
 ;; An entry in a chain's UTXO set.
 (struct utxo (coin height coinbase?) #:transparent)
@@ -166,6 +174,7 @@
   (cond [(bytes? v) (bytes-length v)]
         [(secret? v) 32]
         [(key? v) 33]
+        [(hashed? v) (if (eq? (hashed-fn v) 'hash160) 20 32)]
         [else #f]))
 
 (define op-size

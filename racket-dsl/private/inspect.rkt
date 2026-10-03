@@ -12,6 +12,7 @@
          "crypto.rkt"
          "values.rkt"
          "consensus.rkt"
+         "compose.rkt"
          "session.rkt")
 
 (provide sig-of
@@ -20,7 +21,8 @@
          mutate
          (struct-out breaks)
          intact?
-         free-fields)
+         free-fields
+         audit)
 
 ;; Signatures
 
@@ -105,12 +107,6 @@
                #:unless (null? diff))
      (list 'sig (sig-key s) i '#:fields diff))))
 
-;; Field names whose values differ, including fields present in only one.
-(define (field-diff signed now)
-  (for/list ([k (in-list (remove-duplicates (append (map car signed) (map car now))))]
-             #:unless (equal? (assoc k signed) (assoc k now)))
-    k))
-
 (define (mutate t path [value #f]) (sig-breaks t (edit t path value)))
 
 ;; Free fields
@@ -156,3 +152,10 @@
             #:when (ormap sig? (txin-witness in)))
     (intact? (sig-breaks t (make-tx (tx-chain t) (tx-name t) (tx-version t) (tx-locktime t)
                                     (list in) (tx-outputs t))))))
+
+;; Audit
+
+;; Where lock's scripts would not be enforced as written on a chain.
+(define (audit l #:on [ch #f])
+  (define name (resolve-chain ch 'audit))
+  (audit-lock l (chain-consensus name) name))

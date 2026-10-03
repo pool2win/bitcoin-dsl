@@ -32,7 +32,8 @@
          (struct-out ltx)
          (struct-out lin)
          ltx-txid
-         ltx-hex)
+         ltx-hex
+         bip119-hash)
 
 ;; Raised for anything the real chain cannot express yet, e.g. taproot.
 (struct exn:unsupported exn:fail (reason))
@@ -104,6 +105,7 @@
     [(hashed 'hash160 x) (hash160-bytes (lower-value x))]
     [(hashed 'sha256 x) (sha256 (lower-value x))]
     [(hashed 'tapleaf script) (tapleaf-bytes script)]
+    [(hashed 'ctv fields) (ctv-hash-bytes fields)]
     [(hashed 'tapbranch (list a b)) (tapbranch-bytes (lower-value a) (lower-value b))]
     [(hashed 'taptweak (list internal root))
      (define-values (qx parity) (output-key internal (and root (lower-value root))))
@@ -128,6 +130,27 @@
     (match spk
       [(list 'v0 program) (bytes-append (bytes 0) (push-data (lower-value program)))]
       [(list 'v1 output-key) (bytes-append (bytes #x51) (push-data (lower-value output-key)))])))
+
+;; BIP119 DefaultCheckTemplateVerifyHash, from a CTV commitment (the model
+;; has no scriptSigs, so their hash is never included).
+(define (ctv-hash-bytes fields)
+  (define (field k) (cdr (assoc k fields)))
+  (bip119-hash (field 'version) (field 'locktime) (field '(inputs sequences))
+               (for/list ([o (in-list (field '(outputs all)))])
+                 (bytes-append (le (amount-sats (first o)) 8) (var-bytes (lower-spk (second o)))))
+               (field '(own-input index))))
+
+;; The hash over already-serialized outputs; version is signed.
+(define (bip119-hash version locktime sequences outputs index)
+  (sha256
+   (bytes-append
+    (integer->integer-bytes version 4 #t #f)
+    (le locktime 4)
+    (le (length sequences) 4)
+    (sha256 (apply bytes-append (map (λ (n) (le n 4)) sequences)))
+    (le (length outputs) 4)
+    (sha256 (apply bytes-append outputs))
+    (le index 4))))
 
 ;; Taproot
 

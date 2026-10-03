@@ -27,6 +27,7 @@
          build-tx
          add-input
          chain-consensus
+         resolve-chain
          spend
          try
          broadcast

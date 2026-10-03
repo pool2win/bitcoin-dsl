@@ -18,6 +18,7 @@
          (struct-out p-and)
          (struct-out p-or)
          (struct-out p-thresh)
+         (struct-out p-ctv)
          policy-pk
          policy-sha256
          policy-older
@@ -42,6 +43,10 @@
 ;; arms is a list of (cons label-or-#f policy).
 (struct p-or (arms) #:transparent)
 (struct p-thresh (k subs) #:transparent)
+;; A CTV template check. hash is the template's hash; template is kept for
+;; branch needs; sequence and locktime (or #f) are what the template fixes,
+;; so #:path sets them. Built by policy-ctv in proposals.rkt.
+(struct p-ctv (hash template sequence locktime) #:transparent)
 
 (define (policy-pk k)
   (unless (key? k) (raise-argument-error 'pk "key?" k))
@@ -87,7 +92,8 @@
     [(p-after n) `((push ,n) cltv)]
     [(p-and subs) (append (append-map compile-v (drop-right subs 1)) (compile-b (last subs)))]
     [(p-or arms) (compile-or (map cdr arms))]
-    [(p-thresh k subs) (append (compile-thresh-sum subs) `((push ,k) equal))]))
+    [(p-thresh k subs) (append (compile-thresh-sum subs) `((push ,k) equal))]
+    [(p-ctv h _ _ _) `((push ,h) ctv)]))
 
 (define (compile-v p)
   (match p
@@ -97,7 +103,8 @@
     [(p-after n) `((push ,n) cltv drop)]
     [(p-and subs) (append-map compile-v subs)]
     [(p-or _) (append (compile-b p) '(verify))]
-    [(p-thresh k subs) (append (compile-thresh-sum subs) `((push ,k) equalverify))]))
+    [(p-thresh k subs) (append (compile-thresh-sum subs) `((push ,k) equalverify))]
+    [(p-ctv h _ _ _) `((push ,h) ctv drop)]))
 
 ;; n arms become nested IFs; the witness picks an arm with selector items.
 (define (compile-or subs)
@@ -148,6 +155,7 @@
      (list (sat '() `((preimage ,pre)) (list (need-preimage pre)) #f #f))]
     [(p-older n) (list (sat '() `((age>= ,n)) '() n #f))]
     [(p-after n) (list (sat '() `((height>= ,n)) '() #f n))]
+    [(p-ctv _ t seq lt) (list (sat '() `((template ,t)) '() seq lt))]
     [(p-and subs)
      (for/fold ([acc (list empty-sat)]) ([q (in-list subs)])
        (for*/list ([a (in-list acc)] [b (in-list (sats q))]) (sat-and a b)))]

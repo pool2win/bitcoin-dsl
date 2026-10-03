@@ -11,6 +11,8 @@
          "private/consensus.rkt"
          "private/session.rkt"
          "private/inspect.rkt"
+         "private/compose.rkt"
+         "private/proposals.rkt"
          "private/describe.rkt")
 
 (provide (all-from-out racket)
@@ -19,6 +21,7 @@
          keys
          define-tx
          contract
+         define-consensus
          ;; values
          btc
          sats
@@ -38,6 +41,8 @@
          out
          ;; consensus
          bitcoin
+         diff-consensus
+         template
          ;; session
          mine
          spend
@@ -63,6 +68,7 @@
          edit
          intact?
          breaks-entries
+         audit
          scenario-log
          describe
          reset-session!
@@ -70,6 +76,7 @@
          accepted?
          rejected?
          rejected-rule
+         rejected-chain
          rejected-input
          result-detail)
 
@@ -118,12 +125,13 @@
          (wsh (make-contract-instance 'name (list param ...) (policy body))))]))
 
 (begin-for-syntax
-  (define policy-ops '(pk sha256 older after and or thresh)))
+  (define policy-ops '(pk sha256 older after and or thresh ctv)))
 
 (define-syntax (policy stx)
   (syntax-parse stx
-    #:datum-literals (pk sha256 older after and or thresh)
+    #:datum-literals (pk sha256 older after and or thresh ctv)
     [(_ (pk e:expr)) #'(policy-pk e)]
+    [(_ (ctv e:expr)) #'(policy-ctv e)]
     [(_ (sha256 e:expr)) #'(policy-sha256 e)]
     [(_ (older e:expr)) #'(policy-older e)]
     [(_ (after e:expr)) #'(policy-after e)]
@@ -132,7 +140,7 @@
     [(_ (thresh k:expr p ...+)) #'(policy-thresh k (list (policy p) ...))]
     [(_ other)
      (raise-syntax-error 'contract
-                         "not a policy form; expected pk, sha256, older, after, and, or or thresh"
+                         "not a policy form; expected pk, sha256, older, after, and, or, thresh or ctv"
                          #'other)]))
 
 (define-syntax (policy-arm stx)
@@ -141,3 +149,38 @@
      #:when (not (memq (syntax-e #'label) policy-ops))
      #'(cons 'label (policy p))]
     [(_ p) #'(cons #f (policy p))]))
+
+;; (define-consensus ctv-rules #:extends bitcoin
+;;   #:opcodes (upgrade nop4 #:to ctv)
+;;   #:rules   (add r) (remove name) (replace name r)
+;;   #:params  (set coinbase-maturity 50)
+;;   #:sighash (add version selector))
+;; binds ctv-rules to bitcoin with those changes. Opcode names are not
+;; evaluated: they name a NOP slot and a known proposal opcode.
+(begin-for-syntax
+  (define-syntax-class opcode-change
+    #:datum-literals (upgrade)
+    (pattern (upgrade old:id #:to new:id) #:with change #'(list 'upgrade 'old 'new)))
+  (define-syntax-class rule-change
+    #:datum-literals (add remove replace)
+    (pattern (add r:expr) #:with change #'(list 'add-rule r))
+    (pattern (remove n:id) #:with change #'(list 'remove-rule 'n))
+    (pattern (replace n:id r:expr) #:with change #'(list 'replace-rule 'n r)))
+  (define-syntax-class param-change
+    #:datum-literals (set)
+    (pattern (set k:id v:expr) #:with change #'(list 'set-param 'k v)))
+  (define-syntax-class sighash-change
+    #:datum-literals (add)
+    (pattern (add v:id sel:expr) #:with change #'(list 'add-sighash 'v sel))))
+
+(define-syntax (define-consensus stx)
+  (syntax-parse stx
+    [(_ name:id #:extends parent:expr
+        (~alt (~seq #:opcodes o:opcode-change ...+)
+              (~seq #:rules r:rule-change ...+)
+              (~seq #:params p:param-change ...+)
+              (~seq #:sighash s:sighash-change ...+))
+        ...)
+     #'(define name
+         (extend-consensus parent 'name
+                           (list o.change ... ... r.change ... ... p.change ... ... s.change ... ...)))]))
