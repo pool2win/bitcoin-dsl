@@ -1,7 +1,8 @@
 #lang racket/base
 ;; Consensus is a value, not an interpreter loop.
 ;;
-;; A consensus value holds an ordered list of named rules, an opcode table,
+;; A consensus value holds an ordered list of named rules, an opcode table
+;; keyed by byte,
 ;; a sighash selector per spend version, and numeric parameters. Validation
 ;; walks the rules in order and reports every rule run to a trace hook, so
 ;; a rejection always names the rule that failed and the trace shows how
@@ -20,6 +21,7 @@
          (struct-out consensus)
          consensus-param
          consensus-rule
+         consensus-opcode-named
          (struct-out utxo)
          validate-tx
          failure-doc
@@ -47,6 +49,12 @@
 
 (define (consensus-rule c name)
   (findf (λ (r) (eq? (rule-name r) name)) (consensus-rules c)))
+
+;; The opcode this consensus runs for a name's byte, e.g. nop4 for ctv on
+;; bitcoin.
+(define (consensus-opcode-named c name)
+  (define b (opcode-byte-of name))
+  (and b (hash-ref (consensus-opcodes c) b #f)))
 
 ;; An entry in a chain's UTXO set.
 (struct utxo (coin height coinbase?) #:transparent)
@@ -96,11 +104,15 @@
         'unsupported "The model does not implement this feature yet (e.g. time-based locks)."
         'unsupported-spend "The model does not implement this kind of output yet."))
 
-;; The doc for a rule name: a consensus rule, a script failure or an opcode.
+;; The doc for a rule name: a consensus rule, a script failure, an opcode,
+;; or a failure an opcode reports (e.g. ctv-template-mismatch).
 (define (failure-doc c name)
   (cond [(consensus-rule c name) => rule-doc]
         [(hash-ref script-failure-docs name #f)]
-        [(hash-ref (consensus-opcodes c) name #f) => opcode-doc]
+        [(consensus-opcode-named c name) => opcode-doc]
+        [(for/first ([oc (in-hash-values (consensus-opcodes c))]
+                     #:when (hash-ref (opcode-failures oc) name #f))
+           (hash-ref (opcode-failures oc) name))]
         [else #f]))
 
 (define (block-subsidy c height)
@@ -195,28 +207,38 @@
 (define op-csv (timelock-op 'csv script-ctx-check-sequence))
 (define op-cltv (timelock-op 'cltv script-ctx-check-locktime))
 
+(define (op-nop s ctx) s)
+
 (define bitcoin-opcodes
   (for/hash ([oc (in-list
-                  (list (opcode 'if #x63 "Run the next branch if the top item is true." #f)
-                        (opcode 'notif #x64 "Run the next branch if the top item is false." #f)
-                        (opcode 'else #x67 "Switch to the other branch." #f)
-                        (opcode 'endif #x68 "End a conditional." #f)
-                        (opcode 'verify #x69 "Fail unless the top item is true." op-verify)
-                        (opcode 'drop #x75 "Remove the top item." op-drop)
-                        (opcode 'dup #x76 "Duplicate the top item." op-dup)
-                        (opcode 'swap #x7c "Swap the top two items." op-swap)
-                        (opcode 'size #x82 "Push the size of the top item, keeping it." op-size)
-                        (opcode 'equal #x87 "Push whether the top two items are equal." op-equal)
-                        (opcode 'equalverify #x88 "Fail unless the top two items are equal." op-equalverify)
-                        (opcode 'add #x93 "Replace the top two numbers with their sum." op-add)
-                        (opcode 'sha256 #xa8 "Replace the top item with its SHA256." op-sha256)
-                        (opcode 'hash160 #xa9 "Replace the top item with its HASH160." op-hash160)
-                        (opcode 'checksig #xac "Check a signature against a pubkey and the sighash." op-checksig)
-                        (opcode 'checksigverify #xad "CHECKSIG, then fail unless it succeeded." op-checksigverify)
-                        (opcode 'cltv #xb1 "BIP65: fail unless nLockTime has reached the top item." op-cltv)
-                        (opcode 'csv #xb2 "BIP112: fail unless this input's nSequence encodes at least the top item."
-                                op-csv)))])
-    (values (opcode-name oc) oc)))
+                  (list (make-opcode 'if #x63 "Run the next branch if the top item is true." #f #:kind 'flow)
+                        (make-opcode 'notif #x64 "Run the next branch if the top item is false." #f #:kind 'flow)
+                        (make-opcode 'else #x67 "Switch to the other branch." #f #:kind 'flow)
+                        (make-opcode 'endif #x68 "End a conditional." #f #:kind 'flow)
+                        (make-opcode 'verify #x69 "Fail unless the top item is true." op-verify)
+                        (make-opcode 'drop #x75 "Remove the top item." op-drop)
+                        (make-opcode 'dup #x76 "Duplicate the top item." op-dup)
+                        (make-opcode 'swap #x7c "Swap the top two items." op-swap)
+                        (make-opcode 'size #x82 "Push the size of the top item, keeping it." op-size)
+                        (make-opcode 'equal #x87 "Push whether the top two items are equal." op-equal)
+                        (make-opcode 'equalverify #x88 "Fail unless the top two items are equal." op-equalverify)
+                        (make-opcode 'add #x93 "Replace the top two numbers with their sum." op-add)
+                        (make-opcode 'sha256 #xa8 "Replace the top item with its SHA256." op-sha256)
+                        (make-opcode 'hash160 #xa9 "Replace the top item with its HASH160." op-hash160)
+                        (make-opcode 'checksig #xac "Check a signature against a pubkey and the sighash." op-checksig)
+                        (make-opcode 'checksigverify #xad "CHECKSIG, then fail unless it succeeded." op-checksigverify)
+                        (make-opcode 'nop1 #xb0 "Does nothing; reserved for soft-fork upgrades." op-nop #:kind 'nop)
+                        (make-opcode 'cltv #xb1 "BIP65: fail unless nLockTime has reached the top item." op-cltv)
+                        (make-opcode 'csv #xb2 "BIP112: fail unless this input's nSequence encodes at least the top item."
+                                     op-csv)
+                        (make-opcode 'nop4 #xb3 "Does nothing; reserved for soft-fork upgrades (BIP119 proposes CTV)." op-nop #:kind 'nop)
+                        (make-opcode 'nop5 #xb4 "Does nothing; reserved for soft-fork upgrades." op-nop #:kind 'nop)
+                        (make-opcode 'nop6 #xb5 "Does nothing; reserved for soft-fork upgrades." op-nop #:kind 'nop)
+                        (make-opcode 'nop7 #xb6 "Does nothing; reserved for soft-fork upgrades." op-nop #:kind 'nop)
+                        (make-opcode 'nop8 #xb7 "Does nothing; reserved for soft-fork upgrades." op-nop #:kind 'nop)
+                        (make-opcode 'nop9 #xb8 "Does nothing; reserved for soft-fork upgrades." op-nop #:kind 'nop)
+                        (make-opcode 'nop10 #xb9 "Does nothing; reserved for soft-fork upgrades." op-nop #:kind 'nop)))])
+    (values (opcode-byte oc) oc)))
 
 ;; Script hooks
 
@@ -393,7 +415,10 @@
   (define ctx (script-ctx (make-check-sig x version leaf cause (and leaf #t))
                           (make-check-sequence x)
                           (make-check-locktime x)
-                          (vctx-emit x)))
+                          (vctx-emit x)
+                          (vctx-tx x)
+                          (vctx-index x)
+                          (vctx-spent-coins x)))
   (define result (run-script (consensus-opcodes (vctx-consensus x)) script stack ctx))
   (define (with-cause details)
     (if (and (unbox cause) (not (assq 'cause details)))

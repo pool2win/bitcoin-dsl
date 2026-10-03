@@ -63,7 +63,6 @@
 ;; targets maps chain name -> target.
 (define (replay events #:targets targets)
   (define nodes (make-hasheq))
-  (define opcode-tables (make-hasheq))
   (define txids (make-hash))
   (define (real-outpoint op)
     (define txid (hash-ref txids (outpoint-txid op)
@@ -76,7 +75,7 @@
    (λ ()
      (run (for/list ([e (in-list events)] [i (in-naturals 1)])
             (define-values (status detail)
-              (replay-event e targets nodes opcode-tables txids real-outpoint))
+              (replay-event e targets nodes txids real-outpoint))
             (step i e status detail))))
    (λ () (for ([n (in-hash-values nodes)]) (stop-node n)))))
 
@@ -85,17 +84,17 @@
         [(ev-mine? e) (ev-mine-chain e)]
         [(ev-tx? e) (ev-tx-chain e)]))
 
-(define (replay-event e targets nodes opcode-tables txids real-outpoint)
+(define (replay-event e targets nodes txids real-outpoint)
   (define chain (event-chain e))
   (define n (hash-ref nodes chain #f))
   (cond
-    [(ev-chain? e) (start-chain e targets nodes opcode-tables)]
+    [(ev-chain? e) (start-chain e targets nodes)]
     [(not n) (values 'unverified (list '#:reason 'no-node-for-chain))]
-    [(ev-mine? e) (replay-mine e n (hash-ref opcode-tables chain) txids)]
-    [(ev-tx? e) (replay-tx e n (hash-ref opcode-tables chain) txids real-outpoint)]))
+    [(ev-mine? e) (replay-mine e n txids)]
+    [(ev-tx? e) (replay-tx e n txids real-outpoint)]))
 
 ;; Starts a fresh node for the chain if it has a target running its rules.
-(define (start-chain e targets nodes opcode-tables)
+(define (start-chain e targets nodes)
   (define t (hash-ref targets (ev-chain-name e) #f))
   (define rules (consensus-name (ev-chain-consensus e)))
   (cond
@@ -105,7 +104,6 @@
     [else
      (define n (start-node #:bitcoind (target-bitcoind t)))
      (hash-set! nodes (ev-chain-name e) n)
-     (hash-set! opcode-tables (ev-chain-name e) (consensus-opcodes (ev-chain-consensus e)))
      (define height (rpc n "getblockcount"))
      (if (zero? height)
          (values 'confirmed '())
@@ -113,8 +111,8 @@
 
 ;; Mines each block to the same payee, maps the model coinbase to the real
 ;; one, and checks height, reward and the set of included txs.
-(define (replay-mine e n opcodes txids)
-  (define spk (lower-spk (lock->spk (ev-mine-payee e)) opcodes))
+(define (replay-mine e n txids)
+  (define spk (lower-spk (lock->spk (ev-mine-payee e))))
   (define problems
     (append*
      (for/list ([b (in-list (ev-mine-blocks e))])
@@ -144,10 +142,10 @@
 ;; Lowers the tx and asks the node: testmempoolaccept for try,
 ;; sendrawtransaction for broadcast. maxfeerate 0 turns off the RPC's
 ;; client-side fee guard, which is neither consensus nor policy.
-(define (replay-tx e n opcodes txids real-outpoint)
+(define (replay-tx e n txids real-outpoint)
   (define t (ev-tx-tx e))
   (with-handlers ([exn:unsupported? (λ (x) (values 'unverified (list '#:reason (exn:unsupported-reason x))))])
-    (define lowered (lower-tx t opcodes real-outpoint))
+    (define lowered (lower-tx t real-outpoint))
     (hash-set! txids (tx-txid t) (ltx-txid lowered))
     (define hex (ltx-hex lowered))
     (define node-reason

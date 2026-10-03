@@ -376,8 +376,10 @@
               ,@(if (eq? outcome 'fail)
                     `(#:doc ,(failure-doc (trace-consensus tr) (or failed-as name)))
                     '()))]
-      [(list 'op op before after)
-       `(op ,op #:stack ,before
+      [(list 'op op before after ran _byte)
+       `(op ,op
+            ,@(if (and ran (not (eq? ran op))) `(#:as ,ran) '())
+            #:stack ,before
             ,@(if (script-failure? after)
                   `(#:fail ,(script-failure-rule after) ,@(keywords (script-failure-details after)))
                   `(#:=> ,after)))])))

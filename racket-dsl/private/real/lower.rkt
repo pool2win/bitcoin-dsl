@@ -95,44 +95,44 @@
 
 ;; Values and scripts
 
-(define (lower-value v opcodes)
+(define (lower-value v)
   (match v
     [(? bytes?) v]
     [(? exact-integer?) (scriptnum v)]
     [(? key?) (if (eq? (current-key-format) 'xonly) (xonly-pubkey (privkey-of v)) (pubkey-of v))]
     [(? secret?) (secret-bytes v)]
-    [(hashed 'hash160 x) (hash160-bytes (lower-value x opcodes))]
-    [(hashed 'sha256 x) (sha256 (lower-value x opcodes))]
-    [(hashed 'tapleaf script) (tapleaf-bytes script opcodes)]
-    [(hashed 'tapbranch (list a b)) (tapbranch-bytes (lower-value a opcodes) (lower-value b opcodes))]
+    [(hashed 'hash160 x) (hash160-bytes (lower-value x))]
+    [(hashed 'sha256 x) (sha256 (lower-value x))]
+    [(hashed 'tapleaf script) (tapleaf-bytes script)]
+    [(hashed 'tapbranch (list a b)) (tapbranch-bytes (lower-value a) (lower-value b))]
     [(hashed 'taptweak (list internal root))
-     (define-values (qx parity) (output-key internal (and root (lower-value root opcodes))))
+     (define-values (qx parity) (output-key internal (and root (lower-value root))))
      qx]
-    [(? list?) (lower-script v opcodes)]
+    [(? list?) (lower-script v)]
     [_ (unsupported (format "value ~s" v))]))
 
-;; Opcode bytes come from the consensus value's opcode table.
-(define (lower-script script opcodes)
+;; Opcode bytes come from the global registry: a script's bytes do not
+;; depend on the chain it runs on.
+(define (lower-script script)
   (apply bytes-append
          (for/list ([op (in-list script)])
            (match op
-             [(list 'push v) (push-data (lower-value v opcodes))]
+             [(list 'push v) (push-data (lower-value v))]
              [(? symbol?)
-              (define oc (hash-ref opcodes op (λ () (unsupported (format "opcode ~a" op)))))
-              (bytes (opcode-byte oc))]))))
+              (bytes (or (opcode-byte-of op) (unsupported (format "opcode ~a" op))))]))))
 
 ;; scriptPubKeys always use compressed keys (a P2WPKH program hashes the
 ;; compressed key), even while lowering a tapscript witness.
-(define (lower-spk spk opcodes)
+(define (lower-spk spk)
   (parameterize ([current-key-format 'compressed])
     (match spk
-      [(list 'v0 program) (bytes-append (bytes 0) (push-data (lower-value program opcodes)))]
-      [(list 'v1 output-key) (bytes-append (bytes #x51) (push-data (lower-value output-key opcodes)))])))
+      [(list 'v0 program) (bytes-append (bytes 0) (push-data (lower-value program)))]
+      [(list 'v1 output-key) (bytes-append (bytes #x51) (push-data (lower-value output-key)))])))
 
 ;; Taproot
 
-(define (tapleaf-bytes script opcodes)
-  (define script-bytes (parameterize ([current-key-format 'xonly]) (lower-script script opcodes)))
+(define (tapleaf-bytes script)
+  (define script-bytes (parameterize ([current-key-format 'xonly]) (lower-script script)))
   (tagged-hash "TapLeaf" (bytes-append (bytes #xc0) (var-bytes script-bytes))))
 
 (define (tapbranch-bytes a b)
@@ -148,9 +148,9 @@
 
 ;; A control block for spending through script: leaf version with the
 ;; output key's parity, the internal key, then the merkle path.
-(define (lower-control c script opcodes)
-  (define path (for/list ([h (in-list (control-path c))]) (lower-value h opcodes)))
-  (define root (for/fold ([h (tapleaf-bytes script opcodes)]) ([sibling (in-list path)])
+(define (lower-control c script)
+  (define path (for/list ([h (in-list (control-path c))]) (lower-value h)))
+  (define root (for/fold ([h (tapleaf-bytes script)]) ([sibling (in-list path)])
                  (tapbranch-bytes h sibling)))
   (define-values (qx parity) (output-key (control-internal c) root))
   (apply bytes-append
@@ -193,49 +193,49 @@
 
 ;; real-outpoint : model outpoint -> (values real-txid vout), or raises
 ;; exn:unsupported for a coin the caller has no real counterpart for.
-(define (lower-tx t opcodes real-outpoint)
+(define (lower-tx t real-outpoint)
   (when (tx-coinbase? t) (unsupported "a coinbase is made by the node"))
   (ltx (tx-version t)
        (tx-locktime t)
        (for/list ([in (in-list (tx-inputs t))])
          (define-values (txid vout) (real-outpoint (txin-outpoint in)))
-         (lin txid vout (txin-sequence in) (lower-witness (txin-witness in) opcodes real-outpoint)))
+         (lin txid vout (txin-sequence in) (lower-witness (txin-witness in) real-outpoint)))
        (for/list ([o (in-list (tx-outputs t))])
-         (list (amount-sats (txout-amount o)) (lower-spk (lock->spk (txout-lock o)) opcodes)))))
+         (list (amount-sats (txout-amount o)) (lower-spk (lock->spk (txout-lock o)))))))
 
 ;; A taproot script-path witness ends with the leaf script and control
 ;; block; its keys are x-only.
-(define (lower-witness w opcodes real-outpoint)
-  (define (item x) (lower-witness-item x opcodes real-outpoint))
+(define (lower-witness w real-outpoint)
+  (define (item x) (lower-witness-item x real-outpoint))
   (cond
     [(and (pair? w) (control? (last w)))
      (parameterize ([current-key-format 'xonly])
        (append (map item (drop-right w 1))
-               (list (lower-control (last w) (list-ref w (- (length w) 2)) opcodes))))]
+               (list (lower-control (last w) (list-ref w (- (length w) 2))))))]
     [else (map item w)]))
 
-(define (lower-witness-item item opcodes real-outpoint)
+(define (lower-witness-item item real-outpoint)
   (cond
-    [(not (sig? item)) (lower-value item opcodes)]
+    [(not (sig? item)) (lower-value item)]
     [(or (assq 'spend-type (sig-fields item)) (assq 'invalid (sig-fields item)))
-     (lower-schnorr-sig item opcodes real-outpoint)]
+     (lower-schnorr-sig item real-outpoint)]
     [else
      (bytes-append (ecdsa-sign (privkey-of (sig-key item))
-                               (bip143-digest (sig-fields item) opcodes real-outpoint))
+                               (bip143-digest (sig-fields item) real-outpoint))
                    (bytes (sighash-byte (sig-type item))))]))
 
 ;; A key-path signature is made with the tweaked key of the spent output;
 ;; a script-path one with the key itself. SIGHASH_DEFAULT adds no byte.
-(define (lower-schnorr-sig s opcodes real-outpoint)
+(define (lower-schnorr-sig s real-outpoint)
   (define fields (sig-fields s))
   (define d
     (if (equal? (assq 'spend-type fields) '(spend-type . key))
         (match (spent-spk fields)
           [(list 'v1 (hashed 'taptweak (list internal root)))
            (tweak-seckey (privkey-of (sig-key s))
-                         (taptweak-scalar internal (and root (lower-value root opcodes))))])
+                         (taptweak-scalar internal (and root (lower-value root))))])
         (privkey-of (sig-key s))))
-  (define sig64 (schnorr-sign d (bip341-digest fields opcodes real-outpoint)))
+  (define sig64 (schnorr-sign d (bip341-digest fields real-outpoint)))
   (if (equal? (sig-type s) '(default))
       sig64
       (bytes-append sig64 (bytes (sighash-byte (sig-type s))))))
@@ -257,7 +257,7 @@
 
 ;; The BIP143 digest, rebuilt from a commitment. A missing hashPrevouts,
 ;; hashSequence or hashOutputs field means the digest uses 32 zero bytes.
-(define (bip143-digest fields opcodes real-outpoint)
+(define (bip143-digest fields real-outpoint)
   (define (field k) (cdr (or (assoc k fields) (unsupported (format "commitment without ~a" k)))))
   (define (has? k) (and (assoc k fields) #t))
   (define zero (make-bytes 32 0))
@@ -265,7 +265,7 @@
     (define-values (txid vout) (real-outpoint op))
     (bytes-append (reverse-bytes (hex-string->bytes txid)) (le vout 4)))
   (define (output-bytes o)
-    (bytes-append (le (amount-sats (first o)) 8) (var-bytes (lower-spk (second o) opcodes))))
+    (bytes-append (le (amount-sats (first o)) 8) (var-bytes (lower-spk (second o)))))
   (sha256d
    (bytes-append
     (le (field 'version) 4)
@@ -276,7 +276,7 @@
         (sha256d (apply bytes-append (map (λ (s) (le s 4)) (field '(inputs sequences)))))
         zero)
     (outpoint-bytes (field '(own-input outpoint)))
-    (var-bytes (lower-script (field '(own-prevout script)) opcodes))
+    (var-bytes (lower-script (field '(own-prevout script))))
     (le (amount-sats (field '(own-prevout amount))) 8)
     (le (field '(own-input sequence)) 4)
     (cond [(has? '(outputs all)) (sha256d (apply bytes-append (map output-bytes (field '(outputs all)))))]
@@ -288,14 +288,14 @@
 ;; The BIP341 digest, rebuilt from a commitment. A commitment marked
 ;; invalid (SINGLE with no matching output) has no valid signature, so any
 ;; digest will do: the node must reject whatever is signed.
-(define (bip341-digest fields opcodes real-outpoint)
+(define (bip341-digest fields real-outpoint)
   (define (field k) (cdr (or (assoc k fields) (unsupported (format "commitment without ~a" k)))))
   (define (has? k) (and (assoc k fields) #t))
   (define (outpoint-bytes op)
     (define-values (txid vout) (real-outpoint op))
     (bytes-append (reverse-bytes (hex-string->bytes txid)) (le vout 4)))
   (define (output-bytes o)
-    (bytes-append (le (amount-sats (first o)) 8) (var-bytes (lower-spk (second o) opcodes))))
+    (bytes-append (le (amount-sats (first o)) 8) (var-bytes (lower-spk (second o)))))
   (define (concat f xs) (apply bytes-append (map f xs)))
   (cond
     [(has? 'invalid) (make-bytes 32 0)]
@@ -311,7 +311,7 @@
        (if (has? '(inputs outpoints))
            (bytes-append (sha256 (concat outpoint-bytes (field '(inputs outpoints))))
                          (sha256 (concat (λ (a) (le (amount-sats a) 8)) (field '(inputs amounts))))
-                         (sha256 (concat (λ (spk) (var-bytes (lower-spk spk opcodes))) (field '(inputs spks))))
+                         (sha256 (concat (λ (spk) (var-bytes (lower-spk spk))) (field '(inputs spks))))
                          (sha256 (concat (λ (n) (le n 4)) (field '(inputs sequences)))))
            #"")
        (if (has? '(outputs all)) (sha256 (concat output-bytes (field '(outputs all)))) #"")
@@ -320,9 +320,9 @@
            (le (field '(own-input index)) 4)
            (bytes-append (outpoint-bytes (field '(own-input outpoint)))
                          (le (amount-sats (field '(own-prevout amount))) 8)
-                         (var-bytes (lower-spk (field '(own-prevout spk)) opcodes))
+                         (var-bytes (lower-spk (field '(own-prevout spk))))
                          (le (field '(own-input sequence)) 4)))
        (if (has? '(own-output)) (sha256 (output-bytes (field '(own-output)))) #"")
        (if script-path?
-           (bytes-append (lower-value (field '(own-leaf)) opcodes) (bytes 0) (le #xffffffff 4))
+           (bytes-append (lower-value (field '(own-leaf))) (bytes 0) (le #xffffffff 4))
            #"")))]))
