@@ -4,19 +4,25 @@
 ;;
 ;;   confirmed   the node agrees with the model
 ;;   disagree    it does not; detail says what each side said
-;;   unverified  the step could not be checked: no target for the chain, a
-;;               consensus the target does not run, or something lowering
-;;               cannot express yet (taproot)
+;;   unverified  the step could not be checked: no target for the chain,
+;;               the step exercises a rule the target runs differently
+;;               (model-only-rule), it depends on such a step, or lowering
+;;               cannot express it
 ;;
 ;; Nothing passes silently: a step is only confirmed after the node has
-;; actually been asked.
+;; actually been asked. Verdicts are about consensus: when the mempool
+;; rejects a tx, replay asks whether a block containing it would be valid
+;; (generateblock without submitting) and uses that answer.
 
 (require racket/list
          racket/math
          file/sha1
          "amount.rkt"
          "values.rkt"
+         "script.rkt"
          "consensus.rkt"
+         "compose.rkt"
+         "proposals.rkt"
          "log.rkt"
          "real/lower.rkt"
          "real/node.rkt")
@@ -29,14 +35,26 @@
          summary
          disagreements)
 
-;; A node to replay a chain against. build names the implementation; only
-;; core is known, and it runs consensus bitcoin.
-(struct target (build bitcoind))
+;; A node to replay a chain against: which build, its binary, the consensus
+;; it runs (as a model consensus value), and deployments that must be
+;; active on it.
+(struct target (build bitcoind consensus deployments))
 
-(define (regtest #:build [build 'core] #:bitcoind [bitcoind "bitcoind"])
-  (target build bitcoind))
+;; Inquisition activates CTV (and more) on regtest; the model knows CTV.
+(define inquisition-consensus
+  (extend-consensus bitcoin 'inquisition '((upgrade nop4 ctv))))
 
-(define target-consensus (hash 'core 'bitcoin))
+(define (default-inquisition-bitcoind)
+  (or (getenv "BITCOIN_INQUISITION")
+      (path->string (build-path (find-system-path 'home-dir)
+                                "projects" "bitcoin-inquisition" "build" "bin" "bitcoind"))))
+
+(define (regtest #:build [build 'core] #:bitcoind [bitcoind #f])
+  (case build
+    [(core) (target 'core (or bitcoind "bitcoind") bitcoin '())]
+    [(inquisition) (target 'inquisition (or bitcoind (default-inquisition-bitcoind))
+                           inquisition-consensus '("checktemplateverify"))]
+    [else (raise-arguments-error 'regtest "unknown build; known: core, inquisition" "build" build)]))
 
 (struct step (n event status detail)
   #:transparent
@@ -60,107 +78,193 @@
 (define (disagreements r)
   (filter (λ (s) (eq? (step-status s) 'disagree)) (run-steps r)))
 
+;; Replay state for one chain. gate-ops and gate-rules are the opcode
+;; bytes and rule names where the chain's consensus differs from the
+;; target's. mempool holds real txids the node accepted since the last
+;; block; pending holds raw txs the mempool refused but a block would
+;; accept, so they are mined with the next block.
+(struct chain-replay (node consensus gate-ops gate-rules [mempool #:mutable] [pending #:mutable]))
+
 ;; targets maps chain name -> target.
 (define (replay events #:targets targets)
-  (define nodes (make-hasheq))
+  (define chains (make-hasheq))
+  ;; (chain . model txid) -> real txid, for every tx the node has seen.
   (define txids (make-hash))
-  (define (real-outpoint op)
-    (define txid (hash-ref txids (outpoint-txid op)
-                           (λ () (raise (exn:unsupported "cannot lower: unknown coin"
-                                                         (current-continuation-marks)
-                                                         "spends a coin the replay has not seen")))))
-    (values txid (outpoint-vout op)))
+  (define custodian (make-custodian))
   (dynamic-wind
    void
    (λ ()
      (run (for/list ([e (in-list events)] [i (in-naturals 1)])
             (define-values (status detail)
-              (replay-event e targets nodes txids real-outpoint))
+              (parameterize ([current-custodian custodian])
+                (replay-event e targets chains txids)))
             (step i e status detail))))
-   (λ () (for ([n (in-hash-values nodes)]) (stop-node n)))))
+   (λ ()
+     (for ([cr (in-hash-values chains)] #:when (chain-replay-node cr)) (stop-node (chain-replay-node cr)))
+     (custodian-shutdown-all custodian))))
 
 (define (event-chain e)
   (cond [(ev-chain? e) (ev-chain-name e)]
         [(ev-mine? e) (ev-mine-chain e)]
         [(ev-tx? e) (ev-tx-chain e)]))
 
-(define (replay-event e targets nodes txids real-outpoint)
+(define (replay-event e targets chains txids)
   (define chain (event-chain e))
-  (define n (hash-ref nodes chain #f))
+  (define cr (hash-ref chains chain #f))
   (cond
-    [(ev-chain? e) (start-chain e targets nodes)]
-    [(not n) (values 'unverified (list '#:reason 'no-node-for-chain))]
-    [(ev-mine? e) (replay-mine e n txids)]
-    [(ev-tx? e) (replay-tx e n txids real-outpoint)]))
+    [(ev-chain? e) (start-chain e targets chains)]
+    [(not cr) (values 'unverified (list '#:reason 'no-node-for-chain))]
+    [(ev-mine? e) (replay-mine e cr txids)]
+    [(ev-tx? e) (replay-tx e cr txids)]))
 
-;; Starts a fresh node for the chain if it has a target running its rules.
-(define (start-chain e targets nodes)
+;; Starts a fresh node for the chain and works out where its rules differ
+;; from the chain's.
+(define (start-chain e targets chains)
   (define t (hash-ref targets (ev-chain-name e) #f))
-  (define rules (consensus-name (ev-chain-consensus e)))
   (cond
     [(not t) (values 'unverified (list '#:reason 'no-target))]
-    [(not (eq? (hash-ref target-consensus (target-build t) #f) rules))
-     (values 'unverified (list '#:reason 'target-runs-other-rules '#:build (target-build t) '#:rules rules))]
+    [(not (find-executable-path (target-bitcoind t)))
+     (values 'unverified (list '#:reason 'target-binary-missing '#:bitcoind (target-bitcoind t)))]
     [else
+     (define c (ev-chain-consensus e))
+     (define diff (diff-consensus (target-consensus t) c))
      (define n (start-node #:bitcoind (target-bitcoind t)))
-     (hash-set! nodes (ev-chain-name e) n)
+     (hash-set! chains (ev-chain-name e)
+                (chain-replay n c
+                              (for/list ([d (in-list diff)] #:when (opcode-change? d)) (opcode-change-byte d))
+                              (for/list ([d (in-list diff)] #:when (and (pair? d) (eq? (car d) 'rule))) (third d))
+                              '() '()))
+     (define inactive (inactive-deployments n (target-deployments t)))
      (define height (rpc n "getblockcount"))
-     (if (zero? height)
-         (values 'confirmed '())
-         (values 'disagree (list '#:model-height 0 '#:node-height height)))]))
+     (cond
+       [(pair? inactive) (values 'unverified (list '#:reason 'deployment-inactive '#:deployments inactive))]
+       [(zero? height) (values 'confirmed '())]
+       [else (values 'disagree (list '#:model-height 0 '#:node-height height))])]))
+
+(define (inactive-deployments n names)
+  (if (null? names)
+      '()
+      (let ([info (hash-ref (rpc n "getdeploymentinfo") 'deployments)])
+        (for/list ([name (in-list names)]
+                   #:unless (hash-ref (hash-ref info (string->symbol name) (hash)) 'active #f))
+          name))))
+
+(define (real-txid txids chain t) (hash-ref txids (cons chain (tx-txid t)) #f))
 
 ;; Mines each block to the same payee, maps the model coinbase to the real
-;; one, and checks height, reward and the set of included txs.
-(define (replay-mine e n txids)
-  (define spk (lower-spk (lock->spk (ev-mine-payee e))))
-  (define problems
-    (append*
-     (for/list ([b (in-list (ev-mine-blocks e))])
-       (define hash (first (rpc n "generatetodescriptor" 1 (format "raw(~a)" (bytes->hex-string spk)))))
-       (define block (rpc n "getblock" hash 2))
-       (define txs (hash-ref block 'tx))
-       (define coinbase (first txs))
-       (hash-set! txids (tx-txid (block-info-coinbase b)) (hash-ref coinbase 'txid))
-       (define model-reward (amount-sats (txout-amount (first (tx-outputs (block-info-coinbase b))))))
-       (define node-reward (for/sum ([o (in-list (hash-ref coinbase 'vout))]) (btc->sats (hash-ref o 'value))))
-       (define model-included (sort (for/list ([t (in-list (block-info-included b))])
-                                      (hash-ref txids (tx-txid t) (tx-txid t)))
-                                    string<?))
-       (define node-included (sort (map (λ (t) (hash-ref t 'txid)) (rest txs)) string<?))
-       (append
-        (if (= (hash-ref block 'height) (block-info-height b))
-            '()
-            (list (list 'height (block-info-height b) (hash-ref block 'height))))
-        (if (= model-reward node-reward) '() (list (list 'reward model-reward node-reward)))
-        (if (equal? model-included node-included) '() (list (list 'included model-included node-included)))))))
-  (if (null? problems)
-      (values 'confirmed '())
-      (values 'disagree (list '#:mismatches problems))))
+;; one, and checks height, reward and the set of included txs. The first
+;; block also takes txs the mempool refused but consensus allows. A block
+;; that includes a tx the replay could not check is itself unverified.
+(define (replay-mine e cr txids)
+  (define chain (ev-mine-chain e))
+  (define n (chain-replay-node cr))
+  (define payee (format "raw(~a)" (bytes->hex-string (lower-spk (lock->spk (ev-mine-payee e))))))
+  (define-values (problems unchecked)
+    (for/fold ([problems '()] [unchecked '()]) ([b (in-list (ev-mine-blocks e))])
+      (define hash
+        (if (pair? (chain-replay-pending cr))
+            (hash-ref (rpc n "generateblock" payee (append (chain-replay-mempool cr) (chain-replay-pending cr))) 'hash)
+            (first (rpc n "generatetodescriptor" 1 payee))))
+      (set-chain-replay-mempool! cr '())
+      (set-chain-replay-pending! cr '())
+      (define block (rpc n "getblock" hash 2))
+      (define txs (hash-ref block 'tx))
+      (define coinbase (first txs))
+      (hash-set! txids (cons chain (tx-txid (block-info-coinbase b))) (hash-ref coinbase 'txid))
+      (define model-included (map (λ (t) (real-txid txids chain t)) (block-info-included b)))
+      (cond
+        [(memq #f model-included)
+         (values problems (cons (block-info-height b) unchecked))]
+        [else
+         (define model-reward (amount-sats (txout-amount (first (tx-outputs (block-info-coinbase b))))))
+         (define node-reward (for/sum ([o (in-list (hash-ref coinbase 'vout))]) (btc->sats (hash-ref o 'value))))
+         (define node-included (sort (map (λ (t) (hash-ref t 'txid)) (rest txs)) string<?))
+         (values
+          (append problems
+                  (if (= (hash-ref block 'height) (block-info-height b))
+                      '()
+                      (list (list 'height (block-info-height b) (hash-ref block 'height))))
+                  (if (= model-reward node-reward) '() (list (list 'reward model-reward node-reward)))
+                  (if (equal? (sort model-included string<?) node-included)
+                      '()
+                      (list (list 'included (sort model-included string<?) node-included))))
+          unchecked)])))
+  (cond
+    [(pair? problems) (values 'disagree (list '#:mismatches problems))]
+    [(pair? unchecked) (values 'unverified (list '#:reason 'includes-unverified-tx '#:heights (reverse unchecked)))]
+    [else (values 'confirmed '())]))
 
 (define (btc->sats v) (exact-round (* v sats-per-btc)))
 
 ;; Lowers the tx and asks the node: testmempoolaccept for try,
-;; sendrawtransaction for broadcast. maxfeerate 0 turns off the RPC's
+;; sendrawtransaction for broadcast. If the mempool refuses it, the verdict
+;; comes from a block check instead. maxfeerate 0 turns off the RPC's
 ;; client-side fee guard, which is neither consensus nor policy.
-(define (replay-tx e n txids real-outpoint)
+(define (replay-tx e cr txids)
   (define t (ev-tx-tx e))
-  (with-handlers ([exn:unsupported? (λ (x) (values 'unverified (list '#:reason (exn:unsupported-reason x))))])
-    (define lowered (lower-tx t real-outpoint))
-    (hash-set! txids (tx-txid t) (ltx-txid lowered))
-    (define hex (ltx-hex lowered))
-    (define node-reason
-      (case (ev-tx-verb e)
-        [(try)
-         (define r (first (rpc n "testmempoolaccept" (list hex) 0)))
-         (if (hash-ref r 'allowed) #f (hash-ref r 'reject-reason "rejected"))]
-        [(broadcast)
-         (with-handlers ([exn:rpc? exn-message])
-           (rpc n "sendrawtransaction" hex 0)
-           #f)]))
-    (define verdict (ev-tx-verdict e))
-    (cond
-      [(eq? (not verdict) (not node-reason)) (values 'confirmed '())]
-      [else
-       (values 'disagree
-               (list '#:model (if verdict (list 'rejected (first verdict)) 'accepted)
-                     '#:node (if node-reason (list 'rejected node-reason) 'accepted)))])))
+  (define chain (ev-tx-chain e))
+  (define n (chain-replay-node cr))
+  (define (real-outpoint op)
+    (define txid (hash-ref txids (cons chain (outpoint-txid op))
+                           (λ () (raise (exn:unsupported "cannot lower: unknown coin"
+                                                         (current-continuation-marks)
+                                                         'spends-unverified-coin)))))
+    (values txid (outpoint-vout op)))
+  (define differs (exercised-differences e cr))
+  (cond
+    [(pair? differs) (values 'unverified (list '#:reason (cons 'model-only-rule differs)))]
+    [else
+     (with-handlers ([exn:unsupported? (λ (x) (values 'unverified (list '#:reason (exn:unsupported-reason x))))])
+       (define lowered (lower-tx t real-outpoint))
+       (define hex (ltx-hex lowered))
+       (define mempool-reason
+         (case (ev-tx-verb e)
+           [(try)
+            (define r (first (rpc n "testmempoolaccept" (list hex) 0)))
+            (if (hash-ref r 'allowed) #f (hash-ref r 'reject-reason "rejected"))]
+           [(broadcast)
+            (with-handlers ([exn:rpc? exn-message])
+              (rpc n "sendrawtransaction" hex 0)
+              #f)]))
+       (define node-reason (and mempool-reason (block-check cr hex)))
+       ;;* Record what the node now holds: accepted broadcasts in its mempool, or pending for the next block.
+       (when (eq? (ev-tx-verb e) 'broadcast)
+         (cond [(not mempool-reason)
+                (set-chain-replay-mempool! cr (append (chain-replay-mempool cr) (list (ltx-txid lowered))))]
+               [(not node-reason)
+                (set-chain-replay-pending! cr (append (chain-replay-pending cr) (list hex)))]))
+       (when (or (eq? (ev-tx-verb e) 'try) (not node-reason))
+         (hash-set! txids (cons chain (tx-txid t)) (ltx-txid lowered)))
+       (define verdict (ev-tx-verdict e))
+       (define mempool-note (if (and mempool-reason (not node-reason)) (list '#:mempool-only mempool-reason) '()))
+       (cond
+         [(eq? (not verdict) (not node-reason)) (values 'confirmed mempool-note)]
+         [else
+          (values 'disagree
+                  (append (list '#:model (if verdict (list 'rejected (first verdict)) 'accepted)
+                                '#:node (if node-reason (list 'rejected node-reason) 'accepted))
+                          mempool-note))]))]))
+
+;; The opcodes (by the chain's names) and rules this step exercised that
+;; the target runs differently.
+(define (exercised-differences e cr)
+  (define c (chain-replay-consensus cr))
+  (append
+   (for/list ([b (in-list (ev-tx-opcodes e))] #:when (memv b (chain-replay-gate-ops cr)))
+     (let ([oc (hash-ref (consensus-opcodes c) b #f)]) (if oc (opcode-name oc) b)))
+   (for/list ([r (in-list (ev-tx-rules e))] #:when (memq r (chain-replay-gate-rules cr))) r)))
+
+;; Would a block with the node's mempool, the pending txs and hex be valid?
+;; #f if so, else the node's reason code. The block is checked, not
+;; submitted.
+(define (block-check cr hex)
+  (with-handlers ([exn:rpc? (λ (x) (block-reason (exn-message x)))])
+    (rpc (chain-replay-node cr) "generateblock" "raw(51)"
+         (append (chain-replay-mempool cr) (chain-replay-pending cr) (list hex))
+         #f)
+    #f))
+
+;; "generateblock: TestBlockValidity failed: bad-txns-..., detail" -> "bad-txns-..."
+(define (block-reason message)
+  (define m (regexp-match #rx"TestBlockValidity failed: ([^,]*)" message))
+  (if m (cadr m) message))

@@ -21,6 +21,8 @@
          "result.rkt")
 
 (provide (struct-out chain-ref)
+         current-world-box
+         empty-world
          make-chain!
          reset-session!
          mine
@@ -55,13 +57,15 @@
 (struct world (chains traces log) #:transparent)
 
 (define empty-world (world (hash) (hash) '()))
-(define the-world (box empty-world))
+;; A parameter so a computation can run in a scratch world, e.g.
+;; (parameterize ([current-world-box (box empty-world)]) ...).
+(define current-world-box (make-parameter (box empty-world)))
 
-(define (reset-session!) (set-box! the-world empty-world))
+(define (reset-session!) (set-box! (current-world-box) empty-world))
 
-(define (current-world) (unbox the-world))
+(define (current-world) (unbox (current-world-box)))
 
-(define (update-world! f) (set-box! the-world (f (current-world))))
+(define (update-world! f) (set-box! (current-world-box) (f (current-world))))
 
 (define (get-chain name)
   (hash-ref (world-chains (current-world)) name
@@ -303,7 +307,10 @@
     (validate-tx (chain-state-consensus cs) t (mempool-view cs) (add1 (chain-state-height cs))
                  (λ (e) (set! events (cons e events)))))
   (define tid (record-trace! (tx-chain t) (chain-state-consensus cs) (reverse events)))
-  (define step (log! (ev-tx verb (tx-chain t) t verdict)))
+  (define step
+    (log! (ev-tx verb (tx-chain t) t verdict
+                 (remove-duplicates (for/list ([e (in-list events)] #:when (and (eq? (car e) 'op) (sixth e))) (sixth e)))
+                 (remove-duplicates (for/list ([e (in-list events)] #:when (eq? (car e) 'rule)) (second e))))))
   (if verdict
       (rejected (tx-chain t) (first verdict) (second verdict) (third verdict) step tid)
       (accepted (tx-chain t) t step tid)))

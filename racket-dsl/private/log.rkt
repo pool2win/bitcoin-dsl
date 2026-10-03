@@ -29,8 +29,10 @@
 (struct block-info (height coinbase included) #:transparent)
 
 ;; verb is try or broadcast; verdict is #f (accepted) or
-;; (list rule input details) as returned by validate-tx.
-(struct ev-tx (verb chain tx verdict)
+;; (list rule input details) as returned by validate-tx. opcodes and rules
+;; are the opcode bytes and rule names validation exercised, so replay can
+;; tell whether a target that lacks some rule can check this step.
+(struct ev-tx (verb chain tx verdict opcodes rules)
   #:transparent
   #:methods gen:custom-write
   [(define (write-proc e port mode)

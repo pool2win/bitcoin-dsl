@@ -6,6 +6,8 @@
 
 (provide (all-from-out "model.rkt")
          regtest
+         target-bitcoind
+         target-build
          replay
          summary
          disagreements
