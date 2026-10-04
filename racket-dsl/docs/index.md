@@ -1,6 +1,47 @@
 # Bitcoin DSL
 
-The Bitcoin DSL is a Racket language for Bitcoin systems and new Bitcoin ideas. With it, you describe chains, transactions, scripts, covenants and soft-fork proposals. AI agents use it through [MCP](guides/mcp.md). You can check each result against real Bitcoin nodes.
+The Bitcoin DSL is a language for Bitcoin systems and new Bitcoin ideas. With it, you describe chains, transactions, scripts, covenants and soft-fork proposals. You can check each result against real Bitcoin nodes.
+
+## Use it through an agent
+
+The primary method is to talk to an AI agent, for example Claude Code. The agent uses the DSL through its [MCP server](guides/mcp.md). You give the goal in your words. The agent writes the DSL code, runs it and gives you the results. This is an example session:
+
+```text
+You:    Give Alice a mature coin, pay Bob 49.99 BTC with 0.009 BTC change, and confirm it.
+        Show the fee. Then check the session against a real node.
+
+Agent → describe                       ; learns the forms
+Agent → eval
+          (chain mainnet #:rules bitcoin)
+          (keys alice bob)
+          (define cb (first (mine 1 #:on mainnet #:to alice)))
+          (try (spend cb #:sign alice #:outputs (list (output 'b (wpkh bob) (btc 49.99)))))
+      ← (rejected #:chain mainnet #:rule coinbase-maturity #:input 0 #:need 100 #:have 1 #:step 3 #:trace 1)
+
+Agent → eval
+          (void (mine 100 #:on mainnet))
+          (define-tx pay
+            #:inputs  ([cb #:sign alice])
+            #:outputs ([to-bob (wpkh bob) (btc 49.99)] [change (wpkh alice) (btc 0.009)]))
+          (confirm pay)
+          (fee pay)
+      ← (accepted #:chain mainnet #:tx #<tx pay 20a17961> #:step 5 #:trace 2)
+        (btc 0.001)
+
+Agent → eval
+          (summary (replay (scenario-log) #:targets (hash 'mainnet (regtest))))
+      ← ((confirmed 6) (disagree 0) (unverified 0))
+
+Agent:  The first spend was too early: a coinbase must be 100 blocks deep, and the coin
+        was 1 block deep. After 100 more blocks, the payment is confirmed with a fee of
+        0.001 BTC. A regtest Bitcoin Core node agrees with all 6 steps.
+```
+
+To start, read [Use the MCP server](guides/mcp.md). To learn how agents operate the DSL, read [How agents use the DSL](guides/agents.md).
+
+## Write the code yourself
+
+The DSL is a Racket language, thus a Lisp. If you prefer to write the code manually, write it as a Racket module. This is the same payment:
 
 ```racket
 #lang bitcoin/model
@@ -19,6 +60,8 @@ The Bitcoin DSL is a Racket language for Bitcoin systems and new Bitcoin ideas. 
 (utxos #:spendable-by bob)   ; => (list to-bob)
 (fee pay)                    ; => (btc 0.001)
 ```
+
+To start, read [Get started](getting-started.md) and [Write scenarios by hand](guides/scenarios-by-hand.md).
 
 ## The two layers
 
@@ -52,7 +95,7 @@ The Bitcoin DSL is a Racket language for Bitcoin systems and new Bitcoin ideas. 
 
 ## Where to go next
 
-- To use the DSL with Claude Code, read [Use the MCP server](guides/mcp.md).
+- To use the DSL through an agent, read [Use the MCP server](guides/mcp.md).
 - To learn how agents operate the DSL, read [How agents use the DSL](guides/agents.md).
 - To write Racket directly, read [Get started](getting-started.md), then [Write scenarios by hand](guides/scenarios-by-hand.md).
 - To find a form or a rule, read [Forms](reference/forms.md), [Results and traces](reference/results.md) and [Consensus rules](reference/rules.md).
