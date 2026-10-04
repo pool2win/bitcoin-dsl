@@ -8,13 +8,13 @@
 
 ## Install the package
 
-The language is in `racket-dsl/`. It is a Racket package that gives the collection `bitcoin`.
+The repository is a Racket package that gives the collection `bitcoin`.
 
 1. Go to the root of the repository.
 2. Link the package:
 
     ```sh
-    raco pkg install --link --name bitcoin-dsl racket-dsl
+    raco pkg install --link --name bitcoin-dsl .
     ```
 
 After this step, `#lang bitcoin/model`, `#lang bitcoin/conform` and `racket -l bitcoin/mcp` are available. To remove the package, use `raco pkg remove bitcoin-dsl`.
@@ -31,7 +31,7 @@ raco setup --pkgs bitcoin-dsl
 ## Run the tests
 
 ```sh
-raco test racket-dsl/tests
+raco test tests
 ```
 
 The tests include each scenario, the rules, the crypto (with BIP340 and BIP119 test vectors) and replay against real nodes. The replay tests start temporary regtest nodes in temporary directories and stop them after the test. They do not touch `~/.bitcoin`.

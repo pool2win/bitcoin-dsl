@@ -51,7 +51,7 @@ Use `rackunit` on the result values:
 (check-equal? (result-detail r 'need) 144)
 ```
 
-To test a property in many cases, use Racket loops. For example, [`tests/sighash.rkt`](https://github.com/pool2win/bitcoin-dsl/blob/main/racket-dsl/tests/sighash.rkt) checks `free-fields` against validation for each flag set and each edit.
+To test a property in many cases, use Racket loops. For example, [`tests/sighash.rkt`](https://github.com/pool2win/bitcoin-dsl/blob/main/tests/sighash.rkt) checks `free-fields` against validation for each flag set and each edit.
 
 To check a scenario against Core, add a `replay` at the end of the file. Make the replay test stop without failure when `bitcoind` is not available:
 

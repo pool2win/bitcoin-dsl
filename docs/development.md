@@ -3,7 +3,8 @@
 ## The files
 
 ```
-racket-dsl/
+./
+  info.rkt             the package: collection bitcoin
   model.rkt            #lang bitcoin/model: Racket plus the forms and macros for models
   conform.rkt          #lang bitcoin/conform: the model plus replay
   mcp.rkt              the MCP server (racket -l bitcoin/mcp)
@@ -24,7 +25,10 @@ racket-dsl/
     conform.rkt        replay, targets, sighash-matrix
     real/              lowering: hashes, secp256k1 (ECDSA, Schnorr), BIP143, BIP341, BIP119, the regtest node
   tests/               one file for each scenario, each area of rules and each replay
-  docs/                this site (MkDocs Material)
+  docs/                this site (MkDocs Material); docs/design holds the design notes
+  mkdocs.yml           the site configuration
+  .github/workflows/   the workflow that publishes this site
+  obsolete-ruby-dsl/   the old Ruby DSL, kept for reference only
 ```
 
 ## Tests
@@ -38,7 +42,7 @@ racket-dsl/
 2. Run the tests:
 
     ```sh
-    raco test racket-dsl/tests
+    raco test tests
     ```
 
 | Tests | Subjects |
@@ -78,4 +82,4 @@ racket-dsl/
 3. Write a page in `docs/scenarios/`.
 4. Give the goal in prose to an agent, and let the agent run the scenario over MCP.
 
-The history of the design and the decisions are in `docs/design/` at the root of the repository.
+The history of the design and the decisions are in `docs/design/`.

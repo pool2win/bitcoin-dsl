@@ -1,10 +1,4 @@
-.bundle
-.rspec
-bin/
-bitcoin/
-miniscript-cli/target
-.venv
-.ipynb_checkpoints
-README.html
-.env
+compiled/
+site/
+.venv/
 *~

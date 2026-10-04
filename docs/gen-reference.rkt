@@ -1,7 +1,7 @@
 #lang racket/base
 ;; Generates docs/reference/{forms,rules,opcodes}.md from the same describe
 ;; registry agents read over MCP, so the reference cannot drift from the
-;; language. Run from racket-dsl/:  racket docs/gen-reference.rkt
+;; language. Run from the repository root:  racket docs/gen-reference.rkt
 ;; tests/docs.rkt fails when the generated files are out of date.
 
 (require racket/list

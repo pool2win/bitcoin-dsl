@@ -1,7 +1,8 @@
 site_name: Bitcoin DSL
 site_description: A Racket DSL that models Bitcoin chains, transactions and soft forks. Agents use it over MCP, and real nodes check its results.
 repo_url: https://github.com/pool2win/bitcoin-dsl
-edit_uri: edit/main/racket-dsl/docs/
+edit_uri: edit/main/docs/
+site_url: https://pool2win.github.io/bitcoin-dsl/
 docs_dir: docs
 strict: true
 
@@ -35,6 +36,7 @@ markdown_extensions:
       check_paths: true
 
 exclude_docs: |
+  design/
   gen-reference.rkt
   requirements.txt
   compiled/

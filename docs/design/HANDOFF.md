@@ -40,7 +40,7 @@ A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) 
 
 ## Where the code is
 
-`racket-dsl/` (branch `racket-dsl`), a Racket package providing collection `bitcoin`. Link it once with `raco pkg install --link --name bitcoin-dsl racket-dsl`, then run tests with `raco test racket-dsl/tests`.
+The repository root (branch `racket-dsl`) is a Racket package providing collection `bitcoin`; the old Ruby DSL is in `obsolete-ruby-dsl/`. Link it once with `raco pkg install --link --name bitcoin-dsl .`, then run tests with `raco test tests`.
 
 - Step 1 (done): core values, consensus as a value with named rules and trace hooks. Scenario 1 runs (`tests/scenario-1.rkt`).
 - Step 2 (done): policy language compiled to P2WSH, `branches`, `#:path`, `#:reveal`, CSV/CLTV/BIP68/nLockTime rules, `explain`, `snapshot`/`restore`. Scenario 2 runs (`tests/scenario-2.rkt`).
@@ -74,7 +74,7 @@ Choices made along the way:
 
 ## Documentation
 
-User and agent docs live in `racket-dsl/docs/` (MkDocs Material; `racket-dsl/mkdocs.yml`). Reference pages are generated from the describe registry (`racket docs/gen-reference.rkt`, checked by `tests/docs.rkt`); scenario pages include the test files. `CLAUDE.md` requires keeping them current. All docs are written in ASD-STE100 Simplified Technical English (rules in `AGENT.md`); `tests/docs.rkt` checks what a machine can check (sentence length, unapproved words, -ing words, phrasal verbs, contractions). Publishing (GitHub Actions, custom domain) is not set up yet.
+User and agent docs live in `docs/` (MkDocs Material; `mkdocs.yml`); these design notes are in `docs/design/` and are not published. Reference pages are generated from the describe registry (`racket docs/gen-reference.rkt`, checked by `tests/docs.rkt`); scenario pages include the test files. `CLAUDE.md` requires keeping them current. All docs are written in ASD-STE100 Simplified Technical English (rules in `AGENT.md`); `tests/docs.rkt` checks what a machine can check (sentence length, unapproved words, -ing words, phrasal verbs, contractions). `.github/workflows/docs.yml` publishes the site to GitHub Pages on pushes to `main`; a custom domain is not set up yet.
 
 ## Next step
 

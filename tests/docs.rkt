@@ -2,7 +2,7 @@
 ;; Documentation checks.
 ;;
 ;; 1. The generated reference pages match the describe registry. If this
-;;    fails, run from racket-dsl/:  racket docs/gen-reference.rkt
+;;    fails, run from the repository root:  racket docs/gen-reference.rkt
 ;; 2. Every page follows the ASD-STE100 rules that can be checked by
 ;;    machine (see AGENT.md): sentence length, unapproved words, words
 ;;    that end in -ing, phrasal verbs and contractions. Code, inline code
@@ -87,8 +87,14 @@
               #:when (and (regexp-match? #px"^[a-z]{3,}ing$" w) (not (member w ing-ok))))
      (format "-ing word \"~a\"" w))))
 
+;; The pages of the site and the README. The design notes in docs/design
+;; are working notes and do not follow the standard.
+(define-runtime-path readme "../README.md")
 (define pages
-  (for/list ([f (in-directory docs-dir)] #:when (regexp-match? #px"\\.md$" (path->string f))) f))
+  (cons (simplify-path readme)
+        (for/list ([f (in-directory docs-dir (λ (d) (not (regexp-match? #px"/design$" (path->string d)))))]
+                   #:when (regexp-match? #px"\\.md$" (path->string f)))
+          f)))
 
 (define report
   (append*
@@ -96,7 +102,7 @@
      (for*/list ([ks (in-list (sentences (file->string f)))]
                  [p (in-value (problems (cdr ks) (car ks)))]
                  #:when (pair? p))
-       (format "~a: ~a\n    ~a" (find-relative-path docs-dir f) (string-join p ", ") (cdr ks))))))
+       (format "~a: ~a\n    ~a" (find-relative-path (simplify-path (build-path docs-dir 'up)) f) (string-join p ", ") (cdr ks))))))
 
 (module+ main
   (for-each displayln report)

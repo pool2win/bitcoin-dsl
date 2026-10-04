@@ -16,7 +16,7 @@ Write all documentation in ASD-STE100 Simplified Technical English. `AGENT.md` g
 
 ## Pages that change automatically
 
-- **The reference pages** ([Forms](../reference/forms.md), [Consensus rules](../reference/rules.md) and [Opcodes](../reference/opcodes.md)) come from the `describe` registry that agents read over MCP. Thus the doc strings in that registry must also follow the standard. After you change the usage or doc of a form, a rule or an opcode, run this command from `racket-dsl/`:
+- **The reference pages** ([Forms](../reference/forms.md), [Consensus rules](../reference/rules.md) and [Opcodes](../reference/opcodes.md)) come from the `describe` registry that agents read over MCP. Thus the doc strings in that registry must also follow the standard. After you change the usage or doc of a form, a rule or an opcode, run this command from the root of the repository:
 
     ```sh
     racket docs/gen-reference.rkt
@@ -41,7 +41,7 @@ You must change these pages manually: the concepts, the guides, the [results ref
 
 ## Build the site
 
-1. Go to `racket-dsl/`.
+1. Go to the root of the repository.
 2. Make a Python virtual environment:
 
     ```sh
@@ -55,6 +55,15 @@ You must change these pages manually: the concepts, the guides, the [results ref
     ```
 
 4. To see the site while you write, run `.venv/bin/mkdocs serve` and open `http://127.0.0.1:8000`.
-5. To make the static site in `racket-dsl/site/`, run `.venv/bin/mkdocs build`. The build is strict, and a warning stops it.
+5. To make the static site in `site/`, run `.venv/bin/mkdocs build`. The build is strict, and a warning stops it.
 
-The site is static HTML. You can publish it with GitHub Pages, for example with `mkdocs gh-deploy` from a workflow. A `docs/CNAME` file sets a custom domain.
+## Publish the site
+
+The workflow `.github/workflows/docs.yml` builds the site and publishes it to GitHub Pages after each push to `main`. You can also start it manually from the Actions tab.
+
+To use a custom domain, do these steps:
+
+1. Add a `docs/CNAME` file that contains the domain name.
+2. Change `site_url` in `mkdocs.yml` to the new address.
+3. Set the domain in the Pages settings of the repository.
+4. Add the DNS records that GitHub gives for the domain.
