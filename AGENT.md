@@ -5,8 +5,9 @@
 Write all documentation in ASD-STE100 Simplified Technical English (STE). This applies to:
 
 - the pages in `racket-dsl/docs/`;
-- the doc strings that the docs and the MCP `describe` tool show (`racket-dsl/private/describe.rkt`, rule docs in `racket-dsl/private/consensus.rkt`, opcode and failure docs);
-- the design documents in `docs/design/`.
+- the doc strings that the docs and the MCP `describe` tool show (`racket-dsl/private/describe.rkt`, rule docs in `racket-dsl/private/consensus.rkt`, opcode and failure docs).
+
+The design documents in `docs/design/` are working notes. They do not have to follow this standard.
 
 ### The rules that we use
 
