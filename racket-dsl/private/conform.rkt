@@ -39,6 +39,8 @@
          (struct-out step)
          summary
          disagreements
+         unverified-steps
+         inquisition-consensus
          sighash-matrix)
 
 ;; A node to replay a chain against: which build, its binary, the consensus
@@ -83,6 +85,9 @@
 
 (define (disagreements r)
   (filter (λ (s) (eq? (step-status s) 'disagree)) (run-steps r)))
+
+(define (unverified-steps r)
+  (filter (λ (s) (eq? (step-status s) 'unverified)) (run-steps r)))
 
 ;; Replay state for one chain. gate-ops and gate-rules are the opcode
 ;; bytes and rule names where the chain's consensus differs from the

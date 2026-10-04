@@ -74,7 +74,7 @@ Choices made along the way:
 
 ## Next step
 
-v2, Scenario 5: share chains (`#:kind share-chain`, `#:parent`), `miners` with seeded hashrate, `network` latency, simulated time, `run`, `repeat` with statistics. Fill in real p2poolv2 parameters first. Optional before that: an MCP agent run on Scenario 4 from prose goals (reconnect `/mcp` first).
+v2, Scenario 5: share chains (`#:kind share-chain`, `#:parent`), `miners` with seeded hashrate, `network` latency, simulated time, `run`, `repeat` with statistics. Fill in real p2poolv2 parameters first. An agent given Scenario 4's goals in prose completed it over MCP in 34 tool calls, including both replays; its friction led to binding `inquisition` in eval, `regtest`/`run-steps`/`unverified-steps` docs and group topics in describe, `#:expected`/`#:got` on CTV mismatches, and `spend #:name`.
 
 ## Things to fill in
 

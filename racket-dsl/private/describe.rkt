@@ -36,7 +36,7 @@
     (out query "(out tx 'label)" "The coin with that label.")
     (mine session "(mine n #:on chain #:to key)"
           "Mine n blocks, including the mempool in the first. Returns the list of coinbase coins (wrap in void to discard). Without #:to, coinbases pay an anonymous miner no user key can spend. Coinbases mature after 100 blocks; the subsidy halves every 150 blocks.")
-    (spend value "(spend coin-or-inputs #:sign key-or-list #:path 'branch #:reveal s #:sighash flags #:sequence n #:locktime n #:outputs (list (output 'label lock amount) ...))"
+    (spend value "(spend coin-or-inputs #:sign key-or-list #:path 'branch #:reveal s #:sighash flags #:sequence n #:locktime n #:name 'name #:outputs (list (output 'label lock amount) ...))"
            "Build and sign a tx as an expression, for try and the REPL; labels are only reachable with out. #:path sets nSequence and nLockTime for that branch, so #:sequence and #:locktime are rarely needed. Give a list of (input ...) specs to spend several coins.")
     (add-input value "(add-input tx coin #:sign key ...)  ; returns a tx named <name>+input"
                "Append an input and sign only it. Other signatures survive only if their sighash leaves inputs free.")
@@ -62,8 +62,12 @@
     (edit value "(edit tx path value)"
           "tx with one field changed and witnesses kept. Paths: version, locktime, (input i sequence), (output ref amount), (output ref lock), (inputs append) with a coin, (inputs remove i), (outputs append) with an (output ...), (outputs remove ref). ref is an output label or index; i is an input index.")
     (scenario-log query "(scenario-log)" "The log of chain, mine, try and broadcast events, oldest first.")
-    (replay conformance "(replay (scenario-log) #:targets (hash 'mainnet (regtest)))"
-            "Replay the log against a fresh regtest Core node. Each step is confirmed, disagree or unverified. Needs bitcoind on PATH.")
+    (replay conformance "(replay (scenario-log) #:targets (hash 'mainnet (regtest) 'signet (regtest #:build 'inquisition)))"
+            "Replay the log against fresh regtest nodes, one per chain. Each step is confirmed (the node agrees on consensus), disagree, or unverified (#:reason says why: no target, (model-only-rule ctv) when the step ran a rule the target runs differently, a dependency on an unverified step, or something lowering cannot express). #:mempool-only on a confirmed step means the node's mempool refused the tx by policy but a block would accept it. Inspect with summary, disagreements, unverified-steps, run-steps and step-n/step-status/step-detail/step-event.")
+    (regtest conformance "(regtest #:build 'core|'inquisition #:bitcoind path)"
+             "A replay target. core runs bitcoin (bitcoind on PATH); inquisition runs bitcoin plus CTV (the consensus value inquisition), found via BITCOIN_INQUISITION or ~/projects/bitcoin-inquisition/build/bin/bitcoind.")
+    (unverified-steps conformance "(unverified-steps run)" "The steps replay could not check, each with its #:reason.")
+    (run-steps conformance "(run-steps run)" "Every step of a run: (status #:step n event detail); read with step-n, step-status, step-event, step-detail.")
     (summary conformance "(summary run)" "Counts of confirmed, disagree and unverified steps.")
     (disagreements conformance "(disagreements run)" "The steps where the node and the model differ.")
     (define-consensus consensus "(define-consensus name #:extends parent #:opcodes (upgrade nop4 #:to ctv) #:rules (add r) (remove n) (replace n r) #:params (set k v) #:sighash (add version selector))"
@@ -130,8 +134,11 @@
            (cons 'example example)
            (cons 'forms (for/list ([g '(definition value consensus session query conformance)])
                           (cons g (for/list ([f (in-list forms)] #:when (eq? (second f) g)) (third f)))))
-           (list 'topics "describe a form, rule or opcode name, or a consensus name (e.g. bitcoin); also rules, opcodes, sighash, state, example")
-           (list 'consensus-values (registered-consensus-names)))]
+           (list 'topics "describe a form, rule or opcode name, a group name (definition value consensus session query conformance), or a consensus name (e.g. bitcoin); also rules, opcodes, sighash, state, example")
+           (list 'consensus-values (registered-consensus-names)
+                 "bound in eval: bitcoin, inquisition (with bitcoin/conform), and those you define"))]
+    [(memq topic '(definition value consensus session query conformance))
+     (for/list ([f (in-list forms)] #:when (eq? (second f) topic)) (list (first f) (third f) (fourth f)))]
     [(eq? topic 'sighash) sighash-doc]
     [(eq? topic 'example) example]
     [(eq? topic 'forms) (map (λ (f) (list (first f) (third f))) forms)]

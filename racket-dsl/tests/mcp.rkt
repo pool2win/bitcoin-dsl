@@ -147,3 +147,12 @@
   (eval-ok s "(define-consensus ctv-rules #:extends bitcoin #:opcodes (upgrade nop4 #:to ctv))")
   (define-values (text _e) (call s "describe" (hasheq 'topic "ctv-rules")))
   (check-true (string-contains? text "#:changes ((opcode #xb3 nop4 -> ctv))")))
+
+(test-case "fixes from the Scenario 4 agent run"
+  (define s (make-session))
+  (check-equal? (eval-ok s "(format \"~s\" (diff-consensus bitcoin inquisition))") "\"((opcode #xb3 nop4 -> ctv))\"\n")
+  (define-values (group _e) (call s "describe" (hasheq 'topic "conformance")))
+  (check-true (string-contains? group "unverified-steps"))
+  (define-values (rt _e2) (call s "describe" (hasheq 'topic "regtest")))
+  (check-true (string-contains? rt "#:build"))
+  (check-true (string-contains? (eval-ok s "(procedure? unverified-steps)") "#t")))

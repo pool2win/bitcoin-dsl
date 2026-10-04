@@ -289,12 +289,13 @@
                #:sighash [type #f]
                #:sequence [sequence #f]
                #:locktime [locktime #f]
+               #:name [name #f]
                #:outputs outputs)
   (define (->spec x)
     (if (input-spec? x)
         x
         (input x #:sign keys #:path path #:reveal reveal #:sighash type #:sequence sequence)))
-  (build-tx #f (map ->spec (if (list? what) what (list what))) outputs #:locktime locktime))
+  (build-tx name (map ->spec (if (list? what) what (list what))) outputs #:locktime locktime))
 
 ;; Validation
 

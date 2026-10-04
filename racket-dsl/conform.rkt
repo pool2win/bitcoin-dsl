@@ -11,6 +11,8 @@
          replay
          summary
          disagreements
+         unverified-steps
+         (rename-out [inquisition-consensus inquisition])
          sighash-matrix
          run-steps
          step-n

@@ -88,7 +88,11 @@
         (define now (tx-ctv-commitment (script-ctx-tx ctx) (script-ctx-index ctx)))
         (if (equal? (hashed-value arg) now)
             s
-            (script-failure 'ctv-template-mismatch (list (cons 'fields (field-diff (hashed-value arg) now)))))]
+            (let ([fields (field-diff (hashed-value arg) now)])
+              (script-failure 'ctv-template-mismatch
+                              (list (cons 'fields fields)
+                                    (cons 'expected (for/list ([f (in-list fields)]) (assoc f (hashed-value arg))))
+                                    (cons 'got (for/list ([f (in-list fields)]) (assoc f now)))))))]
        [(and (bytes? arg) (= (bytes-length arg) 32))
         (script-failure 'unsupported (list (cons 'feature 'ctv-raw-hash)))]
        [else s])]))
@@ -98,7 +102,7 @@
                "BIP119 CHECKTEMPLATEVERIFY: fail unless the spending tx matches the template hash on top of the stack."
                op-ctv
                #:failures (hash 'ctv-template-mismatch
-                                "The spending tx does not match the CTV template; #:fields names what differs.")))
+                                "The spending tx does not match the CTV template; #:fields names what differs, #:expected and #:got show the template's and the tx's values.")))
 
 (register-opcode! ctv-opcode)
 

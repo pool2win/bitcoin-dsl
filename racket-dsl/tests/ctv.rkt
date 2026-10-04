@@ -39,7 +39,11 @@
   (define r (try (thief v-sig)))
   (check-equal? (rejected-rule r) 'ctv-template-mismatch)
   (check-equal? (rejected-chain r) 'signet)
-  (check-equal? (result-detail r 'fields) '((outputs all))))
+  (check-equal? (result-detail r 'fields) '((outputs all)))
+  ;; The mismatch shows the template's value and the tx's.
+  (check-equal? (map car (result-detail r 'expected)) '((outputs all)))
+  (check-equal? (cadr (assoc '(outputs all) (result-detail r 'got)))
+                (list (btc 49.98) `(v0 ,(hash160 mallory)))))
 
 (test-case "explain shows ctv running as nop4 on mainnet"
   (check-pred accepted? (try (thief v-main)))
@@ -65,3 +69,7 @@
   (define lock (spend cb #:sign alice #:outputs (list (output 'l (later) (btc 49.99)))))
   (check-pred accepted? (confirm lock))
   (check-pred accepted? (try (spend (out lock 'l) #:outputs (list (output 'o (wpkh cold) (btc 49.98)))))))
+
+(test-case "spend can name its tx"
+  (check-true (string-prefix? (format "~s" (spend v-sig #:name 'sweep #:outputs (list (output 'o (wpkh cold) (btc 49.98)))))
+                              "#<tx sweep ")))
