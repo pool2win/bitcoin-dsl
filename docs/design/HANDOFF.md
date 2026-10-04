@@ -72,6 +72,10 @@ Choices made along the way:
 - Replay gates on opcodes and rules, not parameters, so a model whose parameters are wrong still shows up as a `disagree`. Txids in replay are keyed by chain, since two chains produce identical model txids.
 - A taproot key-path signature is by the internal key; the tweak is implied by the symbolic output key `(taptweak (internal root))`. Taptree is balanced over the leaves in order; tapbranch orders children by printed form. Leaf scripts compile exactly as for wsh (no CHECKSIGADD yet); OP_SUCCESSx, annex and sigops budget are not modelled.
 
+## Documentation
+
+User and agent docs live in `racket-dsl/docs/` (MkDocs Material; `racket-dsl/mkdocs.yml`). Reference pages are generated from the describe registry (`racket docs/gen-reference.rkt`, checked by `tests/docs.rkt`); scenario pages include the test files. `CLAUDE.md` requires keeping them current. Publishing (GitHub Actions, custom domain) is not set up yet.
+
 ## Next step
 
 v2, Scenario 5: share chains (`#:kind share-chain`, `#:parent`), `miners` with seeded hashrate, `network` latency, simulated time, `run`, `repeat` with statistics. Fill in real p2poolv2 parameters first. An agent given Scenario 4's goals in prose completed it over MCP in 34 tool calls, including both replays; its friction led to binding `inquisition` in eval, `regtest`/`run-steps`/`unverified-steps` docs and group topics in describe, `#:expected`/`#:got` on CTV mismatches, and `spend #:name`.

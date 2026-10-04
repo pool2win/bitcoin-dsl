@@ -1,0 +1,71 @@
+site_name: Bitcoin DSL
+site_description: A Racket DSL for modelling Bitcoin chains, transactions and soft forks, driven by agents over MCP and checked against real nodes.
+repo_url: https://github.com/pool2win/bitcoin-dsl
+edit_uri: edit/main/racket-dsl/docs/
+docs_dir: docs
+strict: true
+
+theme:
+  name: material
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - content.code.copy
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle: {icon: material/weather-night, name: Dark mode}
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle: {icon: material/weather-sunny, name: Light mode}
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - tables
+  - toc: {permalink: true}
+  - pymdownx.details
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      base_path: ["."]
+      check_paths: true
+
+exclude_docs: |
+  gen-reference.rkt
+  requirements.txt
+  compiled/
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Guides:
+      - Using it over MCP (humans): guides/mcp.md
+      - How agents use it: guides/agents.md
+      - Writing scenarios by hand: guides/scenarios-by-hand.md
+  - Concepts:
+      - The model: concepts/model.md
+      - Consensus as a value: concepts/consensus.md
+      - Contracts and spend paths: concepts/contracts.md
+      - Signatures and sighash: concepts/sighash.md
+      - Conformance replay: concepts/conformance.md
+  - Scenarios:
+      - scenarios/index.md
+      - 1. Fund and spend: scenarios/1-fund-and-spend.md
+      - 2. HTLC and timelocks: scenarios/2-htlc.md
+      - 3. Sighash and fee bumping: scenarios/3-sighash.md
+      - 4. CTV on two chains: scenarios/4-ctv.md
+      - 5. p2poolv2 share chain (planned): scenarios/5-share-chain.md
+      - 6. Cross-chain swap (planned): scenarios/6-swap.md
+      - 7. Conformance replay: scenarios/7-conformance.md
+  - Reference:
+      - Forms: reference/forms.md
+      - Results and traces: reference/results.md
+      - Consensus rules: reference/rules.md
+      - Opcodes: reference/opcodes.md
+  - Development:
+      - Codebase and tests: development.md
+      - Keeping these docs current: guides/docs.md
