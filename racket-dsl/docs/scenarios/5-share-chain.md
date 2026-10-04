@@ -1,9 +1,9 @@
-# Scenario 5: p2poolv2 share chain alongside bitcoin
+# Scenario 5: p2poolv2 share chain with bitcoin
 
 !!! note "Planned for v2"
-    This scenario is designed but not built. The code below is the proposed syntax, not something you can run yet.
+    This scenario has a design, but it is not built. The code below shows the proposed syntax. You cannot run it yet.
 
-**Goal:** model a share chain whose rules differ from bitcoin's in difficulty, uncles and payouts, linked to a parent bitcoin chain. Then check payouts and uncle handling under latency.
+**Goal:** Model a share chain with rules that are different from bitcoin for difficulty, uncles and payouts. Link it to a parent bitcoin chain. Then check the payouts and the uncles under latency.
 
 ```racket
 (define-consensus p2poolv2-share
@@ -31,12 +31,17 @@
 (repeat 200 #:vary seed (payouts mainnet #:to 'm1))  ; variance
 ```
 
-The parameter values (`share-spacing`, `hl`, `w`) are placeholders, to be filled from the real p2poolv2 settings.
+The parameter values (`share-spacing`, `hl` and `w`) are temporary. The real p2poolv2 settings will replace them.
 
-## Why it matters
+## Why this scenario is important
 
-p2poolv2's consensus (a share chain with ASERT difficulty, uncles, PPLNS payouts and MuHash commitments) is not a bitcoind fork, so there is no binary to point a conformance check at. This is the case that requires consensus to be a value: a share chain is a different *kind* of chain, linked to a parent, with its own rules. When a share meets the parent's target, the engine will produce a bitcoin block whose coinbase pays the PPLNS split.
+The consensus of p2poolv2 is not a fork of bitcoind. It has a share chain with ASERT difficulty, uncles, PPLNS payouts and MuHash commitments. Thus no binary is available for a conformance check. This scenario needs consensus as a value. A share chain is a different type of chain. It has a parent and its own rules. When a share meets the target of the parent, the engine will make a bitcoin block. The coinbase of that block pays the PPLNS split.
 
-An agent will learn how rule changes (window, uncle split, difficulty adjustment) shift payouts and variance, without running real nodes.
+An agent will learn how changes to the rules change the payouts and their variance. Examples of such changes are the window, the uncle split and the difficulty adjustment. The agent will not need real nodes.
 
-**Will need:** chain kinds beyond transaction chains, `#:parent` linkage, `miners` with seeded hashrate, `network` latency, simulated time, `run`, `repeat` with statistics, `check`, payout queries.
+**This scenario will need these items:**
+
+- Types of chains other than transaction chains, and the `#:parent` link.
+- `miners` with a seeded hashrate, and `network` latency.
+- Simulated time, `run`, and `repeat` with statistics.
+- `check` and payout queries.

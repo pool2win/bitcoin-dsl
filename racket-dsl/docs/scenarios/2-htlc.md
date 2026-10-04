@@ -1,34 +1,34 @@
 # Scenario 2: HTLC, timelocks and explained failures
 
-**Goal:** define a contract, list its spend paths, try one too early, read why it failed, then fork the state to try both paths.
+**Goal:** Define a contract and list its spend paths. Try one path too early and read the cause of the failure. Then use a snapshot to try both paths.
 
 ```racket
 --8<-- "tests/scenario-2.rkt"
 ```
 
-## What happens
+## What occurs
 
-- **The contract.** `contract` defines `htlc` as a function from its parameters to a P2WSH lock. The labelled `or` arms name the spend paths `claim` and `refund`; see [Contracts](../concepts/contracts.md).
-- **Branches.** `(branches locked)` lists each path with what it needs: Bob's signature and the preimage, or Alice's signature and 144 blocks of age.
-- **Too early.** `#:path 'refund` sets the input's nSequence to 144 and fills the witness. Spent one block after funding, the input fails BIP68's relative lock:
+- **The contract.** `contract` defines `htlc` as a function that makes a P2WSH lock from its parameters. The labels on the arms of `or` give the names of the spend paths: `claim` and `refund`. See [Contracts](../concepts/contracts.md).
+- **The branches.** `(branches locked)` lists each path with the items that it needs. The claim needs the signature of Bob and the preimage. The refund needs the signature of Alice and an age of 144 blocks.
+- **Too early.** `#:path 'refund` sets the nSequence of the input to 144 and fills the witness. One block after the fund transaction, the input does not pass the relative lock of BIP68:
 
     ```racket
     (rejected #:chain mainnet #:rule sequence-lock #:input 0 #:need 144 #:have 1 …)
     ```
 
-    The rule is `sequence-lock`, not the `csv` opcode: with nSequence set to 144, OP_CSV itself passes, and it is the input's relative lock that is not yet met. That matches what a real node reports (`non-BIP68-final`).
+    The rule is `sequence-lock`, not the `csv` opcode. The nSequence is 144, thus OP_CSV passes. The relative lock of the input is the check that fails. A real node gives the same result (`non-BIP68-final`).
 
-- **Explain.** The last step of `(explain (last-trace))` names the failing rule and carries its doc:
+- **Explain.** The last step of `(explain (last-trace))` gives the rule that failed and its doc:
 
     ```racket
     (rule sequence-lock #:input 0 fail #:need 144 #:have 1
           #:doc "BIP68: an input whose nSequence encodes a relative lock waits that many blocks after its coin confirmed.")
     ```
 
-- **Snapshots.** `snapshot` captures the chain; 143 more blocks make the refund valid; `restore` rewinds, and Bob's claim, revealing the preimage, is accepted instead.
+- **Snapshots.** `snapshot` captures the chain. After 143 more blocks, the refund is valid. `restore` puts the chain back. Then the claim of Bob, with the preimage, is accepted.
 
 ## Against a real node
 
-`tests/replay-2.rkt` replays the log, which after the `restore` holds the claim branch, against Core: the P2WSH script, the preimage, the CSV path and the BIP68 rejection all agree.
+`tests/replay-2.rkt` replays the log against Core. After the `restore`, the log holds the claim branch. The P2WSH script, the preimage, the CSV path and the BIP68 rejection all agree with Core.
 
-**Forms used:** `contract` (`pk`, `sha256`, `older`, `and`, `or`), `secret`, `branches`, `#:path`, `#:reveal`, `try`, `explain`, `snapshot`, `restore`.
+**Forms in this scenario:** `contract` (`pk`, `sha256`, `older`, `and`, `or`), `secret`, `branches`, `#:path`, `#:reveal`, `try`, `explain`, `snapshot`, `restore`.

@@ -122,7 +122,7 @@
   (define-values (steps _e) (call s "explain" (hasheq)))
   (check-true (string-contains? steps "(rule witness-script #:input 0 fail #:as eval-false #:cause empty-signature"))
   (define-values (doc _e2) (call s "describe" (hasheq 'topic "eval-false")))
-  (check-true (string-contains? doc "finished with false on top"))
+  (check-true (string-contains? doc "stopped with false on top"))
   ;; add-input names its tx after the original.
   (eval-ok s "(define c2 (second (utxos)))
               (define-tx p #:inputs ([cb #:sign miner #:sighash '(all anyonecanpay)])

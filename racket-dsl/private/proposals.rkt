@@ -99,10 +99,10 @@
 
 (define ctv-opcode
   (make-opcode 'ctv #xb3
-               "BIP119 CHECKTEMPLATEVERIFY: fail unless the spending tx matches the template hash on top of the stack."
+               "BIP119 CHECKTEMPLATEVERIFY: fail if the tx that spends the coin does not agree with the template hash on top of the stack."
                op-ctv
                #:failures (hash 'ctv-template-mismatch
-                                "The spending tx does not match the CTV template; #:fields names what differs, #:expected and #:got show the template's and the tx's values.")))
+                                "The tx that spends the coin does not agree with the CTV template. #:fields gives the fields that are different. #:expected and #:got give the values of the template and of the tx.")))
 
 (register-opcode! ctv-opcode)
 

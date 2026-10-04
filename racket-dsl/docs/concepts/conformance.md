@@ -1,6 +1,6 @@
 # Conformance replay
 
-The model is only useful if it is right. Conformance replay checks it: it lowers a scenario log to real keys, signatures and transaction bytes, replays it against throwaway regtest nodes, and gives every step a status.
+The model is useful only if it is correct. Conformance replay checks it. Replay lowers a scenario log to real keys, signatures and transaction bytes. Then it replays the log against temporary regtest nodes and gives each step a status.
 
 ```racket
 #lang bitcoin/conform
@@ -8,44 +8,61 @@ The model is only useful if it is right. Conformance replay checks it: it lowers
                     #:targets (hash 'mainnet (regtest)
                                     'signet  (regtest #:build 'inquisition))))
 (summary run)          ; => ((confirmed 14) (disagree 0) (unverified 0))
-(disagreements run)    ; steps where the node and the model differ
-(unverified-steps run) ; steps replay could not check, with #:reason
+(disagreements run)    ; the steps where the node and the model do not agree
+(unverified-steps run) ; the steps that replay could not check, with #:reason
 ```
 
 ## Statuses
 
-| Status | Meaning |
+| Status | Description |
 |---|---|
-| `confirmed` | The node agrees with the model, on consensus. |
-| `disagree` | It does not. The detail shows `#:model` and `#:node` verdicts. A disagreement is a model bug, or an idea that depends on rules that do not exist. |
-| `unverified` | The step could not be checked. `#:reason` says why: `no-target`, `target-binary-missing`, `(model-only-rule ctv)` when the step exercised a rule the target runs differently, `spends-unverified-coin` or `includes-unverified-tx` when it depends on such a step, or something lowering cannot express. |
+| `confirmed` | The node agrees with the model on consensus. |
+| `disagree` | The node does not agree. The details give the `#:model` and `#:node` verdicts. A disagreement is a bug in the model, or an idea that depends on rules that do not exist. |
+| `unverified` | Replay could not check the step. `#:reason` gives the cause (see the list below). |
 
-Nothing passes silently: a step is only `confirmed` after the node has actually been asked.
+These are the causes for `unverified`:
 
-## Lowering
+- `no-target`: the chain has no target.
+- `target-binary-missing`: the node binary is not available.
+- `(model-only-rule ctv)`: the step exercised a rule that the target runs differently.
+- `spends-unverified-coin` or `includes-unverified-tx`: the step depends on an unverified step.
+- A value that replay cannot lower.
 
-- **Keys and secrets** are derived from their names (`sha256("bitcoin-dsl/key/<name>")`), so real txids are the same on every run. Model txids map to real ones during replay, per chain.
-- **Scripts** take opcode bytes from the global registry, with minimal pushes. Keys are 33-byte compressed in segwit v0 scripts and 32-byte x-only in tapscript.
-- **Signatures** are made over the BIP143 or BIP341 digest *rebuilt from the fields the model signature committed to*, not from the transaction it sits in. A signature that is invalid in the model (say, over a tampered transaction) is invalid on the node too.
-- **Taproot** uses real tagged hashes: TapLeaf, TapBranch (children sorted by bytes), TapTweak and control blocks.
-- **CTV templates** lower to the real BIP119 hash.
+No step passes without a check. A step is `confirmed` only after replay asks the node.
 
-secp256k1 ECDSA (RFC6979, low-S), BIP340 Schnorr, RIPEMD160 and HMAC are implemented in plain Racket and checked against published test vectors. They are not constant time: this is for throwaway regtest keys only.
+## How replay lowers values
 
-## Targets and differing rules
+- **Keys and secrets.** Replay derives them from their names (`sha256("bitcoin-dsl/key/<name>")`). Thus the real txids are the same for each run. Replay maps model txids to real txids, for each chain.
+- **Scripts.** The opcode bytes come from the global registry, with minimal pushes. Segwit v0 scripts use compressed keys of 33 bytes. Tapscript uses x-only keys of 32 bytes.
+- **Signatures.** Replay signs the BIP143 or BIP341 digest of the fields that the model signature committed to. It does not calculate the digest from the transaction that holds the signature. Thus a signature that is not valid in the model, for example on a changed transaction, is also not valid on the node.
+- **Taproot.** Replay uses real tagged hashes: TapLeaf, TapBranch (with the children sorted by bytes), TapTweak and the control blocks.
+- **CTV templates.** Replay lowers them to the real BIP119 hash.
 
-A target is a node build plus the consensus it runs, as a model value:
+The DSL has its own Racket code for secp256k1 ECDSA (RFC6979, low-S), BIP340 Schnorr, RIPEMD160 and HMAC. The tests compare this code with published test vectors.
+
+!!! warning
+    This crypto code does not run in constant time. Use it only with temporary regtest keys.
+
+## Targets and different rules
+
+A target is a node build and the consensus that it runs, as a model value:
 
 | Target | Runs |
 |---|---|
-| `(regtest)` or `(regtest #:build 'core)` | `bitcoin`, using `bitcoind` on `PATH` |
-| `(regtest #:build 'inquisition)` | `inquisition` (bitcoin plus CTV), using `BITCOIN_INQUISITION` or `~/projects/bitcoin-inquisition/build/bin/bitcoind` |
+| `(regtest)` or `(regtest #:build 'core)` | `bitcoin`, with the `bitcoind` on `PATH`. |
+| `(regtest #:build 'inquisition)` | `inquisition` (bitcoin plus CTV), with `BITCOIN_INQUISITION` or `~/projects/bitcoin-inquisition/build/bin/bitcoind`. |
 
-Replay compares the target's consensus with the chain's using [`diff-consensus`](consensus.md#comparing-rule-sets). A step that exercised an opcode or rule in that diff is `unverified` with `(model-only-rule …)`, rather than reading the node's answer as a verdict on a rule it runs differently. Replaying the CTV chain of Scenario 4 against Core gives exactly two such steps; against Inquisition, all steps confirm. Parameters are not gated, so a model with a wrong parameter still shows up as a `disagree`.
+Replay compares the consensus of the target with the consensus of the chain. It uses [`diff-consensus`](consensus.md#compare-rule-sets) for this comparison. A step that exercised an opcode or a rule in the differences is `unverified` with `(model-only-rule …)`. Replay does not use the answer of a node about a rule that the node runs differently.
 
-## Consensus, not policy
+For example, the CTV chain of Scenario 4 gives two such steps when it replays against Core. Against Inquisition, all steps are confirmed. Replay does not compare parameters. Thus a model with an incorrect parameter still shows as `disagree`.
 
-Replay nodes run with `-acceptnonstdtxn=1 -minrelaytxfee=0 -blockmintxfee=0 -dustrelayfee=0`, and RPC calls pass `maxfeerate=0`. When a mempool still refuses a transaction (using NOP4 is non-standard, for example), replay asks whether a block containing it would be valid (`generateblock` without submitting) and uses that answer; the mempool's reason is kept as `#:mempool-only`. Transactions a block would accept but the mempool refused are mined explicitly in the next block. Mined blocks are checked for height, coinbase reward and the set of included transactions.
+## Consensus and policy
+
+The replay nodes start with `-acceptnonstdtxn=1 -minrelaytxfee=0 -blockmintxfee=0 -dustrelayfee=0`. The RPC calls use `maxfeerate=0`.
+
+A mempool can still refuse a transaction because of policy. For example, a transaction that uses NOP4 is not standard. In this case, replay asks if a block with the transaction is valid. It uses `generateblock` without submission and uses that answer. The step keeps the reason of the mempool as `#:mempool-only`. Replay mines these transactions in the next block.
+
+Replay also checks each mined block: the height, the coinbase reward and the set of transactions in the block.
 
 ## The sighash matrix
 
@@ -54,4 +71,6 @@ Replay nodes run with `-acceptnonstdtxn=1 -minrelaytxfee=0 -blockmintxfee=0 -dus
 ; => ((confirmed #:type wpkh #:flags (all) #:edit none #:model accepted) …)
 ```
 
-For every spend type and flag set, two inputs are signed with those flags, and the transaction is tried unedited and under every edit (outputs changed, appended or removed, sequences, version, locktime, a real input appended, an input removed). The model's verdict for each cell is checked against the node. It runs in a scratch session, so the caller's session is untouched. All 260 cells agree with Core. Legacy spends are not modelled and come back `unsupported`.
+For each spend type and each flag set, the matrix signs two inputs with those flags. Then it tries the transaction without an edit and with each edit. The edits change, add or remove outputs. They also change sequences, the version and the locktime, add a real input or remove an input. The matrix checks the verdict of the model for each cell against the node.
+
+The matrix runs in a scratch session, thus it does not change your session. All 260 cells agree with Core. The model does not have legacy spends, thus they return `unsupported`.

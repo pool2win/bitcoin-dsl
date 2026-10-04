@@ -74,7 +74,7 @@ Choices made along the way:
 
 ## Documentation
 
-User and agent docs live in `racket-dsl/docs/` (MkDocs Material; `racket-dsl/mkdocs.yml`). Reference pages are generated from the describe registry (`racket docs/gen-reference.rkt`, checked by `tests/docs.rkt`); scenario pages include the test files. `CLAUDE.md` requires keeping them current. Publishing (GitHub Actions, custom domain) is not set up yet.
+User and agent docs live in `racket-dsl/docs/` (MkDocs Material; `racket-dsl/mkdocs.yml`). Reference pages are generated from the describe registry (`racket docs/gen-reference.rkt`, checked by `tests/docs.rkt`); scenario pages include the test files. `CLAUDE.md` requires keeping them current. All docs are written in ASD-STE100 Simplified Technical English (rules in `AGENT.md`); `tests/docs.rkt` checks what a machine can check (sentence length, unapproved words, -ing words, phrasal verbs, contractions). Publishing (GitHub Actions, custom domain) is not set up yet.
 
 ## Next step
 

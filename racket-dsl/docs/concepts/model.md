@@ -1,52 +1,55 @@
 # The model
 
-The model is a Bitcoin consensus engine written for exploration. It keeps the parts of Bitcoin that decide validity exact (which fields a signature commits to, how timelocks count, how scripts run) and makes the rest symbolic, so that results can be explained.
+The model is a Bitcoin consensus engine for exploration. It keeps exact the parts of Bitcoin that decide validity: the fields that a signature commits to, the count of timelocks and the execution of scripts. The other parts are symbolic, thus the model can explain its results.
 
 ## Sessions and chains
 
-A session holds any number of chains. Each chain is declared with a consensus value and starts at a genesis block at height 0:
+A session holds one or more chains. You declare each chain with a consensus value. Each chain starts with a genesis block at height 0:
 
 ```racket
 (chain mainnet #:rules bitcoin)
 (chain signet  #:rules ctv-rules)
 ```
 
-Each chain has its own height, simulated clock (`block-spacing` seconds per block), UTXO set, mempool and blocks. `bitcoin` uses regtest parameters so replays line up with a regtest node: a 50 BTC subsidy halving every 150 blocks, and coinbase maturity of 100 blocks.
+Each chain has its own height, simulated clock, UTXO set, mempool and blocks. The clock adds `block-spacing` seconds for each block. The `bitcoin` value uses regtest parameters, thus replays agree with a regtest node:
 
-The whole session is one immutable value, which is why `snapshot` and `restore` are cheap. A snapshot captures chains and the scenario log. Traces are kept across restores, so trace ids in earlier results stay valid.
+- The subsidy is 50 BTC, and it halves every 150 blocks.
+- A coinbase output matures after 100 blocks.
+
+The full session is one value that does not change. Thus `snapshot` and `restore` are fast. A snapshot captures the chains and the scenario log. `restore` keeps the traces, thus the trace ids in earlier results stay valid.
 
 ## Keys, secrets and symbolic crypto
 
 ```racket
-(keys alice bob)          ; binds alice and bob to keys named alice and bob
+(keys alice bob)          ; binds alice and bob to keys with the names alice and bob
 (define s (secret 's1))   ; a hash preimage
 ```
 
-Keys and secrets are names. A hash is a structured value that records what was hashed: `(hash160 alice)`, `(sha256 s1)`. A signature is `(sig key type fields)`, where `fields` is the exact list of `(field . value)` pairs it commits to, chosen by the chain's sighash selector. Verification recomputes that list and compares. So a signature's commitment can be inspected directly (`commits`), and a mismatch names the fields that differ.
+Keys and secrets are names. A hash is a value that records the data that it hashes, for example `(hash160 alice)` or `(sha256 s1)`. A signature is `(sig key type fields)`. Here, `fields` is the list of `(field . value)` pairs that the signature commits to. The sighash selector of the chain selects these fields. Validation calculates the list again and compares the two lists. Thus you can examine the commitment of a signature directly with `commits`. If the lists are different, the rejection gives the fields that are different.
 
-Replay [lowers](conformance.md) all of this to real keys (derived from the names), real hashes and real ECDSA or Schnorr signatures.
+Replay [lowers](conformance.md) these values to real keys, real hashes and real ECDSA or Schnorr signatures. It derives the keys from the names.
 
 ## Amounts
 
-`(btc 49.99)` and `(sats 1000)` build exact satoshi amounts; they print as `(btc …)`. Floats are rounded to the satoshi, and anything finer than a satoshi is refused.
+`(btc 49.99)` and `(sats 1000)` make exact amounts in satoshis. They print as `(btc …)`. The DSL rounds a float to the nearest satoshi. It refuses an amount that is smaller than one satoshi.
 
 ## Coins
 
-Coins are never picked implicitly. Every coin comes from:
+The DSL does not select coins for you. Each coin comes from one of these sources:
 
-- `mine`, which returns the list of coinbase coins it mined; or
-- a labelled transaction output: `define-tx` binds each label, and `(out tx 'label)` or `(output-of tx index)` looks one up.
+- `mine`, which returns the list of coinbase coins that it mined.
+- An output with a label. `define-tx` binds each label. `(out tx 'label)` and `(output-of tx index)` also get an output.
 
-`(utxos #:spendable-by bob)` queries confirmed coins in a fixed order: confirmation height, then outpoint.
+`(utxos #:spendable-by bob)` returns the confirmed coins in a fixed order: confirmation height, then outpoint.
 
 ## Locks
 
-A lock is how an output is described:
+A lock describes an output:
 
-| Lock | Built with |
+| Lock | Make it with |
 |---|---|
 | P2WPKH | `(wpkh key)` |
-| P2WSH | a contract function, e.g. `(htlc alice bob s 144)` (see [Contracts](contracts.md)) |
+| P2WSH | A contract function, for example `(htlc alice bob s 144)`. See [Contracts](contracts.md). |
 | Taproot | `(tr key)` or `(tr key #:leaves (list (htlc …) …))` |
 
 ## Transactions
@@ -61,19 +64,33 @@ A lock is how an output is described:
        #:outputs (list (output 'b (wpkh bob) (btc 49))))
 ```
 
-Each input can take `#:sign` (a key or list), `#:path` (a spend path), `#:reveal` (secrets), `#:sighash` and `#:sequence`. Missing signatures or preimages become empty witness items, so an incomplete spend comes back as an explained rejection rather than a build error. The fee is inputs minus outputs: `(fee pay)`.
+Each input can have these options:
 
-## Validating and mining
+- `#:sign` gives a key or a list of keys.
+- `#:path` gives a spend path.
+- `#:reveal` gives secrets.
+- `#:sighash` gives the sighash flags.
+- `#:sequence` gives the nSequence.
+
+If you do not give a signature or a preimage, the witness gets an empty item. Thus an incomplete spend gives an explained rejection, not an error. The fee is the inputs minus the outputs: `(fee pay)`.
+
+## Validate and mine
 
 | Form | Effect |
 |---|---|
-| `(try tx)` | Validates against the chain and mempool; changes nothing. |
-| `(broadcast tx)` | Validates; if accepted, adds to the mempool. |
-| `(confirm tx)` | Broadcasts, then mines one block if accepted. |
-| `(mine n #:on chain #:to key)` | Mines `n` blocks, including the mempool in the first. Without `#:to`, coinbases pay an anonymous miner no user key can spend. |
+| `(try tx)` | Validates the tx against the chain and the mempool. It does not change the state. |
+| `(broadcast tx)` | Validates the tx. If the tx is accepted, the tx goes into the mempool. |
+| `(confirm tx)` | Broadcasts the tx. If the tx is accepted, it mines one block. |
+| `(mine n #:on chain #:to key)` | Mines `n` blocks. The first block includes the mempool. Without `#:to`, the coinbases pay an anonymous miner, and no user key can spend them. |
 
-Each returns a [result](../reference/results.md): `accepted` or `rejected`, with the step number in the scenario log and a trace id.
+Each form returns a [result](../reference/results.md): `accepted` or `rejected`, with the step number in the scenario log and a trace id.
 
 ## The scenario log
 
-Every chain creation, mine, try and broadcast appends an event to the scenario log, holding the actual model values: the consensus value, the exact transaction, the verdict, the opcodes and rules it exercised, and what each mined block contained. `(scenario-log)` returns it. Step numbers in results are positions in this log. After a `restore`, the log is the history of the current branch, which is exactly what [replay](conformance.md) needs.
+Each new chain, each block mined, each `try` and each `broadcast` adds an event to the scenario log. The events hold the real model values:
+
+- the consensus value of each chain;
+- each exact transaction, its verdict, and the opcodes and rules that it exercised;
+- the contents of each mined block.
+
+`(scenario-log)` returns the log. The step numbers in results are positions in this log. After a `restore`, the log is the history of the current branch. [Replay](conformance.md) uses exactly this history.

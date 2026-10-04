@@ -101,16 +101,16 @@
 
 ;; Rules a failure can name from inside witness-script, besides opcodes.
 (define script-failure-docs
-  (hash 'eval-false "The script finished with false on top, e.g. a CHECKSIG whose signature did not verify; #:cause says why."
-        'cleanstack "A segwit script must finish with exactly one item on the stack."
-        'witness-program-mismatch "The witness does not fit the output's witness program: wrong item count, or the script does not hash to the program."
-        'taproot-commitment "The control block and leaf script do not commit to the taproot output key."
-        'key-path-sig "A taproot key-path spend needs a valid signature by the internal key; #:cause says why."
-        'stack-underflow "An opcode needed more stack items than there were."
-        'bad-opcode "The script uses an opcode this consensus does not define."
-        'unbalanced-conditional "IF/ELSE/ENDIF do not match up."
-        'unsupported "The model does not implement this feature yet (e.g. time-based locks)."
-        'unsupported-spend "The model does not implement this kind of output yet."))
+  (hash 'eval-false "The script stopped with false on top of the stack, for example after a CHECKSIG with a signature that is not valid. #:cause gives the cause."
+        'cleanstack "A segwit script must stop with exactly one item on the stack."
+        'witness-program-mismatch "The witness does not agree with the witness program of the output: the number of items is wrong, or the hash of the script is not the program."
+        'taproot-commitment "The control block and the leaf script do not commit to the taproot output key."
+        'key-path-sig "A taproot spend through the key path must have a valid signature by the internal key. #:cause gives the cause."
+        'stack-underflow "An opcode needed more stack items than the stack had."
+        'bad-opcode "The script uses an opcode that this consensus does not define."
+        'unbalanced-conditional "The IF, ELSE and ENDIF opcodes do not match."
+        'unsupported "The model does not have this feature yet, for example locks based on time."
+        'unsupported-spend "The model does not have this type of output yet."))
 
 ;; The doc for a rule name: a consensus rule, a script failure, an opcode,
 ;; or a failure an opcode reports (e.g. ctv-template-mismatch).
@@ -228,8 +228,8 @@
                         (make-opcode 'drop #x75 "Remove the top item." op-drop)
                         (make-opcode 'dup #x76 "Duplicate the top item." op-dup)
                         (make-opcode 'swap #x7c "Swap the top two items." op-swap)
-                        (make-opcode 'size #x82 "Push the size of the top item, keeping it." op-size)
-                        (make-opcode 'equal #x87 "Push whether the top two items are equal." op-equal)
+                        (make-opcode 'size #x82 "Push the size of the top item. The item stays on the stack." op-size)
+                        (make-opcode 'equal #x87 "Push true if the top two items are equal, else push false." op-equal)
                         (make-opcode 'equalverify #x88 "Fail unless the top two items are equal." op-equalverify)
                         (make-opcode 'add #x93 "Replace the top two numbers with their sum." op-add)
                         (make-opcode 'sha256 #xa8 "Replace the top item with its SHA256." op-sha256)
@@ -491,7 +491,7 @@
            (define need (consensus-param (vctx-consensus x) 'coinbase-maturity))
            (define have (- (vctx-height x) (utxo-height u)))
            (and (utxo-coinbase? u) (< have need) (fail 'need need 'have have))))
-   (rule 'value-balance 'tx "Inputs add up to at least the outputs; the difference is the fee."
+   (rule 'value-balance 'tx "The sum of the inputs is equal to or more than the sum of the outputs. The difference is the fee."
          (λ (x)
            (define in (for/sum ([c (in-list (vctx-spent-coins x))]) (amount-sats (coin-amount c))))
            (define out-total (apply + (output-sats x)))

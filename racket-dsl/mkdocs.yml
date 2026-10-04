@@ -1,5 +1,5 @@
 site_name: Bitcoin DSL
-site_description: A Racket DSL for modelling Bitcoin chains, transactions and soft forks, driven by agents over MCP and checked against real nodes.
+site_description: A Racket DSL that models Bitcoin chains, transactions and soft forks. Agents use it over MCP, and real nodes check its results.
 repo_url: https://github.com/pool2win/bitcoin-dsl
 edit_uri: edit/main/racket-dsl/docs/
 docs_dir: docs
@@ -41,11 +41,11 @@ exclude_docs: |
 
 nav:
   - Home: index.md
-  - Getting started: getting-started.md
+  - Get started: getting-started.md
   - Guides:
-      - Using it over MCP (humans): guides/mcp.md
-      - How agents use it: guides/agents.md
-      - Writing scenarios by hand: guides/scenarios-by-hand.md
+      - Use the MCP server: guides/mcp.md
+      - How agents use the DSL: guides/agents.md
+      - Write scenarios by hand: guides/scenarios-by-hand.md
   - Concepts:
       - The model: concepts/model.md
       - Consensus as a value: concepts/consensus.md
@@ -56,10 +56,10 @@ nav:
       - scenarios/index.md
       - 1. Fund and spend: scenarios/1-fund-and-spend.md
       - 2. HTLC and timelocks: scenarios/2-htlc.md
-      - 3. Sighash and fee bumping: scenarios/3-sighash.md
+      - 3. Sighash and fee bumps: scenarios/3-sighash.md
       - 4. CTV on two chains: scenarios/4-ctv.md
       - 5. p2poolv2 share chain (planned): scenarios/5-share-chain.md
-      - 6. Cross-chain swap (planned): scenarios/6-swap.md
+      - 6. Swap between chains (planned): scenarios/6-swap.md
       - 7. Conformance replay: scenarios/7-conformance.md
   - Reference:
       - Forms: reference/forms.md
@@ -68,4 +68,4 @@ nav:
       - Opcodes: reference/opcodes.md
   - Development:
       - Codebase and tests: development.md
-      - Keeping these docs current: guides/docs.md
+      - Keep the documentation current: guides/docs.md

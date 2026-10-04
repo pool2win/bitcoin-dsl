@@ -1,6 +1,6 @@
 # Scenario 7: Conformance replay against regtest
 
-**Goal:** take a scenario you are happy with in the model, lower it to real keys, signatures and transaction bytes, and replay it against real nodes step by step.
+**Goal:** Take a scenario from the model and lower it to real keys, signatures and transaction bytes. Then replay it against real nodes, step by step.
 
 ```racket
 #lang bitcoin/conform
@@ -18,13 +18,13 @@
 ;     (unsupported #:type legacy))
 ```
 
-Every runnable scenario has a replay test. Scenario 4's, against Core and Inquisition:
+Each scenario that runs has a replay test. This is the replay test of Scenario 4, against Core and Inquisition:
 
 ```racket
 --8<-- "tests/replay-4.rkt"
 ```
 
-And the sighash matrix:
+This is the test of the sighash matrix:
 
 ```racket
 --8<-- "tests/replay-matrix.rkt"
@@ -32,8 +32,8 @@ And the sighash matrix:
 
 ## What you learn
 
-Which model results are backed by a real node. Steps using rules no target implements come back `unverified`, never silently confirmed. A disagreement is either a model bug or an idea that depends on rules that do not exist. Replay has caught real bugs during development: a key-format slip in taproot script-path signatures, and a SIGHASH_SINGLE edge case.
+You learn which results of the model a real node supports. A step that uses rules that no target has returns `unverified`. Replay does not confirm such a step. A disagreement is a bug in the model, or an idea that depends on rules that do not exist. During the development, replay found real bugs: an error in the key format of taproot script-path signatures, and a special case of SIGHASH_SINGLE.
 
-See [Conformance replay](../concepts/conformance.md) for how lowering, targets, the policy/consensus distinction and the matrix work.
+[Conformance replay](../concepts/conformance.md) explains how replay lowers values, the targets, the difference between policy and consensus, and the matrix.
 
-**Forms used:** `replay`, `regtest`, `summary`, `disagreements`, `unverified-steps`, `run-steps`, `sighash-matrix`.
+**Forms in this scenario:** `replay`, `regtest`, `summary`, `disagreements`, `unverified-steps`, `run-steps`, `sighash-matrix`.

@@ -1,10 +1,10 @@
 # Results and traces
 
-Every value an agent branches on has a fixed shape and prints in keyword form, so it reads back as data.
+Each value that an agent uses for decisions has a fixed shape. It prints in keyword form, thus you can read it back as data.
 
 ## Validation results
 
-`try`, `broadcast` and `confirm` return one of:
+`try`, `broadcast` and `confirm` return one of these values:
 
 ```racket
 (accepted #:chain mainnet #:tx #<tx pay 20a17961> #:step 4 #:trace 1)
@@ -13,30 +13,30 @@ Every value an agent branches on has a fixed shape and prints in keyword form, s
           #:need 100 #:have 51 #:step 5 #:trace 2)
 ```
 
-| Field | Meaning |
+| Field | Description |
 |---|---|
-| `#:chain` | the chain the tx was validated on |
-| `#:rule` | the rule that failed: a [consensus rule](rules.md), a script-level rule, or an opcode |
-| `#:input` | the input index, for input-scoped rules |
-| rule details | rule-specific, e.g. `#:need`/`#:have`, `#:outpoint`, `#:cause`, `#:fields`, `#:expected`/`#:got` |
-| `#:step` | the position of this event in the scenario log |
-| `#:trace` | the trace id, for `explain` |
+| `#:chain` | The chain where the DSL validated the tx. |
+| `#:rule` | The rule that failed: a [consensus rule](rules.md), a script rule or an opcode. |
+| `#:input` | The input index, for rules with the scope `input`. |
+| Rule details | Details for each rule, for example `#:need` and `#:have`, `#:outpoint`, `#:cause`, `#:fields`, `#:expected` and `#:got`. |
+| `#:step` | The position of this event in the scenario log. |
+| `#:trace` | The trace id, for `explain`. |
 
-Accessors: `accepted?`, `rejected?`, `rejected-rule`, `rejected-chain`, `rejected-input`, `(result-detail r 'need)`.
+Use these accessors to read a result: `accepted?`, `rejected?`, `rejected-rule`, `rejected-chain`, `rejected-input` and `(result-detail r 'need)`.
 
-Common details:
+These details occur frequently:
 
-| Detail | Seen on | Meaning |
+| Detail | Rules | Description |
 |---|---|---|
-| `#:need`, `#:have` | `coinbase-maturity`, `sequence-lock`, `locktime-final`, `csv`, `cltv` | what the rule requires and what the tx has |
-| `#:cause` | `eval-false`, `checksig`, `checksigverify`, `key-path-sig` | why a signature failed: `empty-signature`, `not-a-signature`, `wrong-key`, `commitment-mismatch`, `single-without-output` |
-| `#:fields` | commitment mismatches, `ctv-template-mismatch` | the committed fields that differ |
-| `#:expected`, `#:got` | `ctv-template-mismatch` | the template's and the tx's values for those fields |
-| `#:reason` | `csv`, `cltv`, `witness-program-mismatch` | which check failed |
+| `#:need`, `#:have` | `coinbase-maturity`, `sequence-lock`, `locktime-final`, `csv`, `cltv` | The value that the rule must have, and the value that the tx has. |
+| `#:cause` | `eval-false`, `checksig`, `checksigverify`, `key-path-sig` | The cause of the signature failure: `empty-signature`, `not-a-signature`, `wrong-key`, `commitment-mismatch` or `single-without-output`. |
+| `#:fields` | Commitment mismatches, `ctv-template-mismatch` | The committed fields that are different. |
+| `#:expected`, `#:got` | `ctv-template-mismatch` | The values of those fields in the template and in the tx. |
+| `#:reason` | `csv`, `cltv`, `witness-program-mismatch` | The check that failed. |
 
 ## Traces and `explain`
 
-`(explain trace-or-id)` returns one entry per rule and per opcode, in order. Stacks are shown top first.
+`(explain trace-or-id)` returns one entry for each rule and each opcode, in order. The stacks show the top item first.
 
 ```racket
 (rule inputs-nonempty pass)
@@ -48,20 +48,20 @@ Common details:
 (rule sequence-lock #:input 0 fail #:need 144 #:have 1 #:doc "BIP68: …")
 ```
 
-- `#:as` on an `op` entry: the opcode the chain actually ran for the script's name (e.g. `ctv` running as `nop4`).
-- `#:as` on a failing `rule` entry: the more specific rule the failure names (e.g. `eval-false` inside `witness-script`).
-- `#:doc`: the failing rule's documentation.
+- `#:as` on an `op` entry gives the opcode that the chain ran for the name in the script. For example, `ctv` runs as `nop4` on `bitcoin`.
+- `#:as` on a `rule` entry that failed gives the more specific rule of the failure. For example, `eval-false` occurs in `witness-script`.
+- `#:doc` gives the documentation of the rule that failed.
 
-`(last-trace)` returns the most recent trace; `trace-events` gives the raw events.
+`(last-trace)` returns the most recent trace. `trace-events` gives the events without a change.
 
 ## Other shapes
 
 | Form | Returns |
 |---|---|
 | `branches` | `((claim #:needs ((sig bob) (preimage s1))) …)` |
-| `commits` | a list of field names |
-| `free-fields` | a list of edit descriptors, e.g. `((inputs append) (inputs remove-others))` |
-| `mutate` | `(breaks ((sig alice 0 #:fields ((outputs all)))))`; `breaks-entries` and `intact?` read it |
+| `commits` | A list of field names. |
+| `free-fields` | A list of edits, for example `((inputs append) (inputs remove-others))`. |
+| `mutate` | `(breaks ((sig alice 0 #:fields ((outputs all)))))`. Read it with `breaks-entries` and `intact?`. |
 | `sighash-search` | `((wpkh (all anyonecanpay)) …)` |
 | `diff-consensus` | `((opcode #xb3 nop4 -> ctv) (rule + name) (param k old -> new) …)` |
 | `audit` | `((warning #:rule-unenforced ctv #:chain mainnet #:runs-as nop4))` or `()` |
@@ -69,7 +69,7 @@ Common details:
 
 ## Replay results
 
-`replay` returns a run. `(summary run)` gives `((confirmed n) (disagree n) (unverified n))`; `run-steps`, `disagreements` and `unverified-steps` give steps, each printing as
+`replay` returns a run. `(summary run)` gives `((confirmed n) (disagree n) (unverified n))`. `run-steps`, `disagreements` and `unverified-steps` give steps. Each step prints like this:
 
 ```racket
 (confirmed #:step 4 (broadcast mainnet #<tx pay 20a17961> accepted))
@@ -77,6 +77,6 @@ Common details:
 (unverified #:step 13 (try signet …) (#:reason (model-only-rule ctv)))
 ```
 
-and readable with `step-n`, `step-status`, `step-event` and `step-detail`. A confirmed step may carry `#:mempool-only reason`: the node's mempool refused the tx by policy but a block would accept it.
+Read a step with `step-n`, `step-status`, `step-event` and `step-detail`. A confirmed step can have `#:mempool-only reason`. This means that the mempool of the node refused the tx because of policy, but a block can include it.
 
-`sighash-matrix` returns rows `(status #:type t #:flags f #:edit e #:model verdict …)`, or `(unsupported #:type t)`.
+`sighash-matrix` returns rows `(status #:type t #:flags f #:edit e #:model verdict …)` or `(unsupported #:type t)`.

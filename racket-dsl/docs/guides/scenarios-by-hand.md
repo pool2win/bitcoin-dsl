@@ -1,17 +1,17 @@
-# Writing scenarios by hand
+# Write scenarios by hand
 
-You can write the DSL directly as Racket modules. This is how the test suite is written, and it is the fastest way to iterate on the language itself.
+You can write the DSL directly as Racket modules. The test suite uses this method. It is also the fastest method to change and test the language.
 
-## Two languages
+## The two languages
 
 | Language | Use |
 |---|---|
-| `#lang bitcoin/model` | All of Racket plus the modelling forms. No real nodes. |
-| `#lang bitcoin/conform` | Everything in `bitcoin/model` plus `replay`, `regtest`, `sighash-matrix` and the run accessors. |
+| `#lang bitcoin/model` | All of Racket plus the forms for models. It does not use real nodes. |
+| `#lang bitcoin/conform` | All of `bitcoin/model` plus `replay`, `regtest`, `sighash-matrix` and the accessors for runs. |
 
-Both are full Racket: `define`, `for/list`, `require`, macros and `rackunit` all work. A module's top-level expressions print their values when run; wrap state-changing calls you do not want printed in `void`, e.g. `(void (mine 100 #:on mainnet))`.
+Both languages are full Racket. You can use `define`, `for/list`, `require`, macros and `rackunit`. When you run a module, Racket prints the value of each top-level expression. To stop the print of a call that changes state, put it in `void`, for example `(void (mine 100 #:on mainnet))`.
 
-## Skeleton
+## A skeleton
 
 ```racket
 #lang bitcoin/conform
@@ -31,19 +31,19 @@ Both are full Racket: `define`, `for/list`, `require`, macros and `rackunit` all
 (check-equal? (cadr (assq 'disagree (summary (replay (scenario-log) #:targets (hash 'mainnet (regtest)))))) 0)
 ```
 
-Run it with `racket file.rkt`, or as a test with `raco test file.rkt`.
+To run it, use `racket file.rkt`. To run it as a test, use `raco test file.rkt`.
 
 ## Conventions
 
-- **Chain names.** Name chains `mainnet`, `signet` and so on. Do not name a chain `btc`: that is the amount constructor.
-- **`define-tx` vs `spend`.** `define-tx` is a definition form: it binds the tx and every output label as top-level variables. `spend` is an expression for one-off `try` calls; reach its outputs with `(out tx 'label)`.
-- **`mine` returns a list.** Use `(first (mine 1 …))` for a single coin.
-- **One session per module.** The session state is per Racket namespace. Separate test files get separate sessions; within a file, use different chain names or `reset-session!`.
-- **Many chains in a loop.** Definition forms work in internal-definition contexts, so `(for/list ([ch (list mainnet signet)]) (define-tx …) …)` works; see [Scenario 4](../scenarios/4-ctv.md).
+- **Chain names.** Give chains names such as `mainnet` and `signet`. Do not give a chain the name `btc`, because `btc` is the amount constructor.
+- **`define-tx` and `spend`.** `define-tx` is a definition form. It binds the tx and each output label as top-level variables. `spend` is an expression for a single `try`. To get its outputs, use `(out tx 'label)`.
+- **`mine` returns a list.** For one coin, use `(first (mine 1 …))`.
+- **One session for each module.** The session state is per Racket namespace. Each test file has its own session. In one file, use different chain names, or use `reset-session!`.
+- **Many chains in a loop.** Definition forms operate in contexts that permit internal definitions. Thus `(for/list ([ch (list mainnet signet)]) (define-tx …) …)` is correct. See [Scenario 4](../scenarios/4-ctv.md).
 
-## Testing patterns
+## Patterns for tests
 
-Use `rackunit` on result values:
+Use `rackunit` on the result values:
 
 ```racket
 (define r (try refund))
@@ -51,7 +51,9 @@ Use `rackunit` on result values:
 (check-equal? (result-detail r 'need) 144)
 ```
 
-Test a property across many cases with plain Racket loops; [`tests/sighash.rkt`](https://github.com/pool2win/bitcoin-dsl/blob/main/racket-dsl/tests/sighash.rkt) checks `free-fields` against verification for every flag set and edit. Add a `replay` at the end of a scenario file to check it against Core; replay tests should skip when `bitcoind` is missing:
+To test a property in many cases, use Racket loops. For example, [`tests/sighash.rkt`](https://github.com/pool2win/bitcoin-dsl/blob/main/racket-dsl/tests/sighash.rkt) checks `free-fields` against validation for each flag set and each edit.
+
+To check a scenario against Core, add a `replay` at the end of the file. Make the replay test stop without failure when `bitcoind` is not available:
 
 ```racket
 (if (find-executable-path "bitcoind")
