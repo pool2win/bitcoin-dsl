@@ -60,8 +60,8 @@ nav:
       - 2. HTLC and timelocks: scenarios/2-htlc.md
       - 3. Sighash and fee bumps: scenarios/3-sighash.md
       - 4. CTV on two chains: scenarios/4-ctv.md
-      - 5. p2poolv2 share chain (planned): scenarios/5-share-chain.md
-      - 6. Swap between chains (planned): scenarios/6-swap.md
+      - 5. Litecoin and an atomic swap (planned): scenarios/5-litecoin-swap.md
+      - 6. Swap between chains with actors (planned): scenarios/6-swap.md
       - 7. Conformance replay: scenarios/7-conformance.md
   - Reference:
       - Forms: reference/forms.md

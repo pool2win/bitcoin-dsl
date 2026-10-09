@@ -90,7 +90,7 @@ To start, read [Get started](getting-started.md) and [Write scenarios by hand](g
 | All BIP143 and BIP341 sighash flags, `commits`, `free-fields`, `mutate`, `sighash-search` | Done ([Scenario 3](scenarios/3-sighash.md)) |
 | Composition of rule sets, CTV, `diff-consensus`, `audit`, more than one chain | Done ([Scenario 4](scenarios/4-ctv.md)) |
 | Replay against Core and Inquisition, `sighash-matrix` | Done ([Scenario 7](scenarios/7-conformance.md)) |
-| Share chains (p2poolv2) | Planned ([Scenario 5](scenarios/5-share-chain.md)) |
+| Litecoin as a second chain, and contracts across bitcoin and litecoin | Planned ([Scenario 5](scenarios/5-litecoin-swap.md)) |
 | Actors, swaps between chains, exploration of faults | Planned ([Scenario 6](scenarios/6-swap.md)) |
 
 ## Where to go next

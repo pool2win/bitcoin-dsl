@@ -191,80 +191,98 @@ Forces: `define-consensus`, `#:extends`, opcode upgrades, `diff-consensus`, mult
 
 As built (v1): opcodes are identified by byte, so the script's `ctv` runs as NOP4 on mainnet (`explain` shows `#:as nop4`). `define-consensus` also takes `#:rules (add r) (remove n) (replace n r)`, `#:params (set k v)` and `#:sighash (add version selector)`. A template mismatch names the fields that differ (`#:fields ((outputs all))`), and `audit` returns a list of warnings, `'()` when clean. The test also checks an honest template-matching spend on both chains, so a broken lowering cannot hide behind the thief's rejection. Replayed with mainnet on Core and signet on Bitcoin Inquisition, all 14 steps are confirmed; with signet on Core, the two CTV-executing spends come back `(unverified #:reason (model-only-rule ctv))`.
 
-## Scenario 5: p2poolv2 share chain alongside bitcoin
+## Scenario 5: Litecoin alongside bitcoin, and an atomic swap between them
 
-Goal: model a share chain whose rules differ from bitcoin's in difficulty, uncles and payouts, linked to a parent bitcoin chain. Then check payouts and uncle handling under latency.
+Goal: run a second real chain with different consensus parameters next to bitcoin, then build a contract that spans both: an atomic swap of Alice's LTC for Bob's BTC. Drive it step by step on one shared clock, show that the timeouts must be compared in wall time, and show the losing order of events when they are not.
 
 ```racket
-(define-consensus p2poolv2-share
-  #:kind    share-chain
-  #:parent  bitcoin
-  #:pow     (asert #:spacing share-spacing #:half-life hl)
-  #:uncles  (max 3 #:split 90/10)
-  #:payout  (pplns #:window w)
-  #:commit  muhash)
+#lang bitcoin/conform
+(chain mainnet #:rules bitcoin)     ; 10-minute blocks
+(chain litenet #:rules litecoin)    ; 2.5-minute blocks, 84M supply
+(keys alice bob)
+(define s (secret 'swap))
 
-(chain mainnet   #:rules bitcoin)
-(chain share #:rules p2poolv2-share #:parent mainnet)
+(contract swap-htlc (sender receiver secret timeout)
+  (or [claim  (and (pk receiver) (sha256 secret))]
+      [refund (and (pk sender) (older timeout))]))
 
-(miners #:on share #:seed 7
-  (m1 #:hashrate 30%)
-  (m2 #:hashrate 70%))
-(network #:latency (uniform 50 400 ms))
+(define a-coin (first (mine 1 #:on litenet #:to alice)))   ; Alice has LTC
+(define b-coin (first (mine 1 #:on mainnet #:to bob)))     ; Bob has BTC
+(advance (hours 17))   ; one clock: mines 102 btc blocks and 408 ltc blocks
 
-(run #:until (blocks 10 #:on mainnet))
+;; Alice knows s and locks first, with the longer timeout.
+(define-tx alice-lock
+  #:inputs  ([a-coin #:sign alice])
+  #:outputs ([on-ltc (swap-htlc alice bob s 576) (ltc 49.99)]))   ; 576 ltc blocks = 24 h
+(confirm alice-lock)
+(define-tx bob-lock
+  #:inputs  ([b-coin #:sign bob])
+  #:outputs ([on-btc (swap-htlc bob alice s 72) (btc 49.99)]))    ; 72 btc blocks = 12 h
+(confirm bob-lock)
 
-(uncles share)               ; shares included as uncles, by miner
-(payouts mainnet #:to '(m1 m2))  ; sums across found bitcoin blocks
-(check (within 5% (share-of m1 (payouts mainnet)) 30%))
+(refund-times on-ltc on-btc)
+; => ((on-ltc #:chain litenet #:refund-after (hours 24))
+;     (on-btc #:chain mainnet #:refund-after (hours 12)))
+(swap-check #:initiator on-ltc #:participant on-btc)
+; => ()   the initiator's refund opens after the participant's
 
-(repeat 200 #:vary seed (payouts mainnet #:to 'm1))  ; variance
+;; Alice claims the BTC, which reveals s on mainnet; Bob reads it and claims the LTC.
+(define claim-btc (spend on-btc #:path 'claim #:sign alice #:reveal s
+                    #:outputs (list (output 'a (wpkh alice) (btc 49.98)))))
+(confirm claim-btc)
+(revealed claim-btc)                      ; => (list s)
+(confirm (spend on-ltc #:path 'claim #:sign bob #:reveal s
+           #:outputs (list (output 'b (wpkh bob) (ltc 49.98)))))
+
+;; The broken variant: Alice's LTC lock is 144 ltc blocks = 6 h, shorter than
+;; Bob's 12 h. swap-check warns, and the losing order is reproducible:
+;; after 6 h Alice refunds her LTC, then still claims Bob's BTC before 12 h.
+; (swap-check ...) => ((warning #:initiator-refund-first (hours 6) #:participant-refund (hours 12)))
+
+(replay (scenario-log) #:targets (hash 'mainnet (regtest)
+                                       'litenet (regtest #:build 'litecoin)))
 ```
 
-Parameter values (`share-spacing`, `hl`, `w`) are placeholders, to be filled from the real p2poolv2 settings.
+The agent learns that a contract across chains is only as safe as the ordering of its timeouts in wall time, that block counts on chains with different spacing are not comparable, and that a secret revealed on one chain is visible to the other party. These are the contracts we devise and check between bitcoin and litecoin first, before automating the search in Scenario 6.
 
-The agent learns how rule changes (window, uncle split, DAA) shift payouts and variance, without running real nodes. When a share meets the parent target, the engine produces a bitcoin block whose coinbase pays the PPLNS split.
-
-Forces: chain kinds beyond tx chains, `#:parent` linkage, `miners` with seeded hashrate, `network` latency, simulated time, `run`, `repeat` with statistics, `check`, payout queries.
+Forces: a built-in `litecoin` consensus value (bitcoin's script, segwit, taproot and sighash; 150-second blocks; 84M max money; litecoin regtest parameters), an `ltc` amount constructor and per-chain units, a shared simulated clock (`advance`, `hours`, `now`, wall-time conversion of block counts), `refund-times` and `swap-check` for cross-chain timeout ordering, `revealed` to read preimages from a spend, replay against a Litecoin Core regtest node.
 
 ## Scenario 6: Cross-chain swap with actors and faults
 
-Goal: an operator swaps Alice's coins on a fast side chain for bitcoin. Explore interleavings and faults, and find a timeout choice that loses Alice money.
+Goal: the swap of Scenario 5, but driven by actors instead of by hand. Explore interleavings and faults across bitcoin and litecoin, and find a timeout choice that loses money.
 
 ```racket
-(define-consensus side-rules #:extends bitcoin
-  #:pow (fixed-spacing 60 s))
-(chain mainnet  #:rules bitcoin)
-(chain side #:rules side-rules)
+(chain mainnet #:rules bitcoin)
+(chain litenet #:rules litecoin)
 
-(actor alice #:chains (side mainnet)
-  #:fund ([on-side side (btc 1)])     ; labeled starting coin
+(actor alice #:chains (litenet mainnet)
+  #:fund ([on-ltc litenet (ltc 1)])     ; labeled starting coin
   (on (start)
-      (lock-htlc #:from on-side #:to op #:secret s
+      (lock-htlc #:from on-ltc #:to op #:secret s
                  #:timeout (blocks 144))
       (send op 'locked))
   (on (seen-htlc #:on mainnet #:to alice) (claim #:reveal s)))
 
-(actor op #:chains (side mainnet)
+(actor op #:chains (litenet mainnet)
   #:fund ([on-btc mainnet (btc 1)])
   (on (msg 'locked)
       (lock-htlc #:from on-btc #:to alice
                  #:hash (hash-of s) #:timeout (blocks 72)))
-  (on (seen-preimage s) (claim #:on side)))
+  (on (seen-preimage s) (claim #:on litenet)))
 
 (explore #:interleavings 500 #:seed 3
   #:faults (list (offline op #:after 'locked)
                  (delay-msgs (uniform 0 2 h)))
-  #:invariant (no-loss alice))
+  #:invariant (no-loss op))
 ; => (counterexample
-;     #:why (timeout-order side 144 blocks = 2.4 h
+;     #:why (timeout-order litenet 144 blocks = 6 h
 ;            < mainnet 72 blocks = 12 h)
 ;     #:schedule <id>)
 ```
 
-The agent learns that timeouts must be compared in wall time across chains with different block spacing, then tunes them until `explore` finds no counterexample.
+The agent learns to let `explore` find the bad orderings that Scenario 5 shows by hand, then tunes the timeouts until `explore` finds no counterexample.
 
-Forces: `actor`, `on` handlers, `send`, chain events (`seen-htlc`, `seen-preimage`), a deterministic scheduler over all chains' clocks, `explore`, fault injection, invariants, replayable counterexample schedules.
+Forces: `actor`, `on` handlers, `send`, chain events (`seen-htlc`, `seen-preimage`), a deterministic scheduler over all chains' clocks (built on Scenario 5's shared clock), `explore`, fault injection, invariants, replayable counterexample schedules.
 
 ## Scenario 7: Conformance replay against regtest
 
@@ -317,7 +335,7 @@ v0 is the forms needed by Scenarios 1 to 3, plus the scenario log and enough con
 | Conformance | `lower`, `replay` for P2WPKH only | 7 | Yes |
 | Sighash search | `sighash-search`, `sighash-matrix` | 3, 7 | v1 (done) |
 | Rule composition | `define-consensus`, `#:extends`, `diff-consensus`, `audit`, `template` | 4 | v1 (done) |
-| Other chain kinds | share chains, `#:parent`, `miners`, `network`, `run`, `repeat` | 5 | v2 |
+| Second chain and cross-chain contracts | `litecoin`, `ltc`, shared clock (`advance`, `hours`, `now`), `refund-times`, `swap-check`, `revealed`, Litecoin Core replay target | 5 | v2 |
 | Actors | `actor` with `#:fund`, `on`, `send`, scheduler, `explore`, faults, invariants | 6 | v3 |
 
 The one structural decision v0 must get right even though it uses one rule set: rules are named values with trace hooks, not code inside an interpreter loop. Otherwise Scenario 4's `diff-consensus` and Scenario 5's share chain become a rewrite.
@@ -337,6 +355,10 @@ Open questions:
 
 - [x] Scenario log format: typed. The log is a list of event values (`chain`, `mine` with per-block coinbase and included txs, `try`/`broadcast` with the exact tx and the model's verdict) holding the model values themselves. Serialising it to s-expressions is deferred until the MCP step needs it.
 - [ ] How much of the policy language to borrow from miniscript, and whether to compile through rust-miniscript for conformance.
-- [ ] Real p2poolv2 parameter values for Scenario 5, and whether conformance for the share chain runs against local p2poolv2 nodes.
+- [ ] Litecoin regtest specifics to verify against Litecoin Core: subsidy halving interval, coinbase maturity, whether taproot is active on regtest by default, and that `generatetodescriptor`/`generateblock` behave as in Core.
+- [ ] MWEB (Litecoin's extension blocks): out of scope for v2; mark it unsupported. Revisit if a contract needs it.
+- [ ] Amount units: amounts are base units on both chains; decide how results print LTC amounts (per-chain unit on coins and results, or a neutral unit).
+- [ ] How `advance` mines: blocks in timestamp order across chains, each chain at its own spacing, so that cross-chain events interleave deterministically.
 - [ ] Does `explore` enumerate interleavings exhaustively for small cases, or only sample by seed?
+- [x] p2poolv2 share chain: replaced by Litecoin as the second chain (2026-10-09). Share chains may come back later; the p2poolv2 parameters found were 10 s share spacing, 600 s ASERT half-life, max 3 uncles at depth 3, uncle weight 9/10, PPLNS by `pplns_ttl_days = 7`.
 - [ ] Legacy sighash quirks (FindAndDelete, codesep): model them, or mark unsupported until a scenario needs them?

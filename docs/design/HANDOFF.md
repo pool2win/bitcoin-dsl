@@ -9,15 +9,15 @@ Context for continuing this work in Claude Code. Read this first, then `scenario
 
 ## Goal
 
-A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) explore new ideas by iterating on models of chains, transactions and scripts. Scope includes new opcodes and soft forks, new L2 protocols, and multiple chains with different consensus rules, each with their own L2 nodes/operators (e.g. the p2poolv2 share chain alongside bitcoin).
+A Racket DSL that agents drive to (1) describe existing Bitcoin systems and (2) explore new ideas by iterating on models of chains, transactions and scripts. Scope includes new opcodes and soft forks, new L2 protocols, and multiple chains with different consensus rules, each with their own L2 nodes/operators (first: litecoin alongside bitcoin, with contracts that span both).
 
 ## Decisions so far
 
 1. **Agents drive it through a live MCP/REPL session.** Nodes and state persist across calls. Tool surface stays small: `eval`, `snapshot`, `restore`, `explain`, `describe`.
 2. **Two layers joined by a shared scenario log.**
-   - **Model engine** (custom consensus): where agents design and iterate. Needed because p2poolv2's consensus (share chain, ASERT, uncles, PPLNS, MuHash) is not a bitcoind fork, so there is no binary to point at.
-   - **Conformance system**: lowers a model scenario to real keys, signatures, tx bytes and blocks, then replays it against regtest bitcoind (and Inquisition or custom builds) and local p2poolv2 nodes. Per-step status: `confirmed`, `disagree`, or `unverified` (rule exists only in the model). Never silently pass.
-   - Earlier option considered and dropped: "real consensus only" (each chain = a bitcoind build). It can't model p2poolv2 and gives verdicts without explanations.
+   - **Model engine** (custom consensus): where agents design and iterate. Needed so agents get explanations, can try rules no node implements, and can model chains whose consensus is not a bitcoind fork (a share chain such as p2poolv2 was the original motivation; it is deferred).
+   - **Conformance system**: lowers a model scenario to real keys, signatures, tx bytes and blocks, then replays it against regtest bitcoind, Inquisition, Litecoin Core, or custom builds. Per-step status: `confirmed`, `disagree`, or `unverified` (rule exists only in the model). Never silently pass.
+   - Earlier option considered and dropped: "real consensus only" (each chain = a bitcoind build). It gives verdicts without explanations and cannot try rules no build implements.
 3. **Consensus is a composable value, not a fixed interpreter.** `define-consensus` with `#:extends`; every rule is named and has a trace hook from day one. This is the one structural decision v0 must get right, or multi-chain and share chains become a rewrite.
 4. **Don't repeat the bsl trap.** Implement opcodes and rules only as scenarios need them. Mark unimplemented things (e.g. legacy FindAndDelete/codesep) as unsupported rather than half-implementing.
 5. **Symbolic crypto in the model, exact sighash.**
@@ -78,9 +78,17 @@ User and agent docs live in `docs/` (MkDocs Material; `mkdocs.yml`); these desig
 
 ## Next step
 
-v2, Scenario 5: share chains (`#:kind share-chain`, `#:parent`), `miners` with seeded hashrate, `network` latency, simulated time, `run`, `repeat` with statistics. Fill in real p2poolv2 parameters first. An agent given Scenario 4's goals in prose completed it over MCP in 34 tool calls, including both replays; its friction led to binding `inquisition` in eval, `regtest`/`run-steps`/`unverified-steps` docs and group topics in describe, `#:expected`/`#:got` on CTV mismatches, and `spend #:name`.
+v2, Scenario 5 (changed 2026-10-09): litecoin as a second real chain instead of the p2poolv2 share chain, then contracts that work between bitcoin and litecoin. Build:
+
+- a built-in `litecoin` consensus value (extends `bitcoin`: 150 s blocks, 84M max money, litecoin regtest parameters; MWEB unsupported) and an `ltc` amount constructor; `max-money` becomes a parameter;
+- one shared simulated clock: `advance` mines every chain in timestamp order at its own spacing; `hours`, `now`, wall-time conversion of block counts;
+- cross-chain contract checks: `refund-times`, `swap-check` (initiator's refund must open after the participant's, in wall time), `revealed` (preimages a spend exposes);
+- a Litecoin Core replay target (`(regtest #:build 'litecoin)`), with Litecoin Core installed locally (release binary or build);
+- Scenario 5 tests, replay, docs, and an MCP agent run.
+
+Then v3 (Scenario 6): actors and `explore` over bitcoin + litecoin. An agent given Scenario 4's goals in prose completed it over MCP in 34 tool calls, including both replays.
 
 ## Things to fill in
 
-- Real p2poolv2 parameters for Scenario 5 (share spacing, ASERT half-life, PPLNS window) are placeholders.
+- Litecoin regtest specifics (see the open questions in `scenarios.md`) must be checked against Litecoin Core before the `litecoin` consensus value is final.
 - Open questions are listed at the end of `scenarios.md`.
